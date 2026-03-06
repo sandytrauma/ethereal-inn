@@ -5,58 +5,85 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { encrypt } from "../auth";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation"; // Added for routing
+import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 
+/**
+ * Handles Staff and Admin Login
+ * Note: redirect() throws a NEXT_REDIRECT error which is caught 
+ * internally by Next.js. We keep it outside the try/catch block.
+ */
 export async function loginUser(prevState: any, formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  // We'll store the redirect path here to avoid calling redirect inside a try/catch
+  // Early validation
+  if (!email || !password) {
+    return { error: "Please enter both email and password." };
+  }
+
   let success = false;
 
   try {
     // 1. Fetch user from Drizzle
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase().trim()));
 
-    if (!user) return { error: "User not found" };
+    if (!user) {
+      return { error: "Account not found." };
+    }
 
-    // 2. Check Password
+    // 2. Verify Password with bcrypt
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    if (!isPasswordCorrect) return { error: "Invalid password" };
+    if (!isPasswordCorrect) {
+      return { error: "Incorrect password. Please try again." };
+    }
 
-    // 3. Create Session
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // 3. Create Session Payload
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 Hours
     const session = await encrypt({ 
       userId: user.id, 
       role: user.role,
-      name: user.name // Added name for the dashboard UI
+      name: user.name 
     });
 
-    // 4. Set Cookie
+    // 4. Set Secure Cookie
     const cookieStore = await cookies();
     cookieStore.set("auth-token", session, { 
       expires, 
       httpOnly: true, 
       secure: process.env.NODE_ENV === "production",
       sameSite: 'lax',
-      path: '/' // Ensure cookie is available globally
+      path: '/',
+      priority: 'high' // Ensures the redirect picks up the cookie immediately
     });
 
     success = true;
   } catch (e) {
-    console.error("Login Error:", e);
-    return { error: "Authentication failed. Please try again." };
+    console.error("Login Server Error:", e);
+    return { error: "A server error occurred. Please try again." };
   }
 
-  // Next.js redirect must be called outside of the try/catch block
+  // 5. Final Redirect
   if (success) {
-    redirect("/"); // Or "/dashboard" depending on your setup
+    // Ensure this matches your protected route (usually "/" or "/dashboard")
+    redirect("/"); 
   }
 }
 
+/**
+ * Clears session and redirects to public landing
+ */
 export async function logout() {
   const cookieStore = await cookies();
-  cookieStore.set("auth-token", "", { expires: new Date(0) });
+  
+  // Clear the cookie by setting expiration to past
+  cookieStore.set("auth-token", "", { 
+    expires: new Date(0),
+    path: '/' 
+  });
+  
   redirect("/login");
 }

@@ -1,11 +1,19 @@
-import { getSession } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { decrypt } from "@/lib/auth";
 import Dashboard from "@/components/Dashboard";
-import LoginPage from "@/components/Login";
+import LandingLoginPage from "@/components/Login";
 
 export default async function Page() {
-  const session = await getSession();
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
 
-  // If this is your app/page.tsx, visit http://localhost:3000/ (root)
-  if (!session) return <LoginPage />;
-  return <Dashboard user={session} />;
+  // Verify session on the server
+  const session = token ? await decrypt(token).catch(() => null) : null;
+
+  // Show internal system if logged in, otherwise public site
+  if (session) {
+    return <Dashboard user={session} />;
+  }
+
+  return <LandingLoginPage />;
 }
