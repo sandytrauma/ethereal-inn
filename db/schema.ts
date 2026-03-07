@@ -93,6 +93,9 @@ export const financialRecords = pgTable("financial_records", {
   
   // Expenses
   pettyExpenses: numeric("petty_expenses", { precision: 12, scale: 2 }).default("0").notNull(),
+
+  roomRevenue: numeric("room_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
+  serviceRevenue: numeric("service_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
   
   // Totals
   totalCollection: numeric("total_collection", { precision: 12, scale: 2 }).default("0").notNull(),

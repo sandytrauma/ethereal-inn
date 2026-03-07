@@ -10,9 +10,26 @@ export default async function Page() {
   // Verify session on the server
   const session = token ? await decrypt(token).catch(() => null) : null;
 
-  // Show internal system if logged in, otherwise public site
+  // --- DEBUGGING: Check your terminal logs to see the structure ---
   if (session) {
-    return <Dashboard user={session} />;
+    console.log("Server Session Data:", session);
+  }
+
+  if (session) {
+    // Ensure we are passing a clean user object with a guaranteed ID
+    const safeUser = {
+      id: session.id || session.userId || session.sub, // Fallbacks for common ID names
+      name: session.name || "User",
+      role: session.role || "staff",
+      email: session.email || ""
+    };
+
+    // If even after fallbacks ID is missing, we handle it
+    if (!safeUser.id) {
+      console.error("Critical: Session decrypted but no ID found.");
+    }
+
+    return <Dashboard user={safeUser} />;
   }
 
   return <LandingLoginPage />;
