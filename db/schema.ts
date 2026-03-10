@@ -137,3 +137,20 @@ export const inquiriesRelations = relations(inquiries, ({ one }) => ({
     references: [clients.id],
   }),
 }));
+
+export const rooms = pgTable("rooms", {
+  id: serial("id").primaryKey(),
+  number: integer("number").notNull().unique(),
+  floor: integer("floor").notNull(),
+  status: text("status").$type<"available" | "occupied" | "cleaning" | "maintenance">().default("available"),
+  guestName: text("guest_name"),
+  checkInTime: timestamp("check_in_time"),
+});
+
+export const invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  roomNumber: integer("room_number"),
+  guestName: text("guest_name"),
+  totalAmount: integer("total_amount"),
+  checkoutDate: timestamp("checkout_date").defaultNow(),
+});

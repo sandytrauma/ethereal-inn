@@ -1,9 +1,9 @@
 "use server";
 
 import { db } from "@/db";
-import { financialRecords, users } from "@/db/schema";
+import { financialRecords, rooms, users } from "@/db/schema";
 import { revalidatePath } from "next/cache";
-import { desc, sql, eq, gte, and } from "drizzle-orm";
+import { desc, sql, eq, gte, and, asc } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "../auth"; 
 import { z } from "zod";
@@ -125,5 +125,52 @@ export async function getReportData(period: 'month' | 'quarter' | 'year') {
       .orderBy(desc(financialRecords.createdAt));
   } catch (e) {
     return [];
+  }
+}
+
+export async function getRoomsList() {
+  try {
+    // Fetches all rooms from your Drizzle schema and orders them (101, 102...)
+    const allRooms = await db.select().from(rooms).orderBy(asc(rooms.number));
+    return allRooms;
+  } catch (error) {
+    console.error("Database Error: Failed to fetch rooms", error);
+    return [];
+  }
+}
+
+export async function checkInGuest(roomNumber: string, guestName: string) {
+  try {
+    await db.update(rooms)
+      .set({ 
+        status: 'occupied', 
+        guestName: guestName,
+        // Optional: you could add a 'lastUpdated' timestamp here if your schema has it
+      })
+      .where(eq(rooms.number, Number(roomNumber)));
+
+    // This clears the cache so the dashboard shows the new red 'Occupied' card immediately
+    revalidatePath("/staff/dashboard"); 
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Check-in failed:", error);
+    return { success: false, error: "Could not complete check-in" };
+  }
+}
+
+export async function checkOutGuest(roomNumber: string) {
+  try {
+    await db.update(rooms)
+      .set({ 
+        status: 'available', 
+        guestName: null 
+      })
+      .where(eq(rooms.number, Number(roomNumber)));
+
+    revalidatePath("/staff/dashboard");
+    return { success: true };
+  } catch (error) {
+    return { success: false };
   }
 }
