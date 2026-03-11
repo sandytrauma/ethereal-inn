@@ -3,10 +3,9 @@
 import { db } from "@/db";
 import { financialRecords, rooms, users } from "@/db/schema";
 import { revalidatePath } from "next/cache";
-import { desc, sql, eq, gte, and, asc } from "drizzle-orm";
+import { desc, sql, eq, gte, asc, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "../auth"; 
-import { z } from "zod";
 
 // --- UTILITY: DATE FILTER HELPER ---
 function getStartDate(period: 'month' | 'quarter' | 'year') {
@@ -24,11 +23,11 @@ export async function getFinancialSummary(period: 'month' | 'quarter' | 'year' =
 
     const [summary] = await db
       .select({
-        totalRevenue: sql<string>`coalesce(sum(cast(cash_revenue as numeric) + cast(upi_revenue as numeric) + cast(ota_payouts as numeric)), '0')`,
+        totalRevenue: sql<string>`coalesce(sum(cast(total_collection as numeric)), '0')`,
         totalExpenses: sql<string>`coalesce(sum(cast(petty_expenses as numeric)), '0')`,
       })
       .from(financialRecords)
-      .where(gte(financialRecords.createdAt, startDate)); // Filtering by selected period
+      .where(gte(financialRecords.date, startDate));
 
     const revenue = Number(summary?.totalRevenue || 0);
     const expenses = Number(summary?.totalExpenses || 0);
@@ -53,6 +52,7 @@ export async function getFullHistory() {
     return await db
       .select({
         id: financialRecords.id,
+        date: financialRecords.date,
         createdAt: financialRecords.createdAt,
         totalCollection: financialRecords.totalCollection,
         cashRevenue: financialRecords.cashRevenue,
@@ -60,51 +60,99 @@ export async function getFullHistory() {
         otaPayouts: financialRecords.otaPayouts,
         roomRevenue: financialRecords.roomRevenue,
         serviceRevenue: financialRecords.serviceRevenue,
+        status: financialRecords.status,
         staffName: users.name, 
       })
       .from(financialRecords)
-      .leftJoin(users, eq(financialRecords.createdById, users.id)) 
-      .orderBy(desc(financialRecords.createdAt))
-      .limit(50); // Optimization: only show last 50 entries
+      .leftJoin(users, eq(financialRecords.userId, users.id)) 
+      .orderBy(desc(financialRecords.date))
+      .limit(50);
   } catch (e) { 
     console.error("History fetch error:", e);
     return []; 
   }
 }
 
-// --- 3. GET STAFF MEMBERS ---
+// --- 3. GET STAFF MEMBERS (FIXED EXPORT) ---
 export async function getStaffMembers() {
   try {
-    return await db.select({ id: users.id, name: users.name, role: users.role }).from(users);
-  } catch (e) { return []; }
+    return await db
+      .select({ 
+        id: users.id, 
+        name: users.name, 
+        role: users.role,
+        email: users.email 
+      })
+      .from(users)
+      .orderBy(asc(users.name));
+  } catch (e) { 
+    console.error("Staff fetch error:", e);
+    return []; 
+  }
 }
 
-// --- 4. CLOSE DAYBOOK (SUBMISSION) ---
+// --- 4. GET REPORT DATA (FOR ANALYTICS TAB) ---
+export async function getReportData(period: 'month' | 'quarter' | 'year') {
+  try {
+    const startDate = getStartDate(period);
+    return await db
+      .select()
+      .from(financialRecords)
+      .where(gte(financialRecords.date, startDate))
+      .orderBy(desc(financialRecords.date));
+  } catch (e) {
+    console.error("Report data error:", e);
+    return [];
+  }
+}
+
+// --- 5. RECONCILE / CLOSE DAYBOOK ---
 export async function closeDayBook(formData: any) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
     const session = token ? await decrypt(token) : null;
-    const extractedId = session?.id || session?.userId || session?.sub;
+    const userId = session?.id || session?.userId;
 
-    if (!session || !extractedId) {
+    if (!userId) {
       return { success: false, error: "Unauthorized. Please re-login." };
     }
 
-    const entry = {
-      createdById: Number(extractedId),
-      cashRevenue: String(formData.cashRevenue || "0"),
-      upiRevenue: String(formData.upiRevenue || "0"),
-      otaPayouts: String(formData.otaPayouts || "0"),
-      roomRevenue: String(formData.roomRevenue || "0"), 
-      serviceRevenue: String(formData.serviceRevenue || "0"),
-      pettyExpenses: String(formData.pettyExpenses || "0"),
-      totalCollection: String(formData.totalCollection || "0"),
-      netCash: String(formData.netCash || "0"),
-      notes: formData.notes || "",
-    };
+    const entryDate = new Date();
+    entryDate.setUTCHours(0, 0, 0, 0);
 
-    await db.insert(financialRecords).values(entry);
+    // This Overwrites existing automated checkout data with manual reconciled figures
+    await db.insert(financialRecords)
+      .values({
+        date: entryDate,
+        userId: Number(userId),
+        createdById: Number(userId),
+        cashRevenue: String(formData.cashRevenue || "0"),
+        upiRevenue: String(formData.upiRevenue || "0"),
+        otaPayouts: String(formData.otaPayouts || "0"),
+        roomRevenue: String(formData.roomRevenue || "0"), 
+        serviceRevenue: String(formData.serviceRevenue || "0"),
+        pettyExpenses: String(formData.pettyExpenses || "0"),
+        totalCollection: String(formData.totalCollection || "0"),
+        netCash: String(formData.netCash || "0"),
+        notes: formData.notes || "",
+        status: "reconciled",
+      })
+      .onConflictDoUpdate({
+        target: financialRecords.date,
+        set: {
+          userId: Number(userId),
+          cashRevenue: String(formData.cashRevenue || "0"),
+          upiRevenue: String(formData.upiRevenue || "0"),
+          otaPayouts: String(formData.otaPayouts || "0"),
+          roomRevenue: String(formData.roomRevenue || "0"), 
+          serviceRevenue: String(formData.serviceRevenue || "0"),
+          pettyExpenses: String(formData.pettyExpenses || "0"),
+          totalCollection: String(formData.totalCollection || "0"),
+          netCash: String(formData.netCash || "0"),
+          status: "reconciled",
+        },
+      });
 
     revalidatePath("/dashboard");
     return { success: true };
@@ -115,62 +163,12 @@ export async function closeDayBook(formData: any) {
   }
 }
 
-// --- 5. GET REPORT DATA (FOR ANALYTICS TAB) ---
-export async function getReportData(period: 'month' | 'quarter' | 'year') {
-  try {
-    const startDate = getStartDate(period);
-    return await db.select()
-      .from(financialRecords)
-      .where(gte(financialRecords.createdAt, startDate))
-      .orderBy(desc(financialRecords.createdAt));
-  } catch (e) {
-    return [];
-  }
-}
-
+// --- 6. ROOMS HELPER ---
 export async function getRoomsList() {
   try {
-    // Fetches all rooms from your Drizzle schema and orders them (101, 102...)
-    const allRooms = await db.select().from(rooms).orderBy(asc(rooms.number));
-    return allRooms;
+    return await db.select().from(rooms).orderBy(asc(rooms.number));
   } catch (error) {
-    console.error("Database Error: Failed to fetch rooms", error);
+    console.error("Database Error:", error);
     return [];
-  }
-}
-
-export async function checkInGuest(roomNumber: string, guestName: string) {
-  try {
-    await db.update(rooms)
-      .set({ 
-        status: 'occupied', 
-        guestName: guestName,
-        // Optional: you could add a 'lastUpdated' timestamp here if your schema has it
-      })
-      .where(eq(rooms.number, Number(roomNumber)));
-
-    // This clears the cache so the dashboard shows the new red 'Occupied' card immediately
-    revalidatePath("/staff/dashboard"); 
-    
-    return { success: true };
-  } catch (error) {
-    console.error("Check-in failed:", error);
-    return { success: false, error: "Could not complete check-in" };
-  }
-}
-
-export async function checkOutGuest(roomNumber: string) {
-  try {
-    await db.update(rooms)
-      .set({ 
-        status: 'available', 
-        guestName: null 
-      })
-      .where(eq(rooms.number, Number(roomNumber)));
-
-    revalidatePath("/staff/dashboard");
-    return { success: true };
-  } catch (error) {
-    return { success: false };
   }
 }

@@ -6,7 +6,8 @@ import {
   timestamp, 
   numeric, 
   pgEnum, 
-  boolean 
+  boolean, 
+  decimal
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -50,9 +51,14 @@ export const inquiries = pgTable("inquiries", {
 // 4. Tasks (Internal operations)
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
-  status: taskStatusEnum("status").default("todo"),
+  title: text("title").notNull(), // e.g., "Checkout: Room 101"
+  description: text("description"), // e.g., "Guest: John Doe"
+  status: text("status").default("todo"), // Or your taskStatusEnum
+  
+  // New Reconciliation Fields
+  roomNumber: integer("room_number"), // Ties the task to the specific unit
+  amount: decimal("amount", { precision: 10, scale: 2 }).default("0.00"), // Stores checkout revenue
+  
   assignedTo: integer("assigned_to").references(() => users.id),
   dueDate: timestamp("due_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -84,8 +90,7 @@ export const documents = pgTable("documents", {
 
 export const financialRecords = pgTable("financial_records", {
   id: serial("id").primaryKey(),
-  date: timestamp("date").defaultNow().notNull(),
-  
+date: timestamp("date").defaultNow().notNull().unique(),  
   // Revenue
   cashRevenue: numeric("cash_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
   upiRevenue: numeric("upi_revenue", { precision: 12, scale: 2 }).default("0").notNull(),

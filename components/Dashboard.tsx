@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, History, Settings, TrendingUp, TrendingDown, 
   Plus, BarChart3, LogOut, Wallet, Activity, Zap, CheckCircle2,
-  DoorOpen // Added for Occupancy
+  DoorOpen 
 } from 'lucide-react';
 
 // SERVER ACTIONS & COMPONENTS
@@ -13,16 +13,15 @@ import {
   getFinancialSummary, 
   getFullHistory, 
   getStaffMembers,
-  // Ensure you create this action to fetch your 15 rooms
-  // @ts-ignore
-  getRoomsList 
+  getRoomsList,
+  getReportData 
 } from '@/lib/actions/finance';
 import { logout } from '@/lib/actions/auth';
 import { Card } from '@/components/ui/card';
 import { SettingsTab } from './dashboard/SettingsTab';
 import { DayBookForm } from './DayBookForm';
 import RoomOccupancyClient from '@/app/(staff)/occupancy/RoomOccupancyClient';
-
+import ReportView from "@/components/dashboard/ReportView";
 
 interface DashboardProps {
   user: { id: string | number; name: string; role: string; email?: string; };
@@ -34,9 +33,31 @@ export default function Dashboard({ user }: DashboardProps) {
   const [dbData, setDbData] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [allStaff, setAllStaff] = useState<any[]>([]);
-  const [roomsFromState, setRoomsFromState] = useState<any[]>([]); // Room State
+  const [roomsFromState, setRoomsFromState] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [currentName, setCurrentName] = useState(user.name);
+
+  // --- NEW STATES FOR ANALYTICS TAB ---
+  const [reportLogs, setReportLogs] = useState<any[]>([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+
+  // Fetch report data only when the analytics tab is opened
+  useEffect(() => {
+    if (activeTab === "analytics") {
+      const fetchReports = async () => {
+        setLoadingReports(true);
+        try {
+          const data = await getReportData(period);
+          setReportLogs(data || []);
+        } catch (error) {
+          console.error("Failed to fetch reports", error);
+        } finally {
+          setLoadingReports(false);
+        }
+      };
+      fetchReports();
+    }
+  }, [activeTab, period]);
 
   const isAdmin = useMemo(() => {
     if (!user || !user.role) return false;
@@ -48,10 +69,10 @@ export default function Dashboard({ user }: DashboardProps) {
     setLoading(true);
     try {
       const [summary, history, staff, rooms] = await Promise.all([
-        getFinancialSummary(),
+        getFinancialSummary(period),
         getFullHistory(),
         isAdmin ? getStaffMembers() : Promise.resolve([]),
-        getRoomsList() // Fetching room inventory
+        getRoomsList() 
       ]);
       
       if (summary.success) setDbData(summary.data);
@@ -67,7 +88,7 @@ export default function Dashboard({ user }: DashboardProps) {
 
   useEffect(() => { 
     refreshData(); 
-  }, [period, activeTab]);
+  }, [period]); // Removed activeTab to prevent double-firing since it has its own effect
 
   const liveInsights = useMemo(() => {
     if (!logs.length) return { upi: 0, cash: 0, ota: 0, total: 0, avgEntry: 0, roomRev: 0, serviceRev: 0 };
@@ -237,28 +258,19 @@ export default function Dashboard({ user }: DashboardProps) {
             </motion.div>
           )}
 
-          {/* TAB 4: REVENUE ANALYSIS */}
+          {/* TAB 4: REVENUE ANALYSIS (UPDATED TO USE REPORTVIEW) */}
           {activeTab === 'analytics' && (
-            <motion.div key="anal" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-              <h2 className="text-2xl font-black text-white px-2 tracking-tight italic uppercase">Market Intel</h2>
+            <motion.div key="anal" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="space-y-6 pb-12">
               {isAdmin ? (
-                <Card className="bg-slate-900/50 border-white/5 p-8 rounded-[3rem] space-y-8 shadow-2xl backdrop-blur-xl">
-                  <div className="space-y-6">
-                    <ProgressBar label="UPI Transactions" value={getPercent(liveInsights.upi)} color="bg-blue-500 shadow-blue-500/20" />
-                    <ProgressBar label="Direct Cash" value={getPercent(liveInsights.cash)} color="bg-emerald-500 shadow-emerald-500/20" />
-                    <ProgressBar label="OTA/Aggregators" value={getPercent(liveInsights.ota)} color="bg-amber-400 shadow-amber-400/20" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
-                    <div className="p-4 bg-white/5 rounded-2xl">
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Room Revenue</p>
-                      <p className="text-sm font-black text-white">₹{Math.round(liveInsights.roomRev).toLocaleString()}</p>
+                <>
+                  {loadingReports ? (
+                    <div className="py-24 text-center text-slate-500 font-black uppercase tracking-widest text-[10px] animate-pulse">
+                      Generating Intelligence...
                     </div>
-                    <div className="p-4 bg-white/5 rounded-2xl">
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Services/Food</p>
-                      <p className="text-sm font-black text-white">₹{Math.round(liveInsights.serviceRev).toLocaleString()}</p>
-                    </div>
-                  </div>
-                </Card>
+                  ) : (
+                    <ReportView logs={reportLogs} />
+                  )}
+                </>
               ) : (
                 <div className="py-24 text-center">
                   <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Analytics restricted to Admin</p>
@@ -294,12 +306,10 @@ export default function Dashboard({ user }: DashboardProps) {
         </AnimatePresence>
       </main>
 
-      {/* FLOATING NAVIGATION - REORGANIZED FOR 5 TABS + CENTER ACTION */}
+      {/* FLOATING NAVIGATION */}
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-white/10 p-2 rounded-[3.5rem] flex items-center gap-1 backdrop-blur-3xl shadow-2xl z-50 min-w-[340px] justify-between">
         <NavIcon active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} />
         <NavIcon active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} />
-        
-        {/* NEW OCCUPANCY TAB */}
         <NavIcon active={activeTab === 'occupancy'} onClick={() => setActiveTab('occupancy')} icon={DoorOpen} />
 
         <button onClick={() => setActiveTab('add')} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all mx-1 active:scale-90 ${activeTab === 'add' ? 'bg-white text-slate-950 scale-110' : 'bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20'}`}>
@@ -328,20 +338,6 @@ function StatCard({ title, value, icon: Icon, color }: { title: string, value: n
       <div className={`w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center mb-3 ${color}`}><Icon size={18} /></div>
       <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{title}</p>
       <p className="text-xl font-black text-white mt-1">₹{value.toLocaleString()}</p>
-    </div>
-  );
-}
-
-function ProgressBar({ label, value, color }: { label: string, value: number, color: string }) {
-  return (
-    <div className="space-y-3">
-      <div className="flex justify-between text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">
-        <span>{label}</span>
-        <span className="text-white">{value}%</span>
-      </div>
-      <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-white/5">
-        <motion.div initial={{ width: 0 }} animate={{ width: `${value}%` }} transition={{ duration: 1, ease: "easeOut" }} className={`h-full ${color} rounded-full`} />
-      </div>
     </div>
   );
 }

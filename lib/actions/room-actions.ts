@@ -1,87 +1,78 @@
 "use server";
 
 import { db } from "@/db";
-import { invoices, rooms } from "@/db/schema";
-import { asc, eq } from "drizzle-orm";
+import { invoices, rooms, financialRecords, tasks } from "@/db/schema";
+import { asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+export type RoomStatus = "available" | "occupied" | "cleaning" | "maintenance";
 
 export async function getRoomsList() {
   try {
-    const allRooms = await db.select().from(rooms).orderBy(asc(rooms.number));
-    return allRooms;
+    return await db.select().from(rooms).orderBy(asc(rooms.number));
   } catch (error) {
-    console.error("Database Error: Failed to fetch rooms", error);
+    console.error("Fetch Error:", error);
     return [];
   }
 }
 
-export async function processCheckout(roomNumber: number, guestName: string, amount: number) {
+export async function updateRoomStatus(
+  roomNumber: number | string, 
+  status: RoomStatus, 
+  guestName?: string | null
+) {
   try {
-    // 1. Create the invoice record
-    await db.insert(invoices).values({
-      roomNumber,
-      guestName,
-      totalAmount: amount,
-    });
-
-    // 2. Update room to cleaning and clear guest info
+    const isOccupied = status === 'occupied';
     await db.update(rooms)
       .set({ 
-        status: "cleaning",
-        guestName: null,
-        checkInTime: null 
+        status: status,
+        guestName: isOccupied ? (guestName || null) : null,
+        checkInTime: isOccupied ? new Date() : null,
       })
-      .where(eq(rooms.number, roomNumber));
+      .where(eq(rooms.number, Number(roomNumber)));
 
-    revalidatePath("/staff/occupancy");
+    revalidatePath("/inventory");
+    revalidatePath("/dashboard");
     return { success: true };
-  } catch (e) {
+  } catch (error) {
     return { success: false };
   }
 }
 
-export async function updateRoomStatus(
-  roomNumber: string, 
-  status: "available" | "occupied" | "cleaning" | "maintenance",
-  guestName?: string // <--- Add this optional 3rd argument
-) {
-  try {
-    await db.update(rooms)
-      .set({ 
-        status, 
-        // If guestName is provided, update it; otherwise, if moving 
-        // to available/cleaning, you might want to null it out.
-        guestName: guestName || (status === 'occupied' ? undefined : null)
-      })
-      .where(eq(rooms.number, Number(roomNumber)));
+export async function processCheckout(roomNumber: number, guestName: string, totalAmount: number) {
+  return await db.transaction(async (tx) => {
+    // Record the checkout as a completed "Financial Task"
+    await tx.insert(tasks).values({
+      roomNumber, // Ensure this field exists in your tasks table
+      title: `Checkout: ${guestName}`,
+      description: `Revenue: ₹${totalAmount}`,
+      status: "completed",
+    });
 
-    revalidatePath("/occupancy");
+    // Reset the room
+    await tx.update(rooms)
+      .set({ status: "cleaning", guestName: null })
+      .where(eq(rooms.number, roomNumber));
+
     return { success: true };
-  } catch (error) {
-    console.error("Failed to update room:", error);
-    return { success: false };
-  }
+  });
 }
 
 export async function seedRooms() {
   try {
-    // 1. Check if rooms already exist
-    const existing = await db.select().from(rooms);
-    if (existing.length > 0) return { message: "Rooms already exist" };
+    const existing = await db.select().from(rooms).limit(1);
+    if (existing.length > 0) return { success: false, message: "Rooms already exist" };
 
-    // 2. Generate 15 rooms (3 per floor)
     const roomData = [1, 2, 3, 4, 5].flatMap((floor) => 
       [1, 2, 3].map((num) => ({
-        number: Number(`${floor}0${num}`), // Creates 101, 102, 103, 201...
+        number: Number(`${floor}0${num}`),
         floor: floor,
         status: "available" as const,
       }))
     );
 
     await db.insert(rooms).values(roomData);
-    revalidatePath("/occupancy");
-    
+    revalidatePath("/inventory");
     return { success: true };
   } catch (error) {
     console.error("Seeding failed:", error);
