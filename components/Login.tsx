@@ -93,6 +93,33 @@ const POLICY_CONTENT = {
   }
 };
 
+// This is "+919315371613" encoded in Base64
+const ENCODED_PHONE = "KzkxOTMxNTM3MTYxMw=="; 
+
+const WHATSAPP_MESSAGE = encodeURIComponent(
+  "Hi Ethereal Inn! I'd like to inquire about a booking. Please share availability for the upcoming dates."
+);
+
+/**
+ * Decodes the phone number and opens WhatsApp dynamically.
+ * This prevents the number from sitting in the DOM as a plain string.
+ */
+const handleBookingRedirect = (e: React.MouseEvent) => {
+  e.preventDefault();
+  
+  // Decode on the fly
+  const decodedPhone = atob(ENCODED_PHONE);
+  const whatsappUrl = `https://wa.me/${decodedPhone.replace('+', '')}?text=${WHATSAPP_MESSAGE}`;
+  
+  // Trigger GA4 tracking
+  if (typeof window !== "undefined" && (window as any).gtag) {
+    (window as any).gtag('event', 'generate_lead', { 'event_category': 'Engagement' });
+  }
+
+  // Redirect
+  window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+};
+
 export default function LandingLoginPage() {
   const [showLogin, setShowLogin] = useState(false);
   const [currentHero, setCurrentHero] = useState(0);
@@ -149,7 +176,7 @@ export default function LandingLoginPage() {
             key={currentHero}
             src={HERO_IMAGES[currentHero]}
             alt="Ethereal Inn"
-            initial={{ opacity: 0, scale: 1.1 }} animate={{ opacity: 0.35, scale: 1 }} exit={{ opacity: 0 }}
+            initial={{ opacity: 0, scale: 1.1 }} animate={{ opacity: 0.65, scale: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 2 }} className="absolute inset-0 w-full h-full object-cover z-0"
           />
         </AnimatePresence>
@@ -159,9 +186,12 @@ export default function LandingLoginPage() {
             Ethereal <br className="md:hidden" /><span className="text-amber-400">Inn.</span>
           </motion.h1>
           <div className="pt-6">
-            <a href="https://wa.me/919315371613" onClick={trackBookingClick} className="w-full md:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-6 rounded-3xl md:rounded-full hover:bg-emerald-400 transition-all shadow-2xl uppercase tracking-widest text-sm">
-              <MessageCircle size={24} /> Book Instant
-            </a>
+          <button 
+      onClick={handleBookingRedirect}
+      className="w-full md:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-6 rounded-3xl md:rounded-full hover:bg-emerald-400 transition-all shadow-2xl shadow-emerald-500/20 active:scale-95 uppercase tracking-widest text-sm"
+    >
+      <MessageCircle size={24} /> Book Instant
+    </button>
           </div>
         </div>
       </section>
