@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, History, Settings, TrendingUp, TrendingDown, 
@@ -13,7 +13,6 @@ import {
   getFinancialSummary, 
   getFullHistory, 
   getStaffMembers,
-  getRoomsList,
   getReportData 
 } from '@/lib/actions/finance';
 import { logout } from '@/lib/actions/auth';
@@ -22,6 +21,7 @@ import { SettingsTab } from './dashboard/SettingsTab';
 import { DayBookForm } from './DayBookForm';
 import RoomOccupancyClient from '@/app/(staff)/occupancy/RoomOccupancyClient';
 import ReportView from "@/components/dashboard/ReportView";
+import { getRoomsList } from '@/lib/actions/room-actions';
 
 interface DashboardProps {
   user: { id: string | number; name: string; role: string; email?: string; };
@@ -37,27 +37,8 @@ export default function Dashboard({ user }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [currentName, setCurrentName] = useState(user.name);
 
-  // --- NEW STATES FOR ANALYTICS TAB ---
   const [reportLogs, setReportLogs] = useState<any[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
-
-  // Fetch report data only when the analytics tab is opened
-  useEffect(() => {
-    if (activeTab === "analytics") {
-      const fetchReports = async () => {
-        setLoadingReports(true);
-        try {
-          const data = await getReportData(period);
-          setReportLogs(data || []);
-        } catch (error) {
-          console.error("Failed to fetch reports", error);
-        } finally {
-          setLoadingReports(false);
-        }
-      };
-      fetchReports();
-    }
-  }, [activeTab, period]);
 
   const isAdmin = useMemo(() => {
     if (!user || !user.role) return false;
@@ -65,7 +46,21 @@ export default function Dashboard({ user }: DashboardProps) {
     return r === 'admin' || r === 'manager' || r === 'owner';
   }, [user.role]);
 
-  const refreshData = async () => {
+  // --- FIX 1: DATA NORMALIZATION ---
+  // Ensure all numeric strings from DB are converted to actual numbers for calculations
+  const normalizeData = (data: any[]) => {
+    return data.map(item => ({
+      ...item,
+      totalCollection: Number(item.totalCollection || 0),
+      roomRevenue: Number(item.roomRevenue || 0),
+      cashRevenue: Number(item.cashRevenue || 0),
+      upiRevenue: Number(item.upiRevenue || 0),
+      otaPayouts: Number(item.otaPayouts || 0),
+      pettyExpenses: Number(item.pettyExpenses || 0),
+    }));
+  };
+
+  const refreshData = useCallback(async () => {
     setLoading(true);
     try {
       const [summary, history, staff, rooms] = await Promise.all([
@@ -76,7 +71,11 @@ export default function Dashboard({ user }: DashboardProps) {
       ]);
       
       if (summary.success) setDbData(summary.data);
-      setLogs(history || []);
+      
+      // Normalize history logs immediately
+      const cleanHistory = history ? normalizeData(history) : [];
+      setLogs(cleanHistory);
+      
       setAllStaff(staff || []); 
       setRoomsFromState(rooms || []);
     } catch (error) {
@@ -84,36 +83,57 @@ export default function Dashboard({ user }: DashboardProps) {
     } finally {
       setLoading(false);
     }
+  }, [period, isAdmin]);
+
+  const refreshRooms = async () => {
+    const rooms = await getRoomsList();
+    setRoomsFromState(rooms || []);
   };
+
+  useEffect(() => {
+    if (activeTab === "analytics") {
+      const fetchReports = async () => {
+        setLoadingReports(true);
+        try {
+          const data = await getReportData(period);
+          setReportLogs(data ? normalizeData(data) : []);
+        } catch (error) {
+          console.error("Failed to fetch reports", error);
+        } finally {
+          setLoadingReports(false);
+        }
+      };
+      fetchReports();
+    }
+  }, [activeTab, period]);
 
   useEffect(() => { 
     refreshData(); 
-  }, [period]); // Removed activeTab to prevent double-firing since it has its own effect
+  }, [refreshData]);
 
   const liveInsights = useMemo(() => {
-    if (!logs.length) return { upi: 0, cash: 0, ota: 0, total: 0, avgEntry: 0, roomRev: 0, serviceRev: 0 };
+    if (!logs.length) return { upi: 0, cash: 0, ota: 0, total: 0, avgEntry: 0, roomRev: 0, serviceRev: 0, todayPerformance: 0 };
+    
     const stats = logs.reduce((acc, log) => {
-      acc.upi += Number(log.upiRevenue || 0);
-      acc.cash += Number(log.cashRevenue || 0);
-      acc.ota += Number(log.otaPayouts || 0);
-      acc.total += Number(log.totalCollection || 0);
-      acc.roomRev += Number(log.roomRevenue || 0); 
+      acc.upi += log.upiRevenue;
+      acc.cash += log.cashRevenue;
+      acc.ota += log.otaPayouts;
+      acc.total += log.totalCollection;
+      acc.roomRev += log.roomRevenue; 
       acc.serviceRev += Number(log.serviceRevenue || 0);
       return acc;
     }, { upi: 0, cash: 0, ota: 0, total: 0, roomRev: 0, serviceRev: 0 });
 
+    const avg = stats.total / logs.length;
     return {
       ...stats,
-      avgEntry: stats.total / logs.length,
-      todayPerformance: logs[0] ? (Number(logs[0].totalCollection) / (stats.total / logs.length) * 100).toFixed(0) : 0
+      avgEntry: avg,
+      todayPerformance: logs[0] ? ((logs[0].totalCollection / avg) * 100).toFixed(0) : 0
     };
   }, [logs]);
 
-  const getPercent = (val: number) => (liveInsights.total > 0 ? Math.round((val / liveInsights.total) * 100) : 0);
-
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 pb-40 font-sans selection:bg-amber-400 selection:text-black">
-      {/* HEADER */}
       <header className="p-6 flex justify-between items-center border-b border-white/5 bg-slate-950/60 sticky top-0 z-50 backdrop-blur-2xl">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center text-slate-950 shadow-lg shadow-amber-400/20">
@@ -142,7 +162,6 @@ export default function Dashboard({ user }: DashboardProps) {
       <main className="px-6 max-w-lg mx-auto mt-8">
         <AnimatePresence mode="wait">
           
-          {/* TAB 1: DASHBOARD OVERVIEW */}
           {activeTab === 'dashboard' && (
             <motion.div key="db" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
               {isAdmin && (
@@ -164,7 +183,7 @@ export default function Dashboard({ user }: DashboardProps) {
                     </p>
                     {isAdmin ? (
                       <h2 className="text-5xl font-black text-white mt-3 tracking-tighter">
-                        ₹{dbData?.netProfit?.toLocaleString('en-IN') || '0'}
+                        ₹{Number(dbData?.netProfit || 0).toLocaleString('en-IN')}
                       </h2>
                     ) : (
                       <div className="flex items-center gap-3 mt-4 text-emerald-400">
@@ -194,21 +213,13 @@ export default function Dashboard({ user }: DashboardProps) {
               </div>
               {isAdmin && (
                 <div className="grid grid-cols-2 gap-4">
-                  <StatCard title="Total Rev" value={dbData?.revenue || 0} icon={Wallet} color="text-amber-400" />
-                  <StatCard title="Expenses" value={dbData?.expenses || 0} icon={TrendingDown} color="text-rose-400" />
+                  <StatCard title="Total Rev" value={Number(dbData?.revenue || 0)} icon={Wallet} color="text-amber-400" />
+                  <StatCard title="Expenses" value={Number(dbData?.expenses || 0)} icon={TrendingDown} color="text-rose-400" />
                 </div>
-              )}
-              {!isAdmin && (
-                <Card className="bg-slate-900/40 border-white/5 p-6 rounded-[2.5rem] border-dashed text-center">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">
-                    Daily analytics are restricted. Use the navigation to manage rooms or log entries.
-                  </p>
-                </Card>
               )}
             </motion.div>
           )}
 
-          {/* TAB 2: ROOM OCCUPANCY */}
           {activeTab === 'occupancy' && (
             <motion.div key="occ" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-6">
               <div className="flex justify-between items-center px-2">
@@ -221,33 +232,33 @@ export default function Dashboard({ user }: DashboardProps) {
                 </div>
               </div>
               <div className="bg-slate-900/40 rounded-[3rem] border border-white/5 p-4 overflow-hidden shadow-2xl">
-                <RoomOccupancyClient initialRooms={roomsFromState} /> 
+                <RoomOccupancyClient initialRooms={roomsFromState} onRoomUpdate={refreshRooms} /> 
               </div>
             </motion.div>
           )}
 
-          {/* TAB 3: AUDIT HISTORY */}
           {activeTab === 'history' && (
             <motion.div key="hist" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
               <div className="flex justify-between items-center px-2">
                 <h2 className="text-2xl font-black text-white tracking-tight italic uppercase">Audit Trail</h2>
                 <History size={20} className="text-slate-700" />
               </div>
+              {/* FIX 2: Audit Trail View - Show Revenue breakdown */}
               {logs.length > 0 ? logs.map((log) => (
                 <div key={log.id} className="bg-slate-900/30 border border-white/5 p-5 rounded-[2.5rem] group hover:bg-slate-900/60 transition-all">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-slate-950 rounded-2xl flex flex-col items-center justify-center border border-white/5">
-                        <span className="text-[10px] font-black text-amber-400 leading-none">{new Date(log.createdAt).toLocaleDateString('en-IN', { day: '2-digit' })}</span>
-                        <span className="text-[8px] font-bold text-slate-600 uppercase mt-1">{new Date(log.createdAt).toLocaleDateString('en-IN', { month: 'short' })}</span>
+                        <span className="text-[10px] font-black text-amber-400 leading-none">{new Date(log.date).toLocaleDateString('en-IN', { day: '2-digit' })}</span>
+                        <span className="text-[8px] font-bold text-slate-600 uppercase mt-1">{new Date(log.date).toLocaleDateString('en-IN', { month: 'short' })}</span>
                       </div>
                       <div>
-                        {isAdmin ? (
-                          <p className="text-white font-black text-sm">₹{Number(log.totalCollection).toLocaleString()}</p>
-                        ) : (
-                          <p className="text-white font-black text-sm">Shift Logged</p>
-                        )}
-                        <p className="text-[9px] text-slate-500 font-bold uppercase mt-0.5 tracking-tighter">By {log.staffName || 'Admin'}</p>
+                        <p className="text-white font-black text-sm">₹{log.totalCollection.toLocaleString()}</p>
+                        <div className="flex gap-2 mt-1">
+                           <span className="text-[7px] bg-white/5 px-1.5 py-0.5 rounded text-slate-400 font-bold uppercase">Room: ₹{log.roomRevenue}</span>
+                           <span className="text-[7px] bg-white/5 px-1.5 py-0.5 rounded text-slate-400 font-bold uppercase">Cash: ₹{log.cashRevenue}</span>
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-tighter">Verified by {log.staffName || 'Admin'}</p>
                       </div>
                     </div>
                   </div>
@@ -258,7 +269,6 @@ export default function Dashboard({ user }: DashboardProps) {
             </motion.div>
           )}
 
-          {/* TAB 4: REVENUE ANALYSIS (UPDATED TO USE REPORTVIEW) */}
           {activeTab === 'analytics' && (
             <motion.div key="anal" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="space-y-6 pb-12">
               {isAdmin ? (
@@ -279,7 +289,6 @@ export default function Dashboard({ user }: DashboardProps) {
             </motion.div>
           )}
 
-          {/* TAB 5: SETTINGS */}
           {activeTab === 'settings' && (
             <motion.div key="sett" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <SettingsTab 
@@ -290,7 +299,6 @@ export default function Dashboard({ user }: DashboardProps) {
             </motion.div>
           )}
 
-          {/* TAB 6: ADD NEW ENTRY */}
           {activeTab === 'add' && (
             <motion.div key="add-form" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
               <div className="mb-6 flex items-center justify-between px-2">
@@ -306,7 +314,6 @@ export default function Dashboard({ user }: DashboardProps) {
         </AnimatePresence>
       </main>
 
-      {/* FLOATING NAVIGATION */}
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-white/10 p-2 rounded-[3.5rem] flex items-center gap-1 backdrop-blur-3xl shadow-2xl z-50 min-w-[340px] justify-between">
         <NavIcon active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} />
         <NavIcon active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} />
@@ -316,8 +323,16 @@ export default function Dashboard({ user }: DashboardProps) {
           <Plus size={28} strokeWidth={3} />
         </button>
 
-        <NavIcon active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} icon={BarChart3} />
-        <NavIcon active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings} />
+       <NavIcon 
+  active={activeTab === 'analytics'} 
+  onClick={() => setActiveTab('analytics')} 
+  icon={BarChart3} 
+/>
+<NavIcon 
+  active={activeTab === 'settings'} 
+  onClick={() => setActiveTab('settings')} 
+  icon={Settings} 
+/>
       </nav>
     </div>
   );

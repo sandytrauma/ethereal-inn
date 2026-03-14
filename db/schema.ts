@@ -7,7 +7,8 @@ import {
   numeric, 
   pgEnum, 
   boolean, 
-  decimal
+  decimal,
+  date
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -34,37 +35,71 @@ export const clients = pgTable("clients", {
   email: text("email"),
   phone: text("phone").notNull(),
   address: text("address"),
-  gstin: text("gstin"), // For corporate billing
+  gstin: text("gstin"), 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// 3. Inquiries (Lead management)
+// 3. Rooms
+export const rooms = pgTable("rooms", {
+  id: serial("id").primaryKey(),
+  number: integer("number").notNull().unique(),
+  floor: integer("floor").notNull(),
+  status: text("status").$type<"available" | "occupied" | "cleaning" | "maintenance">().default("available"),
+  guestName: text("guest_name"),
+  checkInTime: timestamp("check_in_time"),
+});
+
+// 4. Inquiries (Lead management)
 export const inquiries = pgTable("inquiries", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id").references(() => clients.id),
-  source: text("source"), // e.g., Direct, MMT, Booking.com
+  source: text("source"), 
   message: text("message"),
-  status: text("status").default("new"), // new, followed_up, closed
+  status: text("status").default("new"), 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// 4. Tasks (Internal operations)
+// 5. Tasks (Internal operations)
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(), // e.g., "Checkout: Room 101"
-  description: text("description"), // e.g., "Guest: John Doe"
-  status: text("status").default("todo"), // Or your taskStatusEnum
-  
-  // New Reconciliation Fields
-  roomNumber: integer("room_number"), // Ties the task to the specific unit
-  amount: decimal("amount", { precision: 10, scale: 2 }).default("0.00"), // Stores checkout revenue
-  
+  title: text("title").notNull(), 
+  description: text("description"), 
+  status: text("status").default("todo"), 
+  roomNumber: integer("room_number"), 
+  amount: decimal("amount", { precision: 10, scale: 2 }).default("0.00"), 
   assignedTo: integer("assigned_to").references(() => users.id),
   dueDate: timestamp("due_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// 5. Statutory Master (Compliance, Licenses, Tax rules)
+// 6. Financial Records (The Day Book)
+export const financialRecords = pgTable("financial_records", {
+  id: serial("id").primaryKey(),
+  // Use date() for uniqueness to ensure one record per day
+date: date("date").notNull().unique(),  
+  // Revenue
+  cashRevenue: numeric("cash_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
+  upiRevenue: numeric("upi_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
+  otaPayouts: numeric("ota_payouts", { precision: 12, scale: 2 }).default("0").notNull(),
+  roomRevenue: numeric("room_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
+  serviceRevenue: numeric("service_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
+  
+  // Expenses
+  pettyExpenses: numeric("petty_expenses", { precision: 12, scale: 2 }).default("0").notNull(),
+
+  // Totals
+  totalCollection: numeric("total_collection", { precision: 12, scale: 2 }).default("0").notNull(),
+  netCash: numeric("net_cash", { precision: 12, scale: 2 }).default("0").notNull(),
+  
+  notes: text("notes"),
+  status: recordStatusEnum("status").default("pending"),
+  
+  userId: integer("user_id").references(() => users.id), 
+  createdById: integer("created_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// 7. Statutory Master
 export const statutoryMaster = pgTable("statutory_master", {
   id: serial("id").primaryKey(),
   licenseName: text("license_name").notNull(),
@@ -74,48 +109,27 @@ export const statutoryMaster = pgTable("statutory_master", {
   isCritical: boolean("is_critical").default(false),
 });
 
-// 6. Documents (Storage for bills, licenses, IDs)
+// 8. Documents
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  url: text("url").notNull(), // S3 or Uploadthing URL
+  url: text("url").notNull(), 
   fileType: text("file_type"),
-  relatedType: text("related_type"), // e.g., 'task', 'client', 'financial_record'
+  relatedType: text("related_type"), 
   relatedId: integer("related_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// 7. Financial Records (The Day Book)
-// ... (keep your existing imports and other tables)
-
-export const financialRecords = pgTable("financial_records", {
+// 9. Invoices
+export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
-date: timestamp("date").defaultNow().notNull().unique(),  
-  // Revenue
-  cashRevenue: numeric("cash_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
-  upiRevenue: numeric("upi_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
-  otaPayouts: numeric("ota_payouts", { precision: 12, scale: 2 }).default("0").notNull(),
-  
-  // Expenses
-  pettyExpenses: numeric("petty_expenses", { precision: 12, scale: 2 }).default("0").notNull(),
-
-  roomRevenue: numeric("room_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
-  serviceRevenue: numeric("service_revenue", { precision: 12, scale: 2 }).default("0").notNull(),
-  
-  // Totals
-  totalCollection: numeric("total_collection", { precision: 12, scale: 2 }).default("0").notNull(),
-  netCash: numeric("net_cash", { precision: 12, scale: 2 }).default("0").notNull(),
-  
-  notes: text("notes"),
-  status: recordStatusEnum("status").default("pending"),
-  
-  // UPDATED: Changed createdById to userId for simpler joins in server actions
-  userId: integer("user_id").references(() => users.id), 
-  createdById: integer("created_by_id").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  roomNumber: integer("room_number"),
+  guestName: text("guest_name"),
+  totalAmount: integer("total_amount"),
+  checkoutDate: timestamp("checkout_date").defaultNow(),
 });
 
-// --- RELATIONSHIPS UPDATE ---
+// --- RELATIONSHIPS ---
 
 export const usersRelations = relations(users, ({ many }) => ({
   tasks: many(tasks),
@@ -124,7 +138,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const financialRecordsRelations = relations(financialRecords, ({ one }) => ({
   author: one(users, {
-    fields: [financialRecords.userId], // Updated reference
+    fields: [financialRecords.userId],
     references: [users.id],
   }),
 }));
@@ -142,20 +156,3 @@ export const inquiriesRelations = relations(inquiries, ({ one }) => ({
     references: [clients.id],
   }),
 }));
-
-export const rooms = pgTable("rooms", {
-  id: serial("id").primaryKey(),
-  number: integer("number").notNull().unique(),
-  floor: integer("floor").notNull(),
-  status: text("status").$type<"available" | "occupied" | "cleaning" | "maintenance">().default("available"),
-  guestName: text("guest_name"),
-  checkInTime: timestamp("check_in_time"),
-});
-
-export const invoices = pgTable("invoices", {
-  id: serial("id").primaryKey(),
-  roomNumber: integer("room_number"),
-  guestName: text("guest_name"),
-  totalAmount: integer("total_amount"),
-  checkoutDate: timestamp("checkout_date").defaultNow(),
-});

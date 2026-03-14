@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useTransition, useMemo } from "react";
+import React, { useState, useTransition, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   DoorOpen, UserCheck, Wind, AlertCircle, X, 
   Loader2, Receipt, Check, ArrowLeft, UserPlus, Search, Calendar,
-  BedDouble, CalendarCheck, CheckCircle2, TrendingUp
+  BedDouble, CheckCircle2
 } from "lucide-react";
 import { updateRoomStatus, processCheckout, type RoomStatus } from "@/lib/actions/room-actions";
 
@@ -18,7 +18,13 @@ interface Room {
   checkInTime?: Date | string | null;
 }
 
-export default function RoomOccupancyPage({ initialRooms }: { initialRooms: Room[] }) {
+// Fixed Interface to include onRoomUpdate callback
+interface RoomOccupancyProps {
+  initialRooms: Room[];
+  onRoomUpdate?: () => Promise<void>; 
+}
+
+export default function RoomOccupancyPage({ initialRooms, onRoomUpdate }: RoomOccupancyProps) {
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [showBill, setShowBill] = useState(false);
@@ -31,7 +37,11 @@ export default function RoomOccupancyPage({ initialRooms }: { initialRooms: Room
   const [roomRent, setRoomRent] = useState(0);
   const [serviceFoodTotal, setServiceFoodTotal] = useState(0);
 
-  // --- STATS CALCULATION ---
+  // Keep local state in sync with Dashboard props
+  useEffect(() => {
+    setRooms(initialRooms);
+  }, [initialRooms]);
+
   const dashboardStats = useMemo(() => {
     const occupied = rooms.filter(r => r.status === 'occupied').length;
     const cleaning = rooms.filter(r => r.status === 'cleaning').length;
@@ -69,6 +79,7 @@ export default function RoomOccupancyPage({ initialRooms }: { initialRooms: Room
         const res = await updateRoomStatus(selectedRoom.number, nextStatus);
         if (res.success) {
           updateLocalRoom(selectedRoom.number, { status: nextStatus, guestName: null });
+          if (onRoomUpdate) await onRoomUpdate(); // Sync Parent
         }
       });
     }
@@ -84,6 +95,7 @@ export default function RoomOccupancyPage({ initialRooms }: { initialRooms: Room
           guestName: guestNameInput,
         });
         setGuestNameInput("");
+        if (onRoomUpdate) await onRoomUpdate(); // Sync Parent
       }
     });
   };
@@ -104,6 +116,7 @@ export default function RoomOccupancyPage({ initialRooms }: { initialRooms: Room
         setSelectedRoom(null);
         setRoomRent(0);
         setServiceFoodTotal(0);
+        if (onRoomUpdate) await onRoomUpdate(); // Sync Parent
       } else {
         alert("Checkout failed. Please check system logs.");
       }
@@ -282,7 +295,6 @@ export default function RoomOccupancyPage({ initialRooms }: { initialRooms: Room
 }
 
 // --- SUB-COMPONENTS ---
-
 function StatCard({ label, value, icon: Icon, color }: { label: string, value: number | string, icon: any, color: string }) {
   return (
     <motion.div
@@ -330,9 +342,9 @@ function RoomCard({ room, onClick }: { room: Room, onClick: () => void }) {
   return (
     <motion.div 
       whileHover={{ y: -8, scale: 1.02 }} onClick={onClick} 
-      className={`relative overflow-hidden cursor-pointer p-2 rounded-[2.5rem] border-2 transition-all shadow-2xl ${styles[currentStatus]} group`}
+      className={`relative overflow-hidden cursor-pointer p-6 rounded-[2.5rem] border-2 transition-all shadow-2xl ${styles[currentStatus]} group`}
     >
-      <div className="flex justify-start items-start mb-10">
+      <div className="flex justify-between items-start mb-10">
         <h3 className="text-2xl font-black tracking-tighter italic leading-none">{room.number}</h3>
         <Icon size={28} className="opacity-30 group-hover:opacity-100 transition-opacity" />
       </div>

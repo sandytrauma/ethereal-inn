@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { invoices, rooms, financialRecords, tasks } from "@/db/schema";
+import { financialRecords, invoices, rooms, tasks } from "@/db/schema";
 import { asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -40,28 +40,71 @@ export async function updateRoomStatus(
 }
 
 export async function processCheckout(roomNumber: number, guestName: string, totalAmount: number) {
-  return await db.transaction(async (tx) => {
-    // Record the checkout as a completed "Financial Task"
-    await tx.insert(tasks).values({
-      roomNumber, // Ensure this field exists in your tasks table
-      title: `Checkout: ${guestName}`,
-      description: `Revenue: ₹${totalAmount}`,
-      status: "completed",
+  try {
+    return await db.transaction(async (tx) => {
+      
+      // 1. Update Room Status to cleaning
+      await tx.update(rooms)
+        .set({ 
+          status: 'cleaning', 
+          guestName: null, 
+          checkInTime: null 
+        })
+        .where(eq(rooms.number, roomNumber));
+
+      // 2. Insert into Invoices Table
+      // Note: your schema defines totalAmount as integer
+      await tx.insert(invoices).values({
+        roomNumber,
+        guestName,
+        totalAmount: Math.round(totalAmount), 
+        checkoutDate: new Date(),
+      });
+
+      // 3. Update or Insert into Financial Records (The Day Book)
+      const todayDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+      const existingRecord = await tx.select()
+        .from(financialRecords)
+        .where(eq(financialRecords.date, todayDate))
+        .limit(1);
+
+      if (existingRecord.length > 0) {
+        // Update existing daily record
+        await tx.update(financialRecords)
+          .set({
+            roomRevenue: sql`${financialRecords.roomRevenue} + ${totalAmount.toString()}`,
+            totalCollection: sql`${financialRecords.totalCollection} + ${totalAmount.toString()}`,
+          })
+          .where(eq(financialRecords.date, todayDate));
+      } else {
+        // Create new record for the day
+        await tx.insert(financialRecords).values({
+          date: todayDate,
+          roomRevenue: totalAmount.toString(),
+          totalCollection: totalAmount.toString(),
+          cashRevenue: "0",
+          upiRevenue: "0",
+          otaPayouts: "0",
+          serviceRevenue: "0",
+          pettyExpenses: "0",
+          netCash: "0",
+          status: "pending"
+        });
+      }
+
+      return { success: true };
     });
-
-    // Reset the room
-    await tx.update(rooms)
-      .set({ status: "cleaning", guestName: null })
-      .where(eq(rooms.number, roomNumber));
-
-    return { success: true };
-  });
+  } catch (error) {
+    console.error("Checkout Error:", error);
+    return { success: false, message: "Failed to process checkout revenue" };
+  }
 }
 
 export async function seedRooms() {
   try {
     const existing = await db.select().from(rooms).limit(1);
-    if (existing.length > 0) return { success: false, message: "Rooms already exist" };
+    if (existing.length > 0) return { success: false };
 
     const roomData = [1, 2, 3, 4, 5].flatMap((floor) => 
       [1, 2, 3].map((num) => ({
@@ -75,7 +118,6 @@ export async function seedRooms() {
     revalidatePath("/inventory");
     return { success: true };
   } catch (error) {
-    console.error("Seeding failed:", error);
     return { success: false };
   }
 }

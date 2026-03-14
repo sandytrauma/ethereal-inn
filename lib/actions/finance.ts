@@ -1,13 +1,15 @@
 "use server";
 
 import { db } from "@/db";
-import { financialRecords, rooms, users } from "@/db/schema";
+import { financialRecords, users, rooms } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { desc, sql, eq, gte, asc, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "../auth"; 
 
-// --- UTILITY: DATE FILTER HELPER ---
+/**
+ * Helper to calculate start dates based on period
+ */
 function getStartDate(period: 'month' | 'quarter' | 'year') {
   const now = new Date();
   if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -16,10 +18,13 @@ function getStartDate(period: 'month' | 'quarter' | 'year') {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
-// --- 1. GET SUMMARY (FOR THE TOP CARDS) ---
+/**
+ * Fetches high-level financial cards data
+ */
 export async function getFinancialSummary(period: 'month' | 'quarter' | 'year' = 'month') {
   try {
     const startDate = getStartDate(period);
+    const startDateStr = startDate.toISOString().split('T')[0];
 
     const [summary] = await db
       .select({
@@ -27,7 +32,7 @@ export async function getFinancialSummary(period: 'month' | 'quarter' | 'year' =
         totalExpenses: sql<string>`coalesce(sum(cast(petty_expenses as numeric)), '0')`,
       })
       .from(financialRecords)
-      .where(gte(financialRecords.date, startDate));
+      .where(gte(financialRecords.date, startDateStr));
 
     const revenue = Number(summary?.totalRevenue || 0);
     const expenses = Number(summary?.totalExpenses || 0);
@@ -46,7 +51,9 @@ export async function getFinancialSummary(period: 'month' | 'quarter' | 'year' =
   }
 }
 
-// --- 2. GET FULL HISTORY (FOR THE AUDIT TRAIL) ---
+/**
+ * Fetches audit trail history with user joins
+ */
 export async function getFullHistory() {
   try {
     return await db
@@ -73,7 +80,26 @@ export async function getFullHistory() {
   }
 }
 
-// --- 3. GET STAFF MEMBERS (FIXED EXPORT) ---
+/**
+ * Fetches report data for analytics/charts
+ */
+export async function getReportData(period: 'month' | 'quarter' | 'year') {
+  try {
+    const startDateStr = getStartDate(period).toISOString().split('T')[0];
+    return await db
+      .select()
+      .from(financialRecords)
+      .where(gte(financialRecords.date, startDateStr))
+      .orderBy(asc(financialRecords.date)); // Ascending for easier chart plotting
+  } catch (e) {
+    console.error("Report data error:", e);
+    return [];
+  }
+}
+
+/**
+ * Returns list of staff for dropdowns/management
+ */
 export async function getStaffMembers() {
   try {
     return await db
@@ -91,22 +117,9 @@ export async function getStaffMembers() {
   }
 }
 
-// --- 4. GET REPORT DATA (FOR ANALYTICS TAB) ---
-export async function getReportData(period: 'month' | 'quarter' | 'year') {
-  try {
-    const startDate = getStartDate(period);
-    return await db
-      .select()
-      .from(financialRecords)
-      .where(gte(financialRecords.date, startDate))
-      .orderBy(desc(financialRecords.date));
-  } catch (e) {
-    console.error("Report data error:", e);
-    return [];
-  }
-}
-
-// --- 5. RECONCILE / CLOSE DAYBOOK ---
+/**
+ * Reconciles day book figures for a specific date
+ */
 export async function closeDayBook(formData: any) {
   try {
     const cookieStore = await cookies();
@@ -118,13 +131,12 @@ export async function closeDayBook(formData: any) {
       return { success: false, error: "Unauthorized. Please re-login." };
     }
 
-    const entryDate = new Date();
-    entryDate.setUTCHours(0, 0, 0, 0);
+    // Format current date to YYYY-MM-DD for unique index match
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    // This Overwrites existing automated checkout data with manual reconciled figures
     await db.insert(financialRecords)
       .values({
-        date: entryDate,
+        date: todayStr,
         userId: Number(userId),
         createdById: Number(userId),
         cashRevenue: String(formData.cashRevenue || "0"),
@@ -159,16 +171,6 @@ export async function closeDayBook(formData: any) {
 
   } catch (error: any) {
     console.error("DayBook Submission Error:", error);
-    return { success: false, error: error.message || "System failed to archive record." };
-  }
-}
-
-// --- 6. ROOMS HELPER ---
-export async function getRoomsList() {
-  try {
-    return await db.select().from(rooms).orderBy(asc(rooms.number));
-  } catch (error) {
-    console.error("Database Error:", error);
-    return [];
+    return { success: false, error: "System failed to archive record." };
   }
 }
