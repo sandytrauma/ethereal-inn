@@ -22,6 +22,7 @@ import RoomOccupancyClient from '@/app/(staff)/occupancy/RoomOccupancyClient';
 import ReportView from "@/components/dashboard/ReportView";
 import { getRoomsList } from '@/lib/actions/room-actions';
 import DashboardBackground from './dashboard/DashboardBackground';
+import MarketIntelView from './dashboard/RevenueChart';
 
 interface DashboardProps {
   user: { id: string | number; name: string; role: string; email?: string; };
@@ -38,7 +39,14 @@ export default function Dashboard({ user }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [currentName, setCurrentName] = useState(user?.name || "User");
 
-  const [reportLogs, setReportLogs] = useState<any[]>([]);
+  // NEW: Expanded state for Intel View
+  const [intelData, setIntelData] = useState<{
+    logs: any[],
+    inquiries: any[],
+    guests: any[],
+    tasks: any[]
+  }>({ logs: [], inquiries: [], guests: [], tasks: [] });
+  
   const [loadingReports, setLoadingReports] = useState(false);
 
   const isAdmin = useMemo(() => {
@@ -86,13 +94,21 @@ export default function Dashboard({ user }: DashboardProps) {
     setRoomsFromState(rooms || []);
   };
 
+  // EFFECT: Fetching multi-table report data for Intel/Analytics
   useEffect(() => {
     if (activeTab === "analytics" || activeTab === "intel") {
       const fetchReports = async () => {
         setLoadingReports(true);
         try {
-          const data = await getReportData(period);
-          setReportLogs(data ? normalizeData(data) : []);
+          const response = await getReportData(period);
+          if (response.success) {
+            setIntelData({
+              logs: normalizeData(response.logs),
+              inquiries: response.inquiries || [],
+              guests: response.guests || [],
+              tasks: response.tasks || []
+            });
+          }
         } catch (error) {
           console.error("Failed to fetch reports", error);
         } finally {
@@ -206,20 +222,19 @@ export default function Dashboard({ user }: DashboardProps) {
           )}
 
           {activeTab === 'intel' && (
-            <motion.div key="intel" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-              <div className="bg-white/[0.03] backdrop-blur-xl rounded-[3rem] border border-white/10 p-8 shadow-2xl">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-3 bg-amber-400/10 rounded-2xl text-amber-400"><LineChart size={24}/></div>
-                  <h2 className="text-2xl font-black text-white italic uppercase">Market Intel</h2>
+            <motion.div key="intel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              {loadingReports ? (
+                <div className="h-64 flex items-center justify-center text-slate-500 animate-pulse font-black uppercase text-[10px]">
+                  Analyzing Market Data...
                 </div>
-                <div className="space-y-4">
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Occupancy Velocity</p>
-                    <p className="text-xl font-bold text-white mt-1">High Trend</p>
-                  </div>
-                  {/* Additional Intel metrics can be mapped here */}
-                </div>
-              </div>
+              ) : (
+                <MarketIntelView 
+                  logs={intelData.logs} 
+                  inquiries={intelData.inquiries} 
+                  guests={intelData.guests}
+                  tasks={intelData.tasks} 
+                />
+              )}
             </motion.div>
           )}
 
@@ -244,7 +259,15 @@ export default function Dashboard({ user }: DashboardProps) {
 
           {activeTab === 'analytics' && (
             <motion.div key="anal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              {isAdmin ? <ReportView logs={reportLogs} /> : <div className="text-center py-20 text-slate-500 font-black uppercase text-xs">Admin Only</div>}
+              {isAdmin ? (
+                loadingReports ? (
+                   <div className="h-64 flex items-center justify-center text-slate-500 animate-pulse font-black uppercase text-[10px]">Processing Reports...</div>
+                ) : (
+                  <ReportView logs={intelData.logs} />
+                )
+              ) : (
+                <div className="text-center py-20 text-slate-500 font-black uppercase text-xs">Admin Only</div>
+              )}
             </motion.div>
           )}
 

@@ -1,7 +1,13 @@
 "use server";
 
 import { db } from "@/db";
-import { financialRecords, users, invoices } from "@/db/schema";
+import { 
+  financialRecords, 
+  users, 
+  invoices, 
+  inquiries, 
+  tasks 
+} from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { desc, sql, eq, gte, asc } from "drizzle-orm";
 import { cookies } from "next/headers";
@@ -9,7 +15,6 @@ import { decrypt } from "../auth";
 
 /**
  * Helper to calculate start dates based on period
- * Returns a formatted YYYY-MM-DD string to satisfy PgDateString build requirements
  */
 function getStartDateString(period: 'month' | 'quarter' | 'year') {
   const now = new Date();
@@ -106,19 +111,57 @@ export async function getInvoiceHistory() {
 }
 
 /**
- * Fetches report data for analytics
+ * Fetches comprehensive report data for Market Intel Analytics
+ * Pulls from Financial Records, Inquiries (Leads), Invoices (History), and Tasks (Ops)
  */
 export async function getReportData(period: 'month' | 'quarter' | 'year') {
   try {
     const startDateStr = getStartDateString(period);
-    return await db
+    const startDateObj = new Date(startDateStr);
+
+    // 1. Daily Financial Logs
+    const logs = await db
       .select()
       .from(financialRecords)
       .where(gte(financialRecords.date, startDateStr))
-      .orderBy(asc(financialRecords.date)); 
+      .orderBy(asc(financialRecords.date));
+
+    // 2. Inquiries for Conversion Funnel
+    const inquiryList = await db
+      .select()
+      .from(inquiries)
+      .where(gte(inquiries.createdAt, startDateObj));
+
+    // 3. Guest Checkout History from Invoices
+    const guestHistory = await db
+      .select({
+        id: invoices.id,
+        guestName: invoices.guestName,
+        roomNumber: invoices.roomNumber,
+        totalAmount: invoices.totalAmount,
+        checkoutDate: invoices.checkoutDate,
+      })
+      .from(invoices)
+      .where(gte(invoices.checkoutDate, startDateObj))
+      .orderBy(desc(invoices.checkoutDate))
+      .limit(20);
+
+    // 4. Tasks for Operational Efficiency
+    const taskList = await db
+      .select()
+      .from(tasks)
+      .where(gte(tasks.createdAt, startDateObj));
+
+    return {
+      success: true,
+      logs: logs || [],
+      inquiries: inquiryList || [],
+      guests: guestHistory || [],
+      tasks: taskList || []
+    };
   } catch (e) {
     console.error("Report data error:", e);
-    return [];
+    return { success: false, logs: [], inquiries: [], guests: [], tasks: [] };
   }
 }
 
@@ -143,7 +186,7 @@ export async function getStaffMembers() {
 }
 
 /**
- * Reconciles day book figures
+ * Reconciles day book figures (upsert based on date)
  */
 export async function closeDayBook(formData: any) {
   try {

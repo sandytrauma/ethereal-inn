@@ -118,10 +118,7 @@ export default function ReportView({ logs = [], previousLogs = [] }: ReportViewP
             </div>
           </div>
 
-          {/* Dual-Line Performance Chart */}
-          <div className="mb-10 h-64 border-b border-white/5 pb-8">
-             <RevenueChart currentLogs={logs} previousLogs={previousLogs} />
-          </div>
+         
 
           {/* Breakdown Progress Bars */}
           <div className="space-y-7">
