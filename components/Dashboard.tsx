@@ -16,7 +16,6 @@ import {
   getReportData 
 } from '@/lib/actions/finance';
 import { logout } from '@/lib/actions/auth';
-import { Card } from '@/components/ui/card';
 import { SettingsTab } from './dashboard/SettingsTab';
 import { DayBookForm } from './DayBookForm';
 import RoomOccupancyClient from '@/app/(staff)/occupancy/RoomOccupancyClient';
@@ -27,6 +26,20 @@ interface DashboardProps {
   user: { id: string | number; name: string; role: string; email?: string; };
 }
 
+// Define interface for better type safety during build
+interface FinancialLog {
+  id: number | string;
+  date: string;
+  totalCollection: number | string;
+  roomRevenue: number | string;
+  cashRevenue: number | string;
+  upiRevenue: number | string;
+  otaPayouts: number | string;
+  pettyExpenses: number | string;
+  serviceRevenue?: number | string;
+  staffName?: string;
+}
+
 export default function Dashboard({ user }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year'>('month');
@@ -35,7 +48,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const [allStaff, setAllStaff] = useState<any[]>([]);
   const [roomsFromState, setRoomsFromState] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
-  const [currentName, setCurrentName] = useState(user.name);
+  const [currentName, setCurrentName] = useState(user?.name || "User");
 
   const [reportLogs, setReportLogs] = useState<any[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
@@ -44,7 +57,7 @@ export default function Dashboard({ user }: DashboardProps) {
     if (!user || !user.role) return false;
     const r = user.role.toLowerCase().trim(); 
     return r === 'admin' || r === 'manager' || r === 'owner';
-  }, [user.role]);
+  }, [user?.role]);
 
   // --- DATA NORMALIZATION ---
   const normalizeData = (data: any[]) => {
@@ -110,7 +123,7 @@ export default function Dashboard({ user }: DashboardProps) {
   }, [refreshData]);
 
   const liveInsights = useMemo(() => {
-    if (!logs.length) return { upi: 0, cash: 0, ota: 0, total: 0, avgEntry: 0, roomRev: 0, serviceRev: 0, todayPerformance: 0 };
+    if (!logs.length) return { upi: 0, cash: 0, ota: 0, total: 0, avgEntry: 0, roomRev: 0, serviceRev: 0, todayPerformance: "0" };
     
     const stats = logs.reduce((acc, log) => {
       acc.upi += log.upiRevenue;
@@ -126,9 +139,11 @@ export default function Dashboard({ user }: DashboardProps) {
     return {
       ...stats,
       avgEntry: avg,
-      todayPerformance: logs[0] ? ((logs[0].totalCollection / avg) * 100).toFixed(0) : 0
+      todayPerformance: logs[0] ? ((logs[0].totalCollection / avg) * 100).toFixed(0) : "0"
     };
   }, [logs]);
+
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 pb-40 font-sans selection:bg-amber-400 selection:text-black">
@@ -341,7 +356,7 @@ function StatCard({ title, value, icon: Icon, color }: { title: string, value: n
     <div className="bg-slate-900 border border-white/5 p-6 rounded-[2.5rem]">
       <div className={`w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center mb-3 ${color}`}><Icon size={18} /></div>
       <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{title}</p>
-      <p className="text-xl font-black text-white mt-1">₹{value.toLocaleString()}</p>
+      <p className="text-xl font-black text-white mt-1">₹{value.toLocaleString('en-IN')}</p>
     </div>
   );
 }

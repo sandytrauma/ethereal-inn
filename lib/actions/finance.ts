@@ -3,20 +3,29 @@
 import { db } from "@/db";
 import { financialRecords, users, invoices } from "@/db/schema";
 import { revalidatePath } from "next/cache";
-import { desc, sql, eq, gte, asc, and } from "drizzle-orm";
+import { desc, sql, eq, gte, asc } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "../auth"; 
 
 /**
  * Helper to calculate start dates based on period
+ * Returns a formatted YYYY-MM-DD string to satisfy PgDateString build requirements
  */
-function getStartDate(period: 'month' | 'quarter' | 'year') {
+function getStartDateString(period: 'month' | 'quarter' | 'year') {
   const now = new Date();
-  // We use the local date to ensure "today" matches the hotel's timezone
-  if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
-  if (period === 'quarter') return new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-  if (period === 'year') return new Date(now.getFullYear(), 0, 1);
-  return new Date(now.getFullYear(), now.getMonth(), 1);
+  let date: Date;
+
+  if (period === 'month') {
+    date = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (period === 'quarter') {
+    date = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+  } else if (period === 'year') {
+    date = new Date(now.getFullYear(), 0, 1);
+  } else {
+    date = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  return date.toISOString().split('T')[0];
 }
 
 /**
@@ -24,8 +33,7 @@ function getStartDate(period: 'month' | 'quarter' | 'year') {
  */
 export async function getFinancialSummary(period: 'month' | 'quarter' | 'year' = 'month') {
   try {
-    const startDate = getStartDate(period);
-    const startDateStr = startDate.toISOString().split('T')[0];
+    const startDateStr = getStartDateString(period);
 
     const [summary] = await db
       .select({
@@ -54,7 +62,6 @@ export async function getFinancialSummary(period: 'month' | 'quarter' | 'year' =
 
 /**
  * Fetches audit trail history with user joins
- * This returns the Daily Aggregates from the Day Book
  */
 export async function getFullHistory() {
   try {
@@ -83,8 +90,7 @@ export async function getFullHistory() {
 }
 
 /**
- * NEW: Fetches individual checkout invoices for the Audit Trail tab
- * This ensures individual checkouts are reflected as separate entries
+ * Fetches individual checkout invoices
  */
 export async function getInvoiceHistory() {
   try {
@@ -100,11 +106,11 @@ export async function getInvoiceHistory() {
 }
 
 /**
- * Fetches report data for analytics/charts
+ * Fetches report data for analytics
  */
 export async function getReportData(period: 'month' | 'quarter' | 'year') {
   try {
-    const startDateStr = getStartDate(period).toISOString().split('T')[0];
+    const startDateStr = getStartDateString(period);
     return await db
       .select()
       .from(financialRecords)
@@ -117,7 +123,7 @@ export async function getReportData(period: 'month' | 'quarter' | 'year') {
 }
 
 /**
- * Returns list of staff for dropdowns/management
+ * Returns list of staff
  */
 export async function getStaffMembers() {
   try {
@@ -137,14 +143,14 @@ export async function getStaffMembers() {
 }
 
 /**
- * Reconciles day book figures for a specific date
+ * Reconciles day book figures
  */
 export async function closeDayBook(formData: any) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
     const session = token ? await decrypt(token) : null;
-    const userId = session?.id || session?.userId;
+    const userId = session?.id || (session as any)?.userId;
 
     if (!userId) {
       return { success: false, error: "Unauthorized. Please re-login." };
