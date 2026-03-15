@@ -46,8 +46,7 @@ export default function Dashboard({ user }: DashboardProps) {
     return r === 'admin' || r === 'manager' || r === 'owner';
   }, [user.role]);
 
-  // --- FIX 1: DATA NORMALIZATION ---
-  // Ensure all numeric strings from DB are converted to actual numbers for calculations
+  // --- DATA NORMALIZATION ---
   const normalizeData = (data: any[]) => {
     return data.map(item => ({
       ...item,
@@ -72,7 +71,6 @@ export default function Dashboard({ user }: DashboardProps) {
       
       if (summary.success) setDbData(summary.data);
       
-      // Normalize history logs immediately
       const cleanHistory = history ? normalizeData(history) : [];
       setLogs(cleanHistory);
       
@@ -243,7 +241,6 @@ export default function Dashboard({ user }: DashboardProps) {
                 <h2 className="text-2xl font-black text-white tracking-tight italic uppercase">Audit Trail</h2>
                 <History size={20} className="text-slate-700" />
               </div>
-              {/* FIX 2: Audit Trail View - Show Revenue breakdown */}
               {logs.length > 0 ? logs.map((log) => (
                 <div key={log.id} className="bg-slate-900/30 border border-white/5 p-5 rounded-[2.5rem] group hover:bg-slate-900/60 transition-all">
                   <div className="flex justify-between items-center">
@@ -323,16 +320,8 @@ export default function Dashboard({ user }: DashboardProps) {
           <Plus size={28} strokeWidth={3} />
         </button>
 
-       <NavIcon 
-  active={activeTab === 'analytics'} 
-  onClick={() => setActiveTab('analytics')} 
-  icon={BarChart3} 
-/>
-<NavIcon 
-  active={activeTab === 'settings'} 
-  onClick={() => setActiveTab('settings')} 
-  icon={Settings} 
-/>
+        <NavIcon active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} icon={BarChart3} />
+        <NavIcon active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings} />
       </nav>
     </div>
   );

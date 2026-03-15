@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { financialRecords, users, rooms } from "@/db/schema";
+import { financialRecords, users, invoices } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { desc, sql, eq, gte, asc, and } from "drizzle-orm";
 import { cookies } from "next/headers";
@@ -12,6 +12,7 @@ import { decrypt } from "../auth";
  */
 function getStartDate(period: 'month' | 'quarter' | 'year') {
   const now = new Date();
+  // We use the local date to ensure "today" matches the hotel's timezone
   if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
   if (period === 'quarter') return new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
   if (period === 'year') return new Date(now.getFullYear(), 0, 1);
@@ -53,6 +54,7 @@ export async function getFinancialSummary(period: 'month' | 'quarter' | 'year' =
 
 /**
  * Fetches audit trail history with user joins
+ * This returns the Daily Aggregates from the Day Book
  */
 export async function getFullHistory() {
   try {
@@ -81,6 +83,23 @@ export async function getFullHistory() {
 }
 
 /**
+ * NEW: Fetches individual checkout invoices for the Audit Trail tab
+ * This ensures individual checkouts are reflected as separate entries
+ */
+export async function getInvoiceHistory() {
+  try {
+    return await db
+      .select()
+      .from(invoices)
+      .orderBy(desc(invoices.checkoutDate))
+      .limit(100);
+  } catch (e) {
+    console.error("Invoice history fetch error:", e);
+    return [];
+  }
+}
+
+/**
  * Fetches report data for analytics/charts
  */
 export async function getReportData(period: 'month' | 'quarter' | 'year') {
@@ -90,7 +109,7 @@ export async function getReportData(period: 'month' | 'quarter' | 'year') {
       .select()
       .from(financialRecords)
       .where(gte(financialRecords.date, startDateStr))
-      .orderBy(asc(financialRecords.date)); // Ascending for easier chart plotting
+      .orderBy(asc(financialRecords.date)); 
   } catch (e) {
     console.error("Report data error:", e);
     return [];
@@ -131,7 +150,6 @@ export async function closeDayBook(formData: any) {
       return { success: false, error: "Unauthorized. Please re-login." };
     }
 
-    // Format current date to YYYY-MM-DD for unique index match
     const todayStr = new Date().toISOString().split('T')[0];
 
     await db.insert(financialRecords)
