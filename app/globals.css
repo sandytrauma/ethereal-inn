@@ -124,3 +124,52 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .glass-morphism {
+    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)];
+  }
+}
+
+@layer base {
+  /* Animation for the background blobs */
+  @keyframes drift {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(10%, 5%) rotate(5deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
+
+  .animate-drift {
+    animation: drift 20s infinite ease-in-out;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    /* Ensure the background is dark to make glass pop */
+    @apply bg-background text-foreground overflow-x-hidden;
+  }
+}
+
+@layer base {
+  @keyframes drift {
+    0% { 
+      transform: translate(0, 0) rotate(0deg) scale(1); 
+    }
+    50% { 
+      transform: translate(8%, 4%) rotate(2deg) scale(1.1); 
+    }
+    100% { 
+      transform: translate(0, 0) rotate(0deg) scale(1); 
+    }
+  }
+
+  .animate-drift {
+    /* Will-change optimizes performance for mobile/tablet browsers */
+    will-change: transform;
+    animation: drift 25s infinite ease-in-out;
+  }
+}

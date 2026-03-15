@@ -10,27 +10,30 @@ export default async function Page() {
   // Verify session on the server
   const session = token ? await decrypt(token).catch(() => null) : null;
 
-  // --- DEBUGGING: Check your terminal logs to see the structure ---
   if (session) {
-    console.log("Server Session Data:", session);
-  }
-
-  if (session) {
-    // Ensure we are passing a clean user object with a guaranteed ID
+    // 1. Clean User Object Construction
     const safeUser = {
-      id: session.id || session.userId || session.sub, // Fallbacks for common ID names
-      name: session.name || "User",
+      // Prioritize the ID fields you actually use in your database/JWT
+      id: String(session.id || session.userId || session.sub || ""), 
+      name: session.name || "Staff Member",
       role: session.role || "staff",
       email: session.email || ""
     };
 
-    // If even after fallbacks ID is missing, we handle it
+    // 2. Safety Check
     if (!safeUser.id) {
-      console.error("Critical: Session decrypted but no ID found.");
+      console.error("Auth Failure: Session found but User ID is missing.");
+      return <LandingLoginPage />; // Kick back to login if session is corrupted
     }
 
-    return <Dashboard user={safeUser} />;
+    // 3. Return Dashboard wrapped in a transparent container
+    return (
+      <div className="bg-transparent">
+        <Dashboard user={safeUser} />
+      </div>
+    );
   }
 
+  // If no session, show login
   return <LandingLoginPage />;
 }
