@@ -102,7 +102,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
         setGuestNameInput("");
         setSelectedRoom(null);
         // Clear the URL params after successful check-in
-        if (prefillName) router.replace('/inventory', { scroll: false });
+        if (prefillName) router.replace('/occupancy', { scroll: false });
       }
     });
   };
