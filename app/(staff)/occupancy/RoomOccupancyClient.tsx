@@ -19,12 +19,19 @@ interface Room {
   guestName?: string | null;
 }
 
-export default function RoomOccupancyClient({ initialRooms }: { initialRooms: Room[] }) {
+// Fixed Interface to resolve Build Errors
+interface RoomOccupancyProps {
+  initialRooms: Room[];
+  prefillName?: string | null; 
+  onRoomUpdate?: () => Promise<void>; 
+}
+
+export default function RoomOccupancyClient({ initialRooms, prefillName: propPrefill, onRoomUpdate }: RoomOccupancyProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  // Parameter Sanitization
-  const rawPrefill = searchParams.get("prefillGuest");
+  // Parameter Sanitization: Checks Prop first, then URL
+  const rawPrefill = propPrefill || searchParams.get("prefillGuest");
   const prefillName = (rawPrefill && rawPrefill !== "undefined") ? rawPrefill : null;
 
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
@@ -39,11 +46,14 @@ export default function RoomOccupancyClient({ initialRooms }: { initialRooms: Ro
   const [roomRent, setRoomRent] = useState(0);
   const [serviceFoodTotal, setServiceFoodTotal] = useState(0);
 
-  // Sync rooms and handle "Market Lead" Auto-Selection
+  // Sync rooms and handle "Market Lead" Auto-Selection & Pre-fill
   useEffect(() => {
     setRooms(initialRooms);
     if (prefillName) {
+      // 1. Set the text input immediately
       setGuestNameInput(prefillName);
+      
+      // 2. Auto-select the first available room for the lead
       const firstVacant = initialRooms.find(r => r.status === 'available');
       if (firstVacant && !selectedRoom) {
         setSelectedRoom(firstVacant);
@@ -68,6 +78,7 @@ export default function RoomOccupancyClient({ initialRooms }: { initialRooms: Ro
   const updateLocal = (num: number, up: Partial<Room>) => {
     setRooms(prev => prev.map(r => r.number === num ? { ...r, ...up } : r));
     setSelectedRoom(prev => (prev?.number === num ? { ...prev, ...up } : prev));
+    if (onRoomUpdate) onRoomUpdate(); // Trigger parent refresh if exists
   };
 
   const handleStatusChange = (s: RoomStatus) => {
@@ -90,7 +101,8 @@ export default function RoomOccupancyClient({ initialRooms }: { initialRooms: Ro
         updateLocal(selectedRoom.number, { status: "occupied", guestName: guestNameInput });
         setGuestNameInput("");
         setSelectedRoom(null);
-        if (prefillName) router.replace('/occupancy', { scroll: false });
+        // Clear the URL params after successful check-in
+        if (prefillName) router.replace('/inventory', { scroll: false });
       }
     });
   };
@@ -180,7 +192,6 @@ export default function RoomOccupancyClient({ initialRooms }: { initialRooms: Ro
               <div className="flex-1 overflow-y-auto no-scrollbar">
                 {!showBill ? (
                   <div className="space-y-12">
-                    {/* Status Overrides */}
                     <section>
                       <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 mb-6 block">Quick Operations</label>
                       <div className="grid grid-cols-2 gap-4">
