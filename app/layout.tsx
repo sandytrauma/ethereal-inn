@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "Ethereal Inn | Luxury Boutique Stay in Chhatarpur, Delhi",
   description: "Experience refined luxury at Ethereal Inn. Located near Chhatarpur Metro, offering boutique rooms, fine dining, and elite amenities.",
   keywords: ["Luxury Hotel Chhatarpur", "Boutique Stay Delhi", "Hotels near Chhatarpur Metro", "Ethereal Inn New Delhi"],
-  authors: [{ name: "Ethereal Inn Management" }],
+  authors: [{ name: "Ethereal Inn Hospitality LLP" }],
   icons: {
     icon: "https://cdn-icons-png.flaticon.com/512/3030/3030336.png", 
     apple: "https://cdn-icons-png.flaticon.com/512/3030/3030336.png",

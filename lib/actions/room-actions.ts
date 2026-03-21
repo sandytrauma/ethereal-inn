@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { financialRecords, invoices, rooms, tasks } from "@/db/schema";
+import { financialRecords, invoices, rooms } from "@/db/schema";
 import { asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -35,6 +35,7 @@ export async function updateRoomStatus(
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
+    console.error("Room Update Error:", error);
     return { success: false };
   }
 }
@@ -53,7 +54,6 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
         .where(eq(rooms.number, roomNumber));
 
       // 2. Insert into Invoices Table
-      // Note: your schema defines totalAmount as integer
       await tx.insert(invoices).values({
         roomNumber,
         guestName,
@@ -62,7 +62,7 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
       });
 
       // 3. Update or Insert into Financial Records (The Day Book)
-      const todayDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      const todayDate = new Date().toISOString().split('T')[0];
 
       const existingRecord = await tx.select()
         .from(financialRecords)
@@ -70,11 +70,11 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
         .limit(1);
 
       if (existingRecord.length > 0) {
-        // Update existing daily record
+        // Update existing daily record - using numeric cast for safety
         await tx.update(financialRecords)
           .set({
-            roomRevenue: sql`${financialRecords.roomRevenue} + ${totalAmount.toString()}`,
-            totalCollection: sql`${financialRecords.totalCollection} + ${totalAmount.toString()}`,
+            roomRevenue: sql`CAST(${financialRecords.roomRevenue} AS NUMERIC) + ${totalAmount}`,
+            totalCollection: sql`CAST(${financialRecords.totalCollection} AS NUMERIC) + ${totalAmount}`,
           })
           .where(eq(financialRecords.date, todayDate));
       } else {
@@ -93,6 +93,8 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
         });
       }
 
+      revalidatePath("/inventory");
+      revalidatePath("/dashboard");
       return { success: true };
     });
   } catch (error) {
@@ -118,6 +120,7 @@ export async function seedRooms() {
     revalidatePath("/inventory");
     return { success: true };
   } catch (error) {
+    console.error("Seed Error:", error);
     return { success: false };
   }
 }

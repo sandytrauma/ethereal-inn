@@ -112,27 +112,23 @@ export async function getInvoiceHistory() {
 
 /**
  * Fetches comprehensive report data for Market Intel Analytics
- * Pulls from Financial Records, Inquiries (Leads), Invoices (History), and Tasks (Ops)
  */
 export async function getReportData(period: 'month' | 'quarter' | 'year') {
   try {
     const startDateStr = getStartDateString(period);
     const startDateObj = new Date(startDateStr);
 
-    // 1. Daily Financial Logs
     const logs = await db
       .select()
       .from(financialRecords)
       .where(gte(financialRecords.date, startDateStr))
       .orderBy(asc(financialRecords.date));
 
-    // 2. Inquiries for Conversion Funnel
     const inquiryList = await db
       .select()
       .from(inquiries)
       .where(gte(inquiries.createdAt, startDateObj));
 
-    // 3. Guest Checkout History from Invoices
     const guestHistory = await db
       .select({
         id: invoices.id,
@@ -146,7 +142,6 @@ export async function getReportData(period: 'month' | 'quarter' | 'year') {
       .orderBy(desc(invoices.checkoutDate))
       .limit(20);
 
-    // 4. Tasks for Operational Efficiency
     const taskList = await db
       .select()
       .from(tasks)
@@ -239,5 +234,31 @@ export async function closeDayBook(formData: any) {
   } catch (error: any) {
     console.error("DayBook Submission Error:", error);
     return { success: false, error: "System failed to archive record." };
+  }
+}
+
+export async function updateInquiryStatus(id: number, status: string) {
+  try {
+    await db.update(inquiries)
+      .set({ status })
+      .where(eq(inquiries.id, id));
+    
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (e) {
+    return { success: false };
+  }
+}
+
+/**
+ * Deletes an inquiry record
+ */
+export async function deleteInquiry(id: number) {
+  try {
+    await db.delete(inquiries).where(eq(inquiries.id, id));
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (e) {
+    return { success: false };
   }
 }

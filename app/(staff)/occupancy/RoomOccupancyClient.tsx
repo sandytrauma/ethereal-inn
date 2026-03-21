@@ -3,10 +3,12 @@
 import React, { useState, useTransition, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  DoorOpen, UserCheck, Wind, AlertCircle, X, 
-  Loader2, Receipt, Check, ArrowLeft, UserPlus, Search, Calendar,
-  BedDouble, CheckCircle2
+  DoorOpen, UserCheck, Wind, AlertCircle, X, Loader2, 
+  Receipt, ArrowLeft, UserPlus, Search, Calendar, 
+  CheckCircle2, Zap, Sparkles, TrendingUp,
+  Check
 } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation"; 
 import { updateRoomStatus, processCheckout, type RoomStatus } from "@/lib/actions/room-actions";
 
 interface Room {
@@ -15,16 +17,16 @@ interface Room {
   floor: number;
   status: RoomStatus | null; 
   guestName?: string | null;
-  checkInTime?: Date | string | null;
 }
 
-// Fixed Interface to include onRoomUpdate callback
-interface RoomOccupancyProps {
-  initialRooms: Room[];
-  onRoomUpdate?: () => Promise<void>; 
-}
+export default function RoomOccupancyClient({ initialRooms }: { initialRooms: Room[] }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  // Parameter Sanitization
+  const rawPrefill = searchParams.get("prefillGuest");
+  const prefillName = (rawPrefill && rawPrefill !== "undefined") ? rawPrefill : null;
 
-export default function RoomOccupancyPage({ initialRooms, onRoomUpdate }: RoomOccupancyProps) {
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [showBill, setShowBill] = useState(false);
@@ -32,55 +34,50 @@ export default function RoomOccupancyPage({ initialRooms, onRoomUpdate }: RoomOc
   const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  // Financial & Date States
+  // Financial States
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0]);
   const [roomRent, setRoomRent] = useState(0);
   const [serviceFoodTotal, setServiceFoodTotal] = useState(0);
 
-  // Keep local state in sync with Dashboard props
+  // Sync rooms and handle "Market Lead" Auto-Selection
   useEffect(() => {
     setRooms(initialRooms);
-  }, [initialRooms]);
+    if (prefillName) {
+      setGuestNameInput(prefillName);
+      const firstVacant = initialRooms.find(r => r.status === 'available');
+      if (firstVacant && !selectedRoom) {
+        setSelectedRoom(firstVacant);
+      }
+    }
+  }, [initialRooms, prefillName]);
 
-  const dashboardStats = useMemo(() => {
-    const occupied = rooms.filter(r => r.status === 'occupied').length;
-    const cleaning = rooms.filter(r => r.status === 'cleaning').length;
-    const available = rooms.filter(r => r.status === 'available').length;
-    
-    return {
-      current: occupied,
-      available: available,
-      cleaning: cleaning,
-      total: rooms.length
-    };
-  }, [rooms]);
-
-  const updateLocalRoom = (roomNumber: number, updates: Partial<Room>) => {
-    setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, ...updates } : r));
-    setSelectedRoom((prev) => (prev?.number === roomNumber ? { ...prev, ...updates } : prev));
-  };
+  const stats = useMemo(() => ({
+    occupied: rooms.filter(r => r.status === 'occupied').length,
+    available: rooms.filter(r => r.status === 'available').length,
+    cleaning: rooms.filter(r => r.status === 'cleaning').length,
+    total: rooms.length
+  }), [rooms]);
 
   const filteredRooms = useMemo(() => {
-    if (!searchQuery) return rooms;
-    const query = searchQuery.toLowerCase();
-    return rooms.filter(room => 
-      String(room.number).includes(query) || 
-      (room.guestName || "").toLowerCase().includes(query)
+    const q = searchQuery.toLowerCase();
+    return rooms.filter(r => 
+      String(r.number).includes(q) || (r.guestName || "").toLowerCase().includes(q)
     );
   }, [rooms, searchQuery]);
 
-  const handleStatusChange = (nextStatus: RoomStatus) => {
-    if (!selectedRoom) return;
+  const updateLocal = (num: number, up: Partial<Room>) => {
+    setRooms(prev => prev.map(r => r.number === num ? { ...r, ...up } : r));
+    setSelectedRoom(prev => (prev?.number === num ? { ...prev, ...up } : prev));
+  };
 
-    if (selectedRoom.status === "occupied" && nextStatus === "cleaning") {
+  const handleStatusChange = (s: RoomStatus) => {
+    if (!selectedRoom) return;
+    if (selectedRoom.status === "occupied" && s === "cleaning") {
       setShowBill(true);
     } else {
       startTransition(async () => {
-        const res = await updateRoomStatus(selectedRoom.number, nextStatus);
-        if (res.success) {
-          updateLocalRoom(selectedRoom.number, { status: nextStatus, guestName: null });
-          if (onRoomUpdate) await onRoomUpdate(); // Sync Parent
-        }
+        const res = await updateRoomStatus(selectedRoom.number, s);
+        if (res.success) updateLocal(selectedRoom.number, { status: s, guestName: null });
       });
     }
   };
@@ -90,90 +87,75 @@ export default function RoomOccupancyPage({ initialRooms, onRoomUpdate }: RoomOc
     startTransition(async () => {
       const res = await updateRoomStatus(selectedRoom.number, "occupied", guestNameInput);
       if (res.success) {
-        updateLocalRoom(selectedRoom.number, { 
-          status: "occupied", 
-          guestName: guestNameInput,
-        });
+        updateLocal(selectedRoom.number, { status: "occupied", guestName: guestNameInput });
         setGuestNameInput("");
-        if (onRoomUpdate) await onRoomUpdate(); // Sync Parent
+        setSelectedRoom(null);
+        if (prefillName) router.replace('/occupancy', { scroll: false });
       }
     });
   };
 
   const finalizeCheckout = () => {
-    if (!selectedRoom || !selectedRoom.guestName) return;
-
-    const guestName: string = selectedRoom.guestName;
-    const roomNumber = selectedRoom.number;
-
+    if (!selectedRoom?.guestName) return;
     startTransition(async () => {
-      const totalAmount = Number(roomRent) + Number(serviceFoodTotal);
-      const res = await processCheckout(roomNumber, guestName, totalAmount);
-
+      const total = Number(roomRent) + Number(serviceFoodTotal);
+      const res = await processCheckout(selectedRoom.number, selectedRoom.guestName!, total);
       if (res.success) {
-        updateLocalRoom(roomNumber, { status: "cleaning", guestName: null });
+        updateLocal(selectedRoom.number, { status: "cleaning", guestName: null });
         setShowBill(false);
         setSelectedRoom(null);
         setRoomRent(0);
         setServiceFoodTotal(0);
-        if (onRoomUpdate) await onRoomUpdate(); // Sync Parent
-      } else {
-        alert("Checkout failed. Please check system logs.");
       }
     });
   };
 
   return (
-    <div className="flex min-h-screen bg-[#020617] text-slate-100 font-sans selection:bg-amber-400 selection:text-slate-950">
-      <div className="flex-1 max-w-10xl p-8 md:p-12 overflow-y-auto pb-40">
+    <div className="flex min-h-screen bg-[#020617] text-slate-100 font-sans">
+      <div className="flex-1 p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar">
         
-        <header className="max-w-6xl mx-auto mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        {/* Header */}
+        <header className="max-w-6xl mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
           <div>
-            <h1 className="text-3xl md:text-10xl font-black tracking-tighter text-white uppercase italic leading-none">Inventory.</h1>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">
-              Ethereal Inn • Live Operations Control
-            </p>
+            <h1 className="text-5xl md:text-8xl font-black tracking-tighter text-white uppercase italic leading-[0.8]">Inventory.</h1>
+            <div className="flex items-center gap-3 mt-4 ml-1">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em]">Live Grid Control</p>
+            </div>
           </div>
-          <div className="flex flex-col gap-4 items-end">
-            <div className="relative w-full max-w-xs group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-amber-400 transition-colors" size={16} />
-              <input 
-                type="text" 
-                placeholder="Find room..." 
-                value={searchQuery} 
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-10 pr-4 outline-none focus:border-amber-400/50 text-xs text-white" 
-              />
-            </div>
-            <div className="flex flex-wrap gap-4 bg-white/5 p-3 rounded-3xl border border-white/10 backdrop-blur-md">
-              <StatusLegend label="Ready" color="bg-emerald-500" />
-              <StatusLegend label="Stay" color="bg-amber-400" />
-              <StatusLegend label="Clean" color="bg-blue-500" />
-              <StatusLegend label="Ooo" color="bg-rose-500" />
-            </div>
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+            <input 
+              type="text" placeholder="Search Unit / Guest Name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white/[0.03] border border-white/10 rounded-[2rem] py-5 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[11px] font-black uppercase text-white transition-all backdrop-blur-xl" 
+            />
           </div>
         </header>
 
-        {/* --- DASHBOARD STATS SECTION --- */}
-        <div className="max-w-6xl mx-auto mb-16">
-           <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-              <StatCard label="Live Occupancy" value={dashboardStats.current} icon={BedDouble} color="text-amber-400" />
-              <StatCard label="Available" value={dashboardStats.available} icon={DoorOpen} color="text-emerald-500" />
-              <StatCard label="Turnover/Cleaning" value={dashboardStats.cleaning} icon={Wind} color="text-blue-500" />
-              <StatCard label="Total Units" value={dashboardStats.total} icon={CheckCircle2} color="text-slate-400" />
-           </div>
+        {/* Stats Grid */}
+        <div className="max-w-6xl mx-auto mb-16 grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatBox label="In-House" value={stats.occupied} icon={UserCheck} color="text-amber-400" />
+          <StatBox label="Available" value={stats.available} icon={DoorOpen} color="text-emerald-500" />
+          <StatBox label="Cleaning" value={stats.cleaning} icon={Wind} color="text-blue-500" />
+          <StatBox label="Total" value={stats.total} icon={CheckCircle2} color="text-slate-600" />
         </div>
 
-        <div className="max-w-10xl mx-auto flex flex-col-reverse gap-16">
-          {[5, 4, 3, 2, 1].map((floor) => (
-            <div key={floor}>
-              <div className="flex items-center gap-6 mb-8">
-                <span className="text-slate-900 font-black text-6xl uppercase tracking-tighter opacity-50">F0{floor}</span>
-                <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+        {/* Floors */}
+        <div className="max-w-7xl mx-auto space-y-24">
+          {[5, 4, 3, 2, 1].map((f) => (
+            <div key={f} className="relative">
+              <div className="flex items-center gap-6 mb-10 sticky top-0 bg-[#020617]/80 backdrop-blur-xl py-4 z-10">
+                <span className="text-slate-800 font-black text-6xl uppercase tracking-tighter italic">F0{f}</span>
+                <div className="h-[1px] flex-1 bg-gradient-to-r from-white/10 to-transparent" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {filteredRooms.filter(r => r.floor === floor).map(room => (
-                  <RoomCard key={room.number} room={room} onClick={() => { setSelectedRoom(room); setShowBill(false); }} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {filteredRooms.filter(r => r.floor === f).map(room => (
+                  <RoomTile 
+                    key={room.number} 
+                    room={room} 
+                    isLeadActive={prefillName && room.status === 'available'}
+                    onClick={() => { setSelectedRoom(room); setShowBill(false); }} 
+                  />
                 ))}
               </div>
             </div>
@@ -181,194 +163,165 @@ export default function RoomOccupancyPage({ initialRooms, onRoomUpdate }: RoomOc
         </div>
       </div>
 
+      {/* Sidebar Panel */}
       <AnimatePresence>
         {selectedRoom && (
-          <motion.aside 
-            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} 
-            className="fixed right-0 top-0 h-full w-full max-w-md bg-[#01040f] border-l border-white/10 z-[100] shadow-2xl p-8 md:p-12 flex flex-col overflow-y-auto"
-          >
-            <div className="flex justify-between items-center mb-16">
-              <div className="px-6 py-3 bg-white/5 rounded-2xl border border-white/10">
-                <span className="text-amber-400 font-black text-2xl tracking-tighter italic">Room {selectedRoom.number}</span>
-              </div>
-              <button onClick={() => setSelectedRoom(null)} className="p-3 bg-white/5 rounded-full hover:bg-white/10 text-slate-500 transition-colors">
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="flex-1">
-              {!showBill ? (
-                <div className="space-y-12">
-                  <section>
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-6 block">Quick Transition</label>
-                    <div className="grid grid-cols-2 gap-4">
-                      {(["available", "occupied", "cleaning", "maintenance"] as RoomStatus[]).map((s) => (
-                        <button 
-                          key={s} 
-                          disabled={isPending || (s === 'occupied' && selectedRoom.status === 'available')} 
-                          onClick={() => handleStatusChange(s)} 
-                          className={`py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedRoom.status === s ? 'bg-amber-400 border-amber-400 text-slate-950' : 'bg-white/5 border-white/10 text-slate-500 hover:border-white/20'}`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-
-                  {selectedRoom.status === "available" && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white/5 p-8 rounded-[3rem] border border-emerald-500/20">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2 mb-6">
-                        <UserPlus size={14} /> New Check-In
-                      </label>
-                      <input 
-                        className="w-full bg-slate-950 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-amber-400 transition-all mb-4"
-                        placeholder="Primary Guest Name"
-                        value={guestNameInput}
-                        onChange={(e) => setGuestNameInput(e.target.value)}
-                      />
-                      <div className="relative mb-4">
-                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                        <input type="date" className="w-full bg-slate-950 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-white text-xs outline-none focus:border-amber-400"
-                          value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} />
-                      </div>
-                      <button 
-                        onClick={handleCheckIn}
-                        disabled={isPending || !guestNameInput}
-                        className="w-full bg-emerald-500 text-slate-950 font-black py-4 rounded-2xl flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest"
-                      >
-                        {isPending ? <Loader2 className="animate-spin" /> : <><Check size={16}/> Confirm Stay</>}
-                      </button>
-                    </motion.div>
-                  )}
-
-                  {selectedRoom.guestName && selectedRoom.status === 'occupied' && (
-                    <div className="bg-white/5 p-8 rounded-[3rem] border border-white/5 relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <UserCheck size={64} />
-                      </div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inhabitant</label>
-                      <p className="text-3xl font-black text-white mt-2 leading-none">{selectedRoom.guestName}</p>
-                      <div className="mt-8 pt-6 border-t border-white/5 flex gap-4">
-                        <button className="flex-1 bg-white/5 hover:bg-white/10 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Services</button>
-                        <button onClick={() => setShowBill(true)} className="flex-1 bg-amber-400 text-slate-950 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Checkout</button>
-                      </div>
-                    </div>
-                  )}
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRoom(null)} className="fixed inset-0 bg-black/90 backdrop-blur-md z-[90]" />
+            <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#01040f] border-l border-white/10 z-[100] p-10 flex flex-col shadow-[ -20px_0_100px_rgba(0,0,0,0.8)]">
+              
+              <div className="flex justify-between items-center mb-16">
+                <div className="px-6 py-3 bg-white/5 rounded-3xl border border-white/10">
+                  <span className="text-amber-400 font-black text-2xl tracking-tighter italic uppercase">Room {selectedRoom.number}</span>
                 </div>
-              ) : (
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
-                  <div className="bg-white/5 p-8 rounded-[3rem] border border-amber-400/20 shadow-2xl space-y-6">
-                    <h4 className="text-amber-400 font-black uppercase tracking-widest text-xs flex items-center gap-2">
-                      <Receipt size={14}/> Settlement Breakup
-                    </h4>
-                    <div className="space-y-4">
-                      <div className="relative">
-                        <input type="number" value={roomRent || ""} placeholder="Room Rent" className="w-full bg-slate-950 border border-white/10 rounded-xl py-4 px-6 text-white text-sm outline-none focus:border-amber-400"
-                          onChange={(e) => setRoomRent(Number(e.target.value))} />
-                        <label className="absolute -top-2 left-4 bg-[#01040f] px-2 text-[8px] font-black uppercase text-slate-500">Room Rent</label>
+                <button onClick={() => setSelectedRoom(null)} className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 hover:text-rose-500 rounded-2xl transition-all text-slate-500"><X size={20}/></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto no-scrollbar">
+                {!showBill ? (
+                  <div className="space-y-12">
+                    {/* Status Overrides */}
+                    <section>
+                      <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 mb-6 block">Quick Operations</label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {(["available", "occupied", "cleaning", "maintenance"] as RoomStatus[]).map((s) => (
+                          <button 
+                            key={s} 
+                            disabled={isPending || (s === 'occupied' && !selectedRoom.guestName)} 
+                            onClick={() => handleStatusChange(s)} 
+                            className={`py-5 rounded-3xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedRoom.status === s ? 'bg-amber-400 border-amber-400 text-slate-950 shadow-2xl shadow-amber-400/20' : 'bg-white/5 border-white/10 text-slate-500 hover:border-white/30'}`}
+                          >
+                            {s}
+                          </button>
+                        ))}
                       </div>
-                      <div className="relative">
-                        <input type="number" value={serviceFoodTotal || ""} placeholder="Food & Service" className="w-full bg-slate-950 border border-white/10 rounded-xl py-4 px-6 text-white text-sm outline-none focus:border-amber-400"
-                          onChange={(e) => setServiceFoodTotal(Number(e.target.value))} />
-                        <label className="absolute -top-2 left-4 bg-[#01040f] px-2 text-[8px] font-black uppercase text-slate-500">Food & Service</label>
+                    </section>
+
+                    {/* Check-In Form */}
+                    {selectedRoom.status === "available" && (
+                      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className={`p-8 rounded-[3rem] border-2 transition-all ${prefillName ? 'bg-amber-400/10 border-amber-400/40 ring-4 ring-amber-400/5' : 'bg-white/[0.02] border-white/5'}`}>
+                        <div className="flex justify-between items-start mb-8">
+                            <div className="space-y-1">
+                                <h3 className={`text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 ${prefillName ? 'text-amber-400' : 'text-slate-500'}`}>
+                                    {prefillName ? <Zap size={14} className="animate-pulse" /> : <UserPlus size={14} />} 
+                                    {prefillName ? "Convert Market Lead" : "Direct Check-in"}
+                                </h3>
+                                <p className="text-[9px] font-bold text-slate-600 uppercase">Operational Entry</p>
+                            </div>
+                            {prefillName && <div className="bg-amber-400 text-slate-950 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-lg">Verified</div>}
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div className="relative">
+                                <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 px-6 text-sm text-white outline-none focus:border-amber-400 transition-all font-black uppercase italic" placeholder="Guest Full Name" value={guestNameInput} onChange={(e) => setGuestNameInput(e.target.value)} />
+                                <div className="absolute top-0 right-5 h-full flex items-center text-slate-800 font-black italic">GUEST_ID</div>
+                            </div>
+                            <div className="relative">
+                                <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                                <input type="date" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 font-black uppercase" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} />
+                            </div>
+                            <button onClick={handleCheckIn} disabled={isPending || !guestNameInput} className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-3xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-2xl shadow-amber-400/30 active:scale-95 transition-all">
+                                {isPending ? <Loader2 size={20} className="animate-spin" /> : <> <Check size={20} /> Authorize Check-in</>}
+                            </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Occupant Info */}
+                    {selectedRoom.guestName && selectedRoom.status === 'occupied' && (
+                      <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10">
+                        <label className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-3 block italic">Occupant Details</label>
+                        <p className="text-3xl font-black text-white italic tracking-tighter mb-10 leading-tight uppercase">{selectedRoom.guestName}</p>
+                        <button onClick={() => setShowBill(true)} className="w-full bg-white text-slate-950 py-6 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-amber-400 transition-all active:scale-95 flex items-center justify-center gap-3">
+                            <TrendingUp size={18} /> Initiate Settlement
+                        </button>
                       </div>
-                      <div className="border-t border-white/10 pt-4 mt-4 flex justify-between text-white text-xl font-black italic">
-                        <span>Total Due</span>
-                        <span>₹{Number(roomRent) + Number(serviceFoodTotal)}</span>
+                    )}
+                  </div>
+                ) : (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
+                    <div className="bg-white/5 p-10 rounded-[3.5rem] border border-white/10 space-y-10">
+                      <div className="flex items-center gap-3 text-amber-400">
+                          <Receipt size={18}/> 
+                          <h4 className="font-black uppercase tracking-[0.3em] text-[10px]">Settlement Audit</h4>
+                      </div>
+                      <div className="space-y-6">
+                        <SideInput label="Room Tariff" value={roomRent} onChange={setRoomRent} />
+                        <SideInput label="Food & Services" value={serviceFoodTotal} onChange={setServiceFoodTotal} />
+                        <div className="pt-10 border-t border-white/10 flex justify-between items-end">
+                          <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Net Collection</span>
+                          <span className="text-5xl font-black italic text-white tracking-tighter">₹{roomRent + serviceFoodTotal}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <button onClick={finalizeCheckout} disabled={isPending} className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-3xl uppercase text-[10px] tracking-[0.3em] flex items-center justify-center gap-2">
-                    {isPending ? <Loader2 className="animate-spin" /> : "Authorize Checkout"}
-                  </button>
-                  <button onClick={() => setShowBill(false)} className="w-full text-slate-500 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
-                    <ArrowLeft size={14} /> Back
-                  </button>
-                </motion.div>
-              )}
-            </div>
-          </motion.aside>
+                    <button onClick={finalizeCheckout} disabled={isPending} className="w-full bg-amber-400 text-slate-950 font-black py-7 rounded-[2.5rem] uppercase text-xs tracking-[0.3em] shadow-2xl shadow-amber-400/30 active:scale-95 transition-all">
+                      {isPending ? "Generating Invoice..." : "Authorize Settlement"}
+                    </button>
+                    <button onClick={() => setShowBill(false)} className="w-full text-slate-600 font-black text-[10px] uppercase flex items-center justify-center gap-3 hover:text-white transition-colors"><ArrowLeft size={14} /> Back to Dashboard</button>
+                  </motion.div>
+                )}
+              </div>
+            </motion.aside>
+          </>
         )}
       </AnimatePresence>
     </div>
   );
 }
 
-// --- SUB-COMPONENTS ---
-function StatCard({ label, value, icon: Icon, color }: { label: string, value: number | string, icon: any, color: string }) {
+// Helpers
+function SideInput({ label, value, onChange }: any) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-sm group hover:border-white/20 transition-all"
-    >
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-2 rounded-xl bg-white/5 ${color}`}>
-          <Icon size={20} />
+    <div className="relative">
+      <input type="number" value={value || ""} onChange={(e) => onChange(Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded-2xl py-6 px-6 text-lg font-black text-white outline-none focus:border-amber-400 transition-all italic" />
+      <label className="absolute -top-3 left-6 bg-[#01040f] px-3 text-[9px] font-black uppercase text-slate-600 tracking-[0.2em]">{label}</label>
+    </div>
+  );
+}
+
+function StatBox({ label, value, icon: Icon, color }: any) {
+  return (
+    <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[2.5rem] relative overflow-hidden group">
+      <div className={`absolute -right-4 -bottom-4 opacity-[0.03] ${color} group-hover:scale-125 transition-transform duration-700`}><Icon size={120} /></div>
+      <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 mb-2">{label}</p>
+      <h4 className={`text-4xl font-black italic tracking-tighter ${color}`}>{value}</h4>
+    </div>
+  );
+}
+
+function RoomTile({ room, onClick, isLeadActive }: any) {
+  const s: RoomStatus = room.status ?? "available";
+  const themes = {
+    available: "border-emerald-500/20 text-emerald-500 bg-emerald-500/[0.02] hover:border-emerald-500/60 shadow-emerald-500/5",
+    occupied: "border-amber-400/20 text-amber-400 bg-amber-400/[0.02] hover:border-amber-400/60 shadow-amber-400/5",
+    cleaning: "border-blue-500/20 text-blue-500 bg-blue-500/[0.02] hover:border-blue-500/60 shadow-blue-500/5",
+    maintenance: "border-rose-500/20 text-rose-500 bg-rose-500/[0.02] hover:border-rose-500/60 shadow-rose-500/5"
+  };
+  const iconMap = { available: DoorOpen, occupied: UserCheck, cleaning: Wind, maintenance: AlertCircle };
+  const Icon = iconMap[s] || AlertCircle;
+
+  return (
+    <motion.div whileHover={{ y: -10 }} whileTap={{ scale: 0.98 }} onClick={onClick} className={`p-8 rounded-[3rem] border-2 cursor-pointer transition-all shadow-2xl flex flex-col justify-between h-56 relative overflow-hidden ${themes[s]} ${isLeadActive ? 'ring-4 ring-amber-400 ring-offset-[10px] ring-offset-[#020617]' : ''}`}>
+      {isLeadActive && (
+        <div className="absolute top-6 right-6 flex items-center gap-2">
+            <span className="text-[8px] font-black uppercase tracking-tighter">Ready for Lead</span>
+            <Sparkles size={16} className="text-amber-400 animate-pulse" />
         </div>
-        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">Live</span>
+      )}
+      <div className="flex justify-between items-start">
+        <h3 className="text-5xl font-black tracking-tighter italic leading-none">{room.number}</h3>
+        <Icon size={28} className="opacity-20" />
       </div>
       <div>
-        <h4 className={`text-4xl font-black tracking-tighter italic leading-none mb-1 ${color}`}>
-          {value}
-        </h4>
-        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 opacity-60">
-          {label}
-        </p>
-      </div>
-    </motion.div>
-  );
-}
-
-function RoomCard({ room, onClick }: { room: Room, onClick: () => void }) {
-  const currentStatus: RoomStatus = room.status ?? "available";
-
-  const styles = { 
-    available: "border-emerald-500/30 text-emerald-500 bg-emerald-500/5 hover:border-emerald-500/60", 
-    occupied: "border-amber-400/30 text-amber-400 bg-amber-400/5 hover:border-amber-400/60", 
-    cleaning: "border-blue-500/30 text-blue-500 bg-blue-500/5 hover:border-blue-500/60", 
-    maintenance: "border-rose-500/30 text-rose-500 bg-rose-500/5 hover:border-rose-500/60" 
-  };
-  
-  const iconMap = {
-    available: DoorOpen,
-    occupied: UserCheck,
-    cleaning: Wind,
-    maintenance: AlertCircle
-  };
-  
-  const Icon = iconMap[currentStatus];
-
-  return (
-    <motion.div 
-      whileHover={{ y: -8, scale: 1.02 }} onClick={onClick} 
-      className={`relative overflow-hidden cursor-pointer p-6 rounded-[2.5rem] border-2 transition-all shadow-2xl ${styles[currentStatus]} group`}
-    >
-      <div className="flex justify-between items-start mb-10">
-        <h3 className="text-2xl font-black tracking-tighter italic leading-none">{room.number}</h3>
-        <Icon size={28} className="opacity-30 group-hover:opacity-100 transition-opacity" />
-      </div>
-      <div className="space-y-1 mb-4">
-        <span className="text-[6px] font-black uppercase tracking-[0.3em] opacity-40">Status</span>
-        <p className="font-black text-white uppercase tracking-tighter text-sm">{currentStatus}</p>
-        {room.guestName && (
-          <p className="text-[10px] font-bold text-amber-400 truncate mt-2 italic bg-amber-400/10 px-3 py-1 rounded-full w-fit max-w-full">
-            {room.guestName}
-          </p>
+        <p className="text-[11px] font-black uppercase tracking-widest text-white mb-3">{s}</p>
+        {room.guestName ? (
+          <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/5 backdrop-blur-md">
+            <p className="text-[10px] font-black text-white/80 truncate italic uppercase">{room.guestName}</p>
+          </div>
+        ) : (
+          <div className="h-8" />
         )}
       </div>
-      {currentStatus === 'occupied' && (
-        <div className="absolute top-0 right-0 w-20 h-20 bg-amber-400/5 rounded-bl-full -mr-10 -mt-10" />
-      )}
     </motion.div>
-  );
-}
-
-function StatusLegend({ label, color }: { label: string, color: string }) {
-  return (
-    <div className="flex items-center gap-3 px-3">
-      <div className={`w-2 h-2 rounded-full ${color} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} />
-      <span className="text-[9px] font-black uppercase text-slate-500">{label}</span>
-    </div>
   );
 }
