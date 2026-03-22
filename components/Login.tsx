@@ -2,7 +2,7 @@
 
 import React, { useState, useActionState, useEffect, useMemo, useTransition } from "react";
 import { loginUser } from "@/lib/actions/auth";
-import { createInquiryAction } from "@/lib/actions/inquiry"; // Ensure this action exists
+import { createInquiryAction } from "@/lib/actions/inquiry";
 import {
   Loader2,
   Lock,
@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Script from "next/script";
-import { getGoogleReviews } from "@/lib/actions/reviews"; // Ensure this action exists
+import { getGoogleReviews } from "@/lib/actions/reviews";
 
 // --- GA4 CONFIGURATION ---
 const GA_MEASUREMENT_ID = "G-XXXXXXXXXX";
@@ -86,10 +86,7 @@ const POLICY_CONTENT = {
     title: "Privacy Policy",
     icon: <Shield className="text-amber-400" size={24} />,
     sections: [
-      {
-        h: "Data Security",
-        p: "We use encryption to protect your contact info. Your data is stored only for booking and statutory purposes.",
-      },
+      { h: "Data Security", p: "We use encryption to protect your contact info. Your data is stored only for booking and statutory purposes." },
       { h: "Cookies", p: "We use Google Analytics to track site traffic." },
     ],
   },
@@ -97,10 +94,7 @@ const POLICY_CONTENT = {
     title: "Terms of Service",
     icon: <FileText className="text-amber-400" size={24} />,
     sections: [
-      {
-        h: "Guest ID",
-        p: "Government-approved ID is mandatory upon check-in.",
-      },
+      { h: "Guest ID", p: "Government-approved ID is mandatory upon check-in." },
       { h: "Property Care", p: "Ethereal Inn is a non-smoking property." },
     ],
   },
@@ -108,40 +102,21 @@ const POLICY_CONTENT = {
     title: "Refund Policy",
     icon: <CreditCard className="text-amber-400" size={24} />,
     sections: [
-      {
-        h: "Cancellation Window",
-        p: "Cancel 48 hours before check-in for a full refund.",
-      },
+      { h: "Cancellation Window", p: "Cancel 48 hours before check-in for a full refund." },
     ],
   },
 };
 
-// This is "+919315371613" encoded in Base64
 const ENCODED_PHONE = "KzkxOTMxNTM3MTYxMw==";
+const WHATSAPP_MESSAGE = encodeURIComponent("Hi Ethereal Inn! I'd like to inquire about a booking. Please share availability for the upcoming dates.");
 
-const WHATSAPP_MESSAGE = encodeURIComponent(
-  "Hi Ethereal Inn! I'd like to inquire about a booking. Please share availability for the upcoming dates.",
-);
-
-/**
- * Decodes the phone number and opens WhatsApp dynamically.
- * This prevents the number from sitting in the DOM as a plain string.
- */
 const handleBookingRedirect = (e: React.MouseEvent) => {
   e.preventDefault();
-
-  // Decode on the fly
   const decodedPhone = atob(ENCODED_PHONE);
   const whatsappUrl = `https://wa.me/${decodedPhone.replace("+", "")}?text=${WHATSAPP_MESSAGE}`;
-
-  // Trigger GA4 tracking
   if (typeof window !== "undefined" && (window as any).gtag) {
-    (window as any).gtag("event", "generate_lead", {
-      event_category: "Engagement",
-    });
+    (window as any).gtag("event", "generate_lead", { event_category: "Engagement" });
   }
-
-  // Redirect
   window.open(whatsappUrl, "_blank", "noopener,noreferrer");
 };
 
@@ -149,11 +124,8 @@ export default function LandingLoginPage() {
   const [showLogin, setShowLogin] = useState(false);
   const [showInquiry, setShowInquiry] = useState(false);
   const [currentHero, setCurrentHero] = useState(0);
-  const [activeGalleryTab, setActiveGalleryTab] =
-    useState<keyof typeof GALLERY_DATA>("Rooms");
-  const [policyType, setPolicyType] = useState<
-    keyof typeof POLICY_CONTENT | null
-  >(null);
+  const [activeGalleryTab, setActiveGalleryTab] = useState<keyof typeof GALLERY_DATA>("Rooms");
+  const [policyType, setPolicyType] = useState<keyof typeof POLICY_CONTENT | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [isPendingInquiry, startTransition] = useTransition();
@@ -161,23 +133,17 @@ export default function LandingLoginPage() {
   const [state, formAction, isPending] = useActionState(loginUser, null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentHero((prev) => (prev + 1) % HERO_IMAGES.length);
-    }, 6000);
-
+    const timer = setInterval(() => setCurrentHero((prev) => (prev + 1) % HERO_IMAGES.length), 6000);
     async function loadReviews() {
       try {
         const data = await getGoogleReviews();
-        // Use real reviews if available and count > 0, otherwise use mocks
         setReviews(data && data.length > 0 ? data : MOCK_REVIEWS);
       } catch (e) {
-        console.error("API Error: Falling back to Mock Reviews");
         setReviews(MOCK_REVIEWS);
       } finally {
         setLoadingReviews(false);
       }
     }
-
     loadReviews();
     return () => clearInterval(timer);
   }, []);
@@ -185,358 +151,215 @@ export default function LandingLoginPage() {
   async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
-    // Construct descriptive message for the database
     const checkIn = formData.get("checkIn");
     const checkOut = formData.get("checkOut");
     const note = formData.get("note") || "None";
-    const richMessage = `Requested Dates: ${checkIn} to ${checkOut}. Guest Note: ${note}`;
-    formData.append("message", richMessage);
+    formData.append("message", `Stay: ${checkIn} to ${checkOut}. Note: ${note}`);
 
     startTransition(async () => {
       const res = await createInquiryAction(formData);
       if (res.success) {
         setInquirySuccess(true);
-        if (typeof window !== "undefined" && (window as any).gtag) {
-          (window as any).gtag("event", "generate_lead", { event_category: "Engagement" });
-        }
-        setTimeout(() => {
-          setShowInquiry(false);
-          setInquirySuccess(false);
-        }, 2500);
+        setTimeout(() => { setShowInquiry(false); setInquirySuccess(false); }, 2500);
       }
     });
   }
 
   return (
     <main className="min-h-screen bg-[#020617] text-slate-100 overflow-x-hidden font-sans selection:bg-amber-400 selection:text-slate-900">
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-        strategy="afterInteractive"
-      />
+      <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
       <Script id="google-analytics" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${GA_MEASUREMENT_ID}');
-        `}
+        {`window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', '${GA_MEASUREMENT_ID}');`}
       </Script>
 
-      {/* 1. HERO SECTION */}
-      <section className="relative h-[95vh] flex flex-col justify-center px-6 overflow-hidden">
+      {/* 1. HERO SECTION - RESPONSIVE HEIGHT */}
+      <section className="relative h-[100dvh] flex flex-col justify-center px-4 md:px-6 overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.img
             key={currentHero}
             src={HERO_IMAGES[currentHero]}
-            alt="Ethereal Inn"
             initial={{ opacity: 0, scale: 1.1 }}
-            animate={{ opacity: 0.65, scale: 1 }}
+            animate={{ opacity: 0.5, scale: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 2 }}
             className="absolute inset-0 w-full h-full object-cover z-0"
           />
         </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-[#020617]/80 z-[1]" />
-        <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
+        
+        <div className="relative z-10 max-w-5xl mx-auto text-center space-y-6 md:space-y-8">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-7xl md:text-[10rem] font-black tracking-tighter text-white leading-[0.85]"
+            className="text-6xl sm:text-8xl md:text-[10rem] font-black tracking-tighter text-white leading-[0.85] uppercase italic"
           >
-            Ethereal <br className="md:hidden" />
+            Ethereal <br className="hidden md:block" />
             <span className="text-amber-400">Inn.</span>
           </motion.h1>
-          <div className="flex flex-col md:flex-row gap-4 justify-center pt-6 px-4">
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6 px-4">
             <button
               onClick={() => setShowInquiry(true)}
-              className="w-full md:w-auto bg-white text-slate-950 font-black px-12 py-6 rounded-3xl md:rounded-full hover:bg-amber-400 transition-all shadow-2xl active:scale-95 uppercase tracking-widest text-sm"
+              className="w-full sm:w-auto bg-white/10 backdrop-blur-md border border-white/20 text-white font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-white hover:text-black transition-all shadow-2xl active:scale-95 uppercase tracking-widest text-[11px]"
             >
               Direct Inquiry
             </button>
             <button
               onClick={handleBookingRedirect}
-              className="w-full md:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-6 rounded-3xl md:rounded-full hover:bg-emerald-400 transition-all shadow-2xl shadow-emerald-500/20 active:scale-95 uppercase tracking-widest text-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-emerald-400 transition-all shadow-2xl active:scale-95 uppercase tracking-widest text-[11px]"
             >
-              <MessageCircle size={24} /> Book Instant
+              <MessageCircle size={18} /> Book Instant
             </button>
           </div>
         </div>
       </section>
 
-      {/* 2. COLLECTION SECTION */}
-      <section className="max-w-6xl mx-auto py-24 px-4">
-        <div className="flex flex-col items-center text-center mb-16">
-          <h2 className="text-4xl md:text-6xl font-black text-white flex items-center gap-4">
-            <Camera className="text-amber-400" /> The Collection
+      {/* 2. COLLECTION SECTION - MORPHISM TABS */}
+      <section className="max-w-6xl mx-auto py-20 md:py-32 px-4">
+        <div className="flex flex-col items-center text-center mb-12 md:mb-16">
+          <h2 className="text-4xl md:text-6xl font-black text-white flex items-center gap-4 uppercase italic">
+            <Camera className="text-amber-400" /> Collection
           </h2>
-          <div className="mt-10">
-            <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar sm:overflow-visible lg:justify-center">
-              <div className="flex flex-nowrap sm:flex-wrap lg:flex-nowrap gap-1 min-w-full sm:min-w-0">
-                {Object.keys(GALLERY_DATA).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveGalleryTab(tab as any)}
-                    className={`
-            flex-1 whitespace-nowrap px-6 py-3 sm:px-10 sm:py-4 rounded-xl 
-            text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] 
-            transition-all duration-300
-            ${
-              activeGalleryTab === tab
-                ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20"
-                : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
-            }
-          `}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
+          <div className="mt-8 md:mt-10 w-full max-w-md">
+            <div className="flex bg-white/5 backdrop-blur-2xl p-1.5 rounded-2xl border border-white/10 shadow-inner">
+              {Object.keys(GALLERY_DATA).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveGalleryTab(tab as any)}
+                  className={`flex-1 px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-500 ${
+                    activeGalleryTab === tab ? "bg-amber-400 text-slate-950 shadow-lg" : "text-slate-500 hover:text-white"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
           {GALLERY_DATA[activeGalleryTab].map((img) => (
-            <div
-              key={img}
-              className="rounded-[3rem] overflow-hidden border border-white/5 shadow-2xl group"
-            >
-              <img
-                src={img}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
+            <div key={img} className="aspect-[4/3] rounded-[2.5rem] md:rounded-[4rem] overflow-hidden border border-white/10 shadow-2xl group relative">
+              <img src={img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1.5s]" alt="Space" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </div>
           ))}
         </div>
       </section>
 
-      {/* --- MARQUEE REVIEWS SECTION --- */}
+      {/* 3. MARQUEE REVIEWS - REFINED CARDS */}
       <section className="py-24 border-t border-white/5 overflow-hidden">
-        <div className="flex flex-col items-center mb-16 px-4">
-          <h2 className="text-5xl md:text-8xl font-black tracking-tighter text-white uppercase italic leading-none text-center">
-            Voices.
-          </h2>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-4">
-            {reviews === MOCK_REVIEWS
-              ? "Guest Testimonials"
-              : "Verified Google Guest Reviews"}
-          </p>
+        <div className="flex flex-col items-center mb-16 px-4 text-center">
+          <h2 className="text-5xl md:text-8xl font-black tracking-tighter text-white uppercase italic leading-none">Voices.</h2>
         </div>
-
-        {loadingReviews ? (
-          <div className="flex justify-center gap-6 px-4 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 w-80 bg-white/5 rounded-[3rem]" />
+        <div className="relative flex overflow-x-hidden group">
+          <motion.div
+            animate={{ x: ["0%", "-50%"] }}
+            transition={{ ease: "linear", duration: 35, repeat: Infinity }}
+            whileHover={{ animationPlayState: "paused" }}
+            className="flex gap-6 whitespace-nowrap"
+          >
+            {[...reviews, ...reviews].map((review, i) => (
+              <ReviewCard key={i} review={review} />
             ))}
-          </div>
-        ) : (
-          <div className="relative flex overflow-x-hidden group">
-            <motion.div
-              animate={{ x: ["0%", "-50%"] }}
-              transition={{
-                ease: "linear",
-                duration: 35, // Slightly faster for better energy
-                repeat: Infinity,
-              }}
-              // PAUSE ON HOVER LOGIC
-              whileHover={{ animationPlayState: "paused" }}
-              className="flex gap-6 whitespace-nowrap"
-            >
-              {/* We triple the array if it's short to ensure no white space on large screens */}
-              {[...reviews, ...reviews, ...reviews].map((review, i) => (
-                <ReviewCard key={i} review={review} />
-              ))}
-            </motion.div>
-
-            {/* Side gradients to fade the reviews out at the edges */}
-            <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#020617] to-transparent z-10 pointer-events-none" />
-            <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#020617] to-transparent z-10 pointer-events-none" />
-          </div>
-        )}
+          </motion.div>
+          <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#020617] to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#020617] to-transparent z-10 pointer-events-none" />
+        </div>
       </section>
 
-      {/* 3. LOCATION & MAP */}
+      {/* 4. LOCATION & MAP - CLEANER WRAPPER */}
       <section className="max-w-6xl mx-auto py-24 px-4 border-t border-white/5">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 text-amber-400 px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest">
-              <MapPin size={16} /> Locate Ethereal
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-center">
+          <div className="space-y-6 md:space-y-8 text-center lg:text-left">
+            <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 text-amber-400 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest">
+              <MapPin size={16} /> South Delhi
             </div>
-            <h2 className="text-5xl md:text-7xl font-black text-white leading-tight">
-              Chhatarpur's <br />
-              <span className="text-slate-500">Hidden Gem.</span>
-            </h2>
-            <a
-              href="https://goo.gl/maps/example"
-              className="inline-flex items-center gap-3 bg-white/5 hover:bg-white/10 text-white font-black px-8 py-5 rounded-2xl border border-white/10 transition-all uppercase text-xs tracking-widest"
-            >
-              Navigate <ExternalLink size={18} className="text-amber-400" />
+            <h2 className="text-5xl md:text-7xl font-black text-white leading-tight uppercase">Chhatarpur's <br /><span className="text-slate-500 italic">Boutique.</span></h2>
+            <a href="https://maps.app.goo.gl/9r8k8Vw89T9fS7Nf6" target="_blank" className="inline-flex items-center gap-3 bg-white/5 hover:bg-amber-400 hover:text-black text-white font-black px-10 py-5 rounded-2xl border border-white/10 transition-all uppercase text-xs tracking-widest">
+              Navigate <ExternalLink size={18} />
             </a>
           </div>
-          <div className="h-[450px] w-full bg-slate-900 rounded-[4rem] overflow-hidden border border-white/10 shadow-3xl">
+          <div className="h-[350px] md:h-[450px] w-full bg-slate-900 rounded-[3rem] md:rounded-[4.5rem] overflow-hidden border border-white/10 shadow-3xl relative">
             <iframe
-              src="https://maps.google.com/maps?q=Chhatarpur%20Metro%20Station&t=&z=13&ie=UTF8&iwloc=&output=embed"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3505.5414848492!2d77.1764!3d28.5028!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjjCsDMwJzEwLjEiTiA3N8KwMTAnMzUuMCJF!5e0!3m2!1sen!2sin!4v1710000000000!5m2!1sen!2sin"
               width="100%"
               height="100%"
-              style={{
-                border: 0,
-                filter: "grayscale(1) invert(1) opacity(0.5)",
-              }}
+              style={{ border: 0, filter: "grayscale(1) invert(0.9) opacity(0.6)" }}
+              allowFullScreen
+              loading="lazy"
             ></iframe>
           </div>
         </div>
       </section>
 
-      {/* 4. FOOTER */}
-      <footer className="bg-slate-950 pt-24 pb-12 px-6 border-t border-white/5">
-        <div className="max-w-6xl mx-auto flex flex-col items-center text-center">
-          <h2 className="text-4xl md:text-6xl font-black text-white mb-10">
-            Ethereal <span className="text-amber-400">Inn.</span>
-          </h2>
-          <div className="flex flex-wrap justify-center gap-8 mb-12 text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">
-            <button
-              onClick={() => setPolicyType("privacy")}
-              className="hover:text-amber-400 transition-colors"
-            >
-              Privacy
-            </button>
-            <button
-              onClick={() => setPolicyType("terms")}
-              className="hover:text-amber-400 transition-colors"
-            >
-              Terms
-            </button>
-            <button
-              onClick={() => setPolicyType("refunds")}
-              className="hover:text-amber-400 transition-colors"
-            >
-              Refunds
-            </button>
-            <button
-              onClick={() => setShowLogin(true)}
-              className="flex items-center gap-2 text-white border-b border-white/10 pb-1"
-            >
-              STAFF LOGIN
-            </button>
-          </div>
+      {/* 5. FOOTER - MINIMALIST */}
+      <footer className="bg-slate-950 pt-24 pb-12 px-6 border-t border-white/5 text-center">
+        <h2 className="text-4xl md:text-6xl font-black text-white mb-10 uppercase italic">Ethereal <span className="text-amber-400">Inn.</span></h2>
+        <div className="flex flex-wrap justify-center gap-6 md:gap-12 mb-12 text-[10px] font-black uppercase tracking-[0.4em] text-slate-600">
+          <button onClick={() => setPolicyType("privacy")} className="hover:text-amber-400 transition-colors">Privacy</button>
+          <button onClick={() => setPolicyType("terms")} className="hover:text-amber-400 transition-colors">Terms</button>
+          <button onClick={() => setPolicyType("refunds")} className="hover:text-amber-400 transition-colors">Refunds</button>
+          <button onClick={() => setShowLogin(true)} className="text-white/40 hover:text-white transition-all">Staff</button>
         </div>
       </footer>
 
-      {/* 5. MODALS */}
+      {/* 6. MODALS - IMPROVED GLASSMOBILE */}
       <AnimatePresence>
-        {/* INQUIRY MODAL */}
-        {showInquiry && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-xl">
-            <motion.div initial={{ y: 50 }} animate={{ y: 0 }} className="w-full max-w-lg bg-[#020617] border border-white/10 rounded-[3.5rem] p-12 relative shadow-2xl">
-              <button onClick={() => setShowInquiry(false)} className="absolute top-10 right-10 text-slate-500 hover:text-white transition-colors"><X size={24} /></button>
-              {inquirySuccess ? (
-                <div className="text-center py-12 space-y-4">
-                  <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto"><CheckCircle2 size={40} /></div>
-                  <h3 className="text-2xl font-black uppercase italic text-white">Received</h3>
-                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">We will contact you shortly.</p>
-                </div>
-              ) : (
+        {(showInquiry || showLogin || policyType) && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-xl"
+          >
+            <motion.div 
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              className="w-full max-w-lg bg-[#020617] border-t sm:border border-white/10 rounded-t-[3rem] sm:rounded-[4rem] p-10 md:p-14 relative shadow-[0_-20px_50px_-12px_rgba(0,0,0,0.5)]"
+            >
+              <button onClick={() => { setShowInquiry(false); setShowLogin(false); setPolicyType(null); }} className="absolute top-8 right-8 text-slate-500 hover:text-white"><X size={28} /></button>
+
+              {showInquiry && (
                 <form onSubmit={handleInquirySubmit} className="space-y-4">
-                  <div className="mb-6">
-                    <h3 className="text-3xl font-black uppercase italic text-white">Direct <span className="text-amber-400">Desk</span></h3>
-                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Availability Check</p>
-                  </div>
-                  <input required name="name" placeholder="Full Name" className="w-full bg-white/5 border border-white/10 p-6 rounded-[1.5rem] outline-none focus:border-amber-400 text-white transition-all" />
-                  <input required name="phone" placeholder="WhatsApp Number" className="w-full bg-white/5 border border-white/10 p-6 rounded-[1.5rem] outline-none focus:border-amber-400 text-white transition-all" />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                       <label className="text-[8px] font-black text-slate-600 uppercase ml-2">Check In</label>
-                       <input required type="date" name="checkIn" className="w-full bg-white/5 border border-white/10 p-6 rounded-[1.5rem] text-white outline-none focus:border-amber-400" />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[8px] font-black text-slate-600 uppercase ml-2">Check Out</label>
-                       <input required type="date" name="checkOut" className="w-full bg-white/5 border border-white/10 p-6 rounded-[1.5rem] text-white outline-none focus:border-amber-400" />
-                    </div>
-                  </div>
-                  <textarea name="note" placeholder="Special requirements?" rows={2} className="w-full bg-white/5 border border-white/10 p-6 rounded-[1.5rem] outline-none focus:border-amber-400 text-white resize-none" />
-                  <button disabled={isPendingInquiry} className="w-full bg-amber-400 text-black font-black py-7 rounded-[2rem] uppercase text-xs tracking-widest active:scale-95 transition-all flex items-center justify-center">
-                    {isPendingInquiry ? <Loader2 className="animate-spin" /> : "Request Availability"}
+                  <h3 className="text-3xl font-black uppercase italic text-white mb-6">Direct <span className="text-amber-400">Desk</span></h3>
+                  {inquirySuccess ? (
+                    <div className="text-center py-10"><CheckCircle2 className="mx-auto text-emerald-400 mb-4" size={48} /><p className="text-white font-black uppercase">Sent Successfully</p></div>
+                  ) : (
+                    <>
+                      <input required name="name" placeholder="Name" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none focus:border-amber-400 text-white transition-all" />
+                      <input required name="phone" placeholder="WhatsApp" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none focus:border-amber-400 text-white transition-all" />
+                      <div className="grid grid-cols-2 gap-4">
+                        <input required type="date" name="checkIn" className="bg-white/5 border border-white/10 p-5 rounded-2xl text-white text-[10px] uppercase font-bold" />
+                        <input required type="date" name="checkOut" className="bg-white/5 border border-white/10 p-5 rounded-2xl text-white text-[10px] uppercase font-bold" />
+                      </div>
+                      <textarea name="note" placeholder="Special requirements?" rows={2} className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none focus:border-amber-400 text-white resize-none" />
+                      <button disabled={isPendingInquiry} className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-2xl uppercase text-[11px] tracking-widest mt-4 shadow-xl active:scale-95 transition-all">
+                        {isPendingInquiry ? <Loader2 className="animate-spin mx-auto" /> : "Request Availability"}
+                      </button>
+                    </>
+                  )}
+                </form>
+              )}
+
+              {showLogin && (
+                <form action={formAction} className="space-y-4">
+                  <h3 className="text-3xl font-black text-white uppercase italic text-center mb-8">Staff Gate</h3>
+                  <input name="email" type="email" placeholder="Email" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-amber-400 transition-all" />
+                  <input name="password" type="password" placeholder="Passkey" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-amber-400 transition-all" />
+                  <button className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-2xl uppercase tracking-widest text-[11px] shadow-xl">
+                    {isPending ? <Loader2 className="animate-spin mx-auto" /> : "Authenticate"}
                   </button>
                 </form>
               )}
-            </motion.div>
-          </motion.div>
-        )}
 
-        {policyType && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md"
-          >
-            <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              className="w-full max-w-lg bg-[#020617] border border-white/10 rounded-[3rem] p-12 relative"
-            >
-              <button
-                onClick={() => setPolicyType(null)}
-                className="absolute top-8 right-8 text-slate-500"
-              >
-                <X size={24} />
-              </button>
-              <h3 className="text-2xl font-black text-white uppercase mb-8">
-                {POLICY_CONTENT[policyType].title}
-              </h3>
-              <div className="space-y-6 text-slate-400 text-sm">
-                {POLICY_CONTENT[policyType].sections.map((s, i) => (
-                  <div key={i}>
-                    <strong>{s.h}:</strong> {s.p}
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {showLogin && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 backdrop-blur-2xl p-6"
-          >
-            <motion.div
-              initial={{ y: 20 }}
-              animate={{ y: 0 }}
-              className="w-full max-w-md bg-[#020617] border border-white/10 rounded-[3.5rem] p-10 relative"
-            >
-              <button
-                onClick={() => setShowLogin(false)}
-                className="absolute top-10 right-10 text-slate-600"
-              >
-                <X size={32} />
-              </button>
-              <h3 className="text-3xl font-black text-white uppercase text-center mb-10 italic">
-                Staff Gate
-              </h3>
-              <form action={formAction} className="space-y-5">
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="Email"
-                  className="w-full bg-slate-900 border border-white/5 rounded-[1.8rem] p-6 text-white outline-none focus:border-amber-400"
-                />
-                <input
-                  name="password"
-                  type="password"
-                  placeholder="Key"
-                  className="w-full bg-slate-900 border border-white/5 rounded-[1.8rem] p-6 text-white outline-none focus:border-amber-400"
-                />
-                <button className="w-full bg-amber-400 text-slate-950 font-black py-7 rounded-[2rem] uppercase tracking-widest text-sm">
-                  {isPending ? (
-                    <Loader2 className="animate-spin mx-auto" />
-                  ) : (
-                    "Authenticate"
-                  )}
-                </button>
-              </form>
+              {policyType && (
+                <div className="space-y-6">
+                  <h3 className="text-2xl font-black text-white uppercase italic">{POLICY_CONTENT[policyType].title}</h3>
+                  {POLICY_CONTENT[policyType].sections.map((s, i) => (
+                    <div key={i} className="bg-white/5 p-5 rounded-2xl border border-white/5">
+                      <p className="text-[10px] font-black uppercase text-amber-400 mb-2">{s.h}</p>
+                      <p className="text-slate-400 text-xs leading-relaxed">{s.p}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -547,44 +370,23 @@ export default function LandingLoginPage() {
 
 function ReviewCard({ review }: { review: Review }) {
   return (
-    <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] w-[350px] whitespace-normal group hover:border-amber-400/30 transition-all flex flex-col justify-between">
+    <div className="bg-white/5 backdrop-blur-md border border-white/10 p-8 md:p-10 rounded-[2.5rem] md:rounded-[3.5rem] w-[320px] md:w-[420px] whitespace-normal flex flex-col justify-between group hover:border-amber-400/40 transition-all duration-700">
       <div>
         <div className="flex justify-between items-start mb-6">
           <div className="flex gap-1">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                size={12}
-                className={
-                  i < review.rating
-                    ? "fill-amber-400 text-amber-400"
-                    : "text-slate-700"
-                }
-              />
+            {[...Array(5)].map((_, idx) => (
+              <Star key={idx} size={12} className={idx < review.rating ? "fill-amber-400 text-amber-400" : "text-slate-700"} />
             ))}
           </div>
-          <Quote
-            className="text-white/5 group-hover:text-amber-400/10 transition-colors"
-            size={32}
-          />
+          <Quote className="text-white/5 group-hover:text-amber-400/20 transition-colors duration-700" size={40} />
         </div>
-        <p className="text-slate-300 text-sm leading-relaxed italic mb-8 italic">
-          "{review.text}"
-        </p>
+        <p className="text-slate-300 text-sm md:text-base italic leading-relaxed mb-8">"{review.text}"</p>
       </div>
-      <div className="flex items-center gap-4">
-        <img
-          src={review.profile_photo_url}
-          className="w-10 h-10 rounded-full grayscale group-hover:grayscale-0 transition-all"
-          alt=""
-        />
+      <div className="flex items-center gap-4 border-t border-white/5 pt-6">
+        <img src={review.profile_photo_url} className="w-10 h-10 rounded-full grayscale group-hover:grayscale-0 transition-all duration-700" alt="" />
         <div>
-          <h4 className="text-white font-black text-xs uppercase tracking-tighter">
-            {review.author_name}
-          </h4>
-          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-            {review.relative_time_description}
-          </span>
+          <h4 className="text-white font-black text-[10px] uppercase tracking-wider">{review.author_name}</h4>
+          <span className="text-[9px] text-slate-500 uppercase font-bold">{review.relative_time_description}</span>
         </div>
       </div>
     </div>
