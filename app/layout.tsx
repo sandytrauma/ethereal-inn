@@ -35,31 +35,40 @@ export const metadata: Metadata = {
 // --- Background Blobs Component ---
 function DashboardBackground() {
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden bg-[oklch(0.145_0_0)]">
-      {/* 1. Primary Amber Glow - Top Left (Brand Color) */}
-      <div 
-        className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full bg-amber-500/15 blur-[120px] animate-drift opacity-70" 
-      />
-      
-      {/* 2. Deep Blue Glow - Bottom Right (Contrast Color) */}
-      <div 
-        className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] rounded-full bg-blue-600/10 blur-[160px] animate-drift opacity-50" 
-        style={{ animationDelay: '-7s' }} 
-      />
-      
-      {/* 3. Center White Light - Provides the "Frosted" highlight for Glassmorphism */}
-      <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[500px] bg-white/[0.03] blur-[130px] rotate-12" 
-      />
+   <div className="fixed inset-0 -z-10 overflow-hidden bg-[#02040a]">
+  {/* 1. Primary Amber Glow - Deep & Concentrated */}
+  <div 
+    className="absolute top-[-20%] left-[-15%] w-[800px] h-[800px] rounded-full bg-amber-500/20 blur-[120px] animate-drift opacity-60" 
+  />
+  
+  {/* 2. Vivid Indigo/Blue Contrast - Provides the "Deep" feel */}
+  <div 
+    className="absolute bottom-[-15%] right-[-10%] w-[900px] h-[900px] rounded-full bg-indigo-600/25 blur-[150px] animate-drift opacity-40" 
+    style={{ animationDelay: '-8s' }} 
+  />
+  
+  {/* 3. Secondary Emerald Glow - Adds complexity to the glass refraction */}
+  <div 
+    className="absolute top-[20%] right-[10%] w-[400px] h-[400px] rounded-full bg-emerald-500/10 blur-[100px] animate-pulse" 
+    style={{ animationDuration: '10s' }}
+  />
 
-      {/* 4. Noise/Grain Texture - Makes the glass effect look more realistic and less like a digital gradient */}
-      <div 
-        className="absolute inset-0 opacity-[0.15] mix-blend-overlay pointer-events-none"
-        style={{ 
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` 
-        }}
-      />
-    </div>
+  {/* 4. Center Highlight - Sharper for "Frosted" center-point */}
+  <div 
+    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[600px] bg-white/[0.03] blur-[160px] rotate-45 pointer-events-none" 
+  />
+
+  {/* 5. Deep Noise/Grain Texture - Using the Smoky White noise with 'soft-light' for depth */}
+  <div 
+    className="absolute inset-0 opacity-[0.2] mix-blend-soft-light pointer-events-none"
+    style={{ 
+      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23F5F5F5'/%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E")` 
+    }}
+  />
+  
+  {/* 6. Scanline Overlay - Subtle horizontal lines to increase the "Glass" physical feel */}
+  <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_4px,3px_100%] pointer-events-none" />
+</div>
   );
 }
 

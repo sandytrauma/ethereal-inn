@@ -19,7 +19,6 @@ interface Room {
   guestName?: string | null;
 }
 
-// Fixed Interface to resolve Build Errors
 interface RoomOccupancyProps {
   initialRooms: Room[];
   prefillName?: string | null; 
@@ -30,7 +29,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  // Parameter Sanitization: Checks Prop first, then URL
   const rawPrefill = propPrefill || searchParams.get("prefillGuest");
   const prefillName = (rawPrefill && rawPrefill !== "undefined") ? rawPrefill : null;
 
@@ -41,19 +39,14 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  // Financial States
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0]);
   const [roomRent, setRoomRent] = useState(0);
   const [serviceFoodTotal, setServiceFoodTotal] = useState(0);
 
-  // Sync rooms and handle "Market Lead" Auto-Selection & Pre-fill
   useEffect(() => {
     setRooms(initialRooms);
     if (prefillName) {
-      // 1. Set the text input immediately
       setGuestNameInput(prefillName);
-      
-      // 2. Auto-select the first available room for the lead
       const firstVacant = initialRooms.find(r => r.status === 'available');
       if (firstVacant && !selectedRoom) {
         setSelectedRoom(firstVacant);
@@ -78,7 +71,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const updateLocal = (num: number, up: Partial<Room>) => {
     setRooms(prev => prev.map(r => r.number === num ? { ...r, ...up } : r));
     setSelectedRoom(prev => (prev?.number === num ? { ...prev, ...up } : prev));
-    if (onRoomUpdate) onRoomUpdate(); // Trigger parent refresh if exists
+    if (onRoomUpdate) onRoomUpdate();
   };
 
   const handleStatusChange = (s: RoomStatus) => {
@@ -101,7 +94,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
         updateLocal(selectedRoom.number, { status: "occupied", guestName: guestNameInput });
         setGuestNameInput("");
         setSelectedRoom(null);
-        // Clear the URL params after successful check-in
         if (prefillName) router.replace('/occupancy', { scroll: false });
       }
     });
@@ -123,29 +115,29 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   };
 
   return (
-    <div className="flex min-h-screen bg-[#020617] text-slate-100 font-sans">
-      <div className="flex-1 p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar">
+    <div className="flex min-h-screen bg-transparent text-slate-100 font-sans">
+      <div className="flex-1 p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar relative z-10">
         
         {/* Header */}
-        <header className="max-w-6xl mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <header className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
           <div>
-            <h1 className="text-5xl md:text-8xl font-black tracking-tighter text-white uppercase italic leading-[0.8]">Inventory.</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-white uppercase italic leading-[0.8]">Inventory.</h1>
             <div className="flex items-center gap-3 mt-4 ml-1">
                 <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em]">Live Grid Control</p>
             </div>
           </div>
           <div className="relative w-full max-w-sm">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={10} />
             <input 
               type="text" placeholder="Search Unit / Guest Name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/[0.03] border border-white/10 rounded-[2rem] py-5 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[11px] font-black uppercase text-white transition-all backdrop-blur-xl" 
+              className="w-full bg-white/[0.03] border border-white/10 rounded-[2rem] py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl" 
             />
           </div>
         </header>
 
         {/* Stats Grid */}
-        <div className="max-w-6xl mx-auto mb-16 grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="max-w-6xl mx-auto mb-16 grid grid-cols-2 lg:grid-cols-2 gap-4">
           <StatBox label="In-House" value={stats.occupied} icon={UserCheck} color="text-amber-400" />
           <StatBox label="Available" value={stats.available} icon={DoorOpen} color="text-emerald-500" />
           <StatBox label="Cleaning" value={stats.cleaning} icon={Wind} color="text-blue-500" />
@@ -153,25 +145,36 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
         </div>
 
         {/* Floors */}
-        <div className="max-w-7xl mx-auto space-y-24">
-          {[5, 4, 3, 2, 1].map((f) => (
-            <div key={f} className="relative">
-              <div className="flex items-center gap-6 mb-10 sticky top-0 bg-[#020617]/80 backdrop-blur-xl py-4 z-10">
-                <span className="text-slate-800 font-black text-6xl uppercase tracking-tighter italic">F0{f}</span>
-                <div className="h-[1px] flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+        <div className="max-w-[1600px] mx-auto space-y-20 pb-20">
+          {[5, 4, 3, 2, 1].map((f) => {
+            const floorRooms = filteredRooms.filter(r => r.floor === f);
+            if (floorRooms.length === 0) return null;
+
+            return (
+              <div key={f} className="relative">
+                <div className="flex items-center gap-6 mb-8 sticky top-4 z-20 px-4 py-3 rounded-2xl glass-morphism border border-white/5 shadow-2xl">
+                  <span className="text-white/20 font-black text-5xl uppercase tracking-tighter italic leading-none">F0{f}</span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Floor Level</span>
+                    <div className="h-[2px] w-24 bg-gradient-to-r from-amber-500 to-transparent mt-1" />
+                  </div>
+                  <div className="h-[1px] flex-1 bg-white/5" />
+                  <span className="text-[10px] text-white/40 font-black uppercase tracking-widest">{floorRooms.length} Units</span>
+                </div>
+
+                <div className="w-6xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2">
+                  {floorRooms.map(room => (
+                    <RoomTile 
+                      key={room.number} 
+                      room={room} 
+                      isLeadActive={prefillName && room.status === 'available'}
+                      onClick={() => { setSelectedRoom(room); setShowBill(false); }} 
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {filteredRooms.filter(r => r.floor === f).map(room => (
-                  <RoomTile 
-                    key={room.number} 
-                    room={room} 
-                    isLeadActive={prefillName && room.status === 'available'}
-                    onClick={() => { setSelectedRoom(room); setShowBill(false); }} 
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -179,8 +182,8 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
       <AnimatePresence>
         {selectedRoom && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRoom(null)} className="fixed inset-0 bg-black/90 backdrop-blur-md z-[90]" />
-            <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#01040f] border-l border-white/10 z-[100] p-10 flex flex-col shadow-[ -20px_0_100px_rgba(0,0,0,0.8)]">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRoom(null)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]" />
+            <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#02040a]/80 backdrop-blur-[50px] border-l border-white/10 z-[100] p-10 flex flex-col shadow-[-20px_0_100px_rgba(0,0,0,0.8)]">
               
               <div className="flex justify-between items-center mb-16">
                 <div className="px-6 py-3 bg-white/5 rounded-3xl border border-white/10">
@@ -208,14 +211,13 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                       </div>
                     </section>
 
-                    {/* Check-In Form */}
                     {selectedRoom.status === "available" && (
                       <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className={`p-8 rounded-[3rem] border-2 transition-all ${prefillName ? 'bg-amber-400/10 border-amber-400/40 ring-4 ring-amber-400/5' : 'bg-white/[0.02] border-white/5'}`}>
                         <div className="flex justify-between items-start mb-8">
                             <div className="space-y-1">
                                 <h3 className={`text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 ${prefillName ? 'text-amber-400' : 'text-slate-500'}`}>
-                                    {prefillName ? <Zap size={14} className="animate-pulse" /> : <UserPlus size={14} />} 
-                                    {prefillName ? "Convert Market Lead" : "Direct Check-in"}
+                                  {prefillName ? <Zap size={14} className="animate-pulse" /> : <UserPlus size={14} />} 
+                                  {prefillName ? "Convert Market Lead" : "Direct Check-in"}
                                 </h3>
                                 <p className="text-[9px] font-bold text-slate-600 uppercase">Operational Entry</p>
                             </div>
@@ -225,7 +227,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                         <div className="space-y-4">
                             <div className="relative">
                                 <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 px-6 text-sm text-white outline-none focus:border-amber-400 transition-all font-black uppercase italic" placeholder="Guest Full Name" value={guestNameInput} onChange={(e) => setGuestNameInput(e.target.value)} />
-                                <div className="absolute top-0 right-5 h-full flex items-center text-slate-800 font-black italic">GUEST_ID</div>
                             </div>
                             <div className="relative">
                                 <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
@@ -238,11 +239,10 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                       </motion.div>
                     )}
 
-                    {/* Occupant Info */}
                     {selectedRoom.guestName && selectedRoom.status === 'occupied' && (
                       <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10">
                         <label className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-3 block italic">Occupant Details</label>
-                        <p className="text-3xl font-black text-white italic tracking-tighter mb-10 leading-tight uppercase">{selectedRoom.guestName}</p>
+                        <p className="text-3xl font-black text-white italic tracking-tighter mb-10 leading-tight uppercase truncate">{selectedRoom.guestName}</p>
                         <button onClick={() => setShowBill(true)} className="w-full bg-white text-slate-950 py-6 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-amber-400 transition-all active:scale-95 flex items-center justify-center gap-3">
                             <TrendingUp size={18} /> Initiate Settlement
                         </button>
@@ -280,7 +280,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   );
 }
 
-// Helpers
 function SideInput({ label, value, onChange }: any) {
   return (
     <div className="relative">
@@ -292,7 +291,7 @@ function SideInput({ label, value, onChange }: any) {
 
 function StatBox({ label, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[2.5rem] relative overflow-hidden group">
+    <div className="bg-white/[0.03] border border-white/5 backdrop-blur-md p-8 rounded-[2.5rem] relative overflow-hidden group">
       <div className={`absolute -right-4 -bottom-4 opacity-[0.03] ${color} group-hover:scale-125 transition-transform duration-700`}><Icon size={120} /></div>
       <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 mb-2">{label}</p>
       <h4 className={`text-4xl font-black italic tracking-tighter ${color}`}>{value}</h4>
@@ -302,37 +301,68 @@ function StatBox({ label, value, icon: Icon, color }: any) {
 
 function RoomTile({ room, onClick, isLeadActive }: any) {
   const s: RoomStatus = room.status ?? "available";
-  const themes = {
-    available: "border-emerald-500/20 text-emerald-500 bg-emerald-500/[0.02] hover:border-emerald-500/60 shadow-emerald-500/5",
-    occupied: "border-amber-400/20 text-amber-400 bg-amber-400/[0.02] hover:border-amber-400/60 shadow-amber-400/5",
-    cleaning: "border-blue-500/20 text-blue-500 bg-blue-500/[0.02] hover:border-blue-500/60 shadow-blue-500/5",
-    maintenance: "border-rose-500/20 text-rose-500 bg-rose-500/[0.02] hover:border-rose-500/60 shadow-rose-500/5"
+  
+  const statusStyles = {
+    available: { color: "text-emerald-400", bg: "bg-emerald-400/10", icon: DoorOpen },
+    occupied: { color: "text-amber-400", bg: "bg-amber-400/10", icon: UserCheck },
+    cleaning: { color: "text-blue-400", bg: "bg-blue-400/10", icon: Wind },
+    maintenance: { color: "text-rose-400", bg: "bg-rose-400/10", icon: AlertCircle }
   };
-  const iconMap = { available: DoorOpen, occupied: UserCheck, cleaning: Wind, maintenance: AlertCircle };
-  const Icon = iconMap[s] || AlertCircle;
+
+  const currentStyle = statusStyles[s];
+  const Icon = currentStyle.icon;
 
   return (
-    <motion.div whileHover={{ y: -10 }} whileTap={{ scale: 0.98 }} onClick={onClick} className={`p-8 rounded-[3rem] border-2 cursor-pointer transition-all shadow-2xl flex flex-col justify-between h-56 relative overflow-hidden ${themes[s]} ${isLeadActive ? 'ring-4 ring-amber-400 ring-offset-[10px] ring-offset-[#020617]' : ''}`}>
-      {isLeadActive && (
-        <div className="absolute top-6 right-6 flex items-center gap-2">
-            <span className="text-[8px] font-black uppercase tracking-tighter">Ready for Lead</span>
-            <Sparkles size={16} className="text-amber-400 animate-pulse" />
+    <motion.div 
+      whileHover={{ y: -8, scale: 1.02 }} 
+      whileTap={{ scale: 0.97 }} 
+      onClick={onClick} 
+      className={`
+        glass-deep relative flex flex-col justify-between 
+        p-4 sm:p-6 rounded-[2rem] cursor-pointer transition-all duration-300
+        aspect-[4/3] min-h-[160px] w-full overflow-hidden
+        ${isLeadActive ? 'ring-2 ring-amber-400 ring-offset-4 ring-offset-[#02040a]' : ''}
+      `}
+    >
+      <div className="flex justify-between items-start w-full">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-[clamp(1.75rem,4vw,3rem)] font-black tracking-tighter italic leading-none text-white">
+            {room.number}
+          </h3>
+          <div className="flex items-center gap-1.5">
+             <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${currentStyle.bg.replace('/10', '')}`} />
+             <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${currentStyle.color}`}>
+               {s}
+             </span>
+          </div>
         </div>
-      )}
-      <div className="flex justify-between items-start">
-        <h3 className="text-5xl font-black tracking-tighter italic leading-none">{room.number}</h3>
-        <Icon size={28} className="opacity-20" />
+
+        <div className="flex items-center gap-3">
+          {isLeadActive && (
+            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-1 bg-amber-400/20 px-2 py-1 rounded-lg border border-amber-400/30">
+              <Sparkles size={12} className="text-amber-400" />
+            </motion.div>
+          )}
+          <Icon size={24} className={`${currentStyle.color} opacity-40`} />
+        </div>
       </div>
-      <div>
-        <p className="text-[11px] font-black uppercase tracking-widest text-white mb-3">{s}</p>
+
+      <div className="mt-auto space-y-2">
         {room.guestName ? (
-          <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/5 backdrop-blur-md">
-            <p className="text-[10px] font-black text-white/80 truncate italic uppercase">{room.guestName}</p>
+          <div className="bg-white/[0.03] px-3 py-2 rounded-xl border border-white/5 backdrop-blur-md group-hover:bg-white/[0.08] transition-colors">
+            <p className="text-[clamp(0.65rem,1.5vw,0.8rem)] font-bold text-white/90 truncate italic uppercase tracking-tight">
+              {room.guestName}
+            </p>
           </div>
         ) : (
-          <div className="h-8" />
+          <div className="px-1">
+             <p className="text-[10px] font-medium text-white/20 uppercase tracking-widest">Available</p>
+          </div>
         )}
       </div>
+
+      <div className={`absolute -bottom-10 -right-10 w-24 h-24 blur-[50px] rounded-full opacity-20 ${currentStyle.bg}`} />
     </motion.div>
   );
 }
