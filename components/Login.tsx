@@ -21,7 +21,9 @@ import {
   Utensils,
   BedDouble,
   Target,
-  Sparkles
+  Sparkles,
+  BookOpen,
+  Monitor
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Script from "next/script";
@@ -137,7 +139,6 @@ export default function LandingLoginPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Sync Body Scroll Lock
   useEffect(() => {
     const shouldLock = showAbout || showInquiry || showLogin || showPOS || policyType;
     document.body.style.overflow = shouldLock ? "hidden" : "unset";
@@ -163,7 +164,7 @@ export default function LandingLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-slate-100 overflow-x-hidden font-sans selection:bg-[#c5a059] selection:text-black">
+    <main className="min-h-screen bg-[#0a0a0a] text-slate-100 overflow-x-hidden font-sans selection:bg-[#c5a059] selection:text-black pb-24 md:pb-0">
       <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
       
       {/* --- NAVIGATION --- */}
@@ -173,7 +174,8 @@ export default function LandingLoginPage() {
           <span className="text-xl md:text-2xl font-serif font-bold italic text-[#c5a059]">Ethereal Inn</span>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => setShowAbout(true)} className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c5a059] transition-colors mr-4 hidden sm:block">
+          {/* Desktop Only Buttons */}
+          <button onClick={() => setShowAbout(true)} className="hidden md:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c5a059] transition-colors mr-4">
             Our Story
           </button>
           <button onClick={() => setShowPOS(true)} className="hidden md:flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all">
@@ -184,6 +186,27 @@ export default function LandingLoginPage() {
           </button>
         </div>
       </nav>
+
+      {/* --- MOBILE FOOTER DOCK --- */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[150] md:hidden">
+        <div className="bg-zinc-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-2 flex items-center justify-around shadow-2xl">
+          <button 
+            onClick={() => setShowAbout(true)}
+            className="flex flex-col items-center gap-1 p-3 text-gray-400 hover:text-[#c5a059] active:scale-90 transition-all"
+          >
+            <BookOpen size={20} />
+            <span className="text-[8px] font-black uppercase tracking-tighter">About Story</span>
+          </button>
+          <div className="h-8 w-px bg-white/5" />
+          <button 
+            onClick={() => setShowPOS(true)}
+            className="flex flex-col items-center gap-1 p-3 text-gray-400 hover:text-[#c5a059] active:scale-90 transition-all"
+          >
+            <Monitor size={20} />
+            <span className="text-[8px] font-black uppercase tracking-tighter">Terminal</span>
+          </button>
+        </div>
+      </div>
 
       {/* --- HERO --- */}
       <section className="relative h-[100dvh] flex flex-col justify-center px-4 md:px-6 overflow-hidden">
@@ -317,7 +340,7 @@ export default function LandingLoginPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-8 text-center lg:text-left">
             <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 text-[#c5a059] px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest">
-              <MapPin size={16} /> Chhatarpur, Delhi
+              <MapPin size={16} /> South Delhi
             </div>
             <h2 className="text-5xl md:text-7xl font-serif font-bold text-white leading-tight uppercase italic">Delhi's <br /><span className="text-slate-500">Boutique.</span></h2>
             <button onClick={handleBookingRedirect} className="inline-flex items-center gap-3 bg-white/5 hover:bg-[#c5a059] hover:text-black text-white font-black px-10 py-5 rounded-2xl border border-white/10 transition-all uppercase text-xs tracking-widest">
@@ -348,165 +371,163 @@ export default function LandingLoginPage() {
       <AnimatePresence>
         {/* --- ABOUT STORY MODAL --- */}
         {showAbout && (
+    <motion.div 
+      initial={{ x: "100%", opacity: 0 }} 
+      animate={{ x: 0, opacity: 1 }} 
+      exit={{ x: "100%", opacity: 0 }} 
+      transition={{ type: "spring", damping: 30, stiffness: 200 }}
+      className="fixed inset-0 z-[1000] bg-[#0a0a0a] text-white overflow-y-auto overflow-x-hidden selection:bg-[#c5a059] selection:text-black font-sans"
+    >
+      {/* Close Button */}
+      <button 
+        onClick={() => setShowAbout(false)} 
+        className="fixed top-8 right-8 z-[1010] bg-white/5 hover:bg-[#c5a059] hover:text-black p-5 rounded-full text-white backdrop-blur-xl transition-all border border-white/10 group shadow-2xl"
+      >
+        <X size={24} className="group-hover:rotate-90 transition-transform" />
+      </button>
+      
+      <div className="relative w-full flex flex-col items-center">
+        {/* Hero Section of Story */}
+        <section className="relative h-[80dvh] w-full flex items-center justify-center px-6 overflow-hidden">
           <motion.div 
-            initial={{ x: "100%", opacity: 0 }} 
-            animate={{ x: 0, opacity: 1 }} 
-            exit={{ x: "100%", opacity: 0 }} 
-            transition={{ type: "spring", damping: 30, stiffness: 200 }}
-            className="fixed inset-0 z-[1000] bg-[#0a0a0a] text-white overflow-y-auto overflow-x-hidden selection:bg-[#c5a059] selection:text-black font-sans"
-          >
-            {/* Modal Exit Trigger */}
-            <button 
-              onClick={() => setShowAbout(false)} 
-              className="fixed top-8 right-8 z-[1010] bg-white/5 hover:bg-[#c5a059] hover:text-black p-5 rounded-full text-white backdrop-blur-xl transition-all border border-white/10 group shadow-2xl"
+            initial={{ scale: 1.2 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 20, ease: "linear" }}
+            className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=2000')] bg-cover bg-center opacity-30 grayscale" 
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-transparent to-[#0a0a0a]" />
+          <div className="relative z-10 text-center max-w-4xl">
+            <motion.span 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="text-[#c5a059] text-[10px] font-black uppercase tracking-[0.6em] mb-6 block"
             >
-              <X size={24} className="group-hover:rotate-90 transition-transform" />
-            </button>
-            
-            <div className="relative w-full flex flex-col items-center">
-              {/* Story Hero */}
-              <section className="relative h-[80dvh] w-full flex items-center justify-center px-6 overflow-hidden">
-                <motion.div 
-                  initial={{ scale: 1.2 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 20, ease: "linear" }}
-                  className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=2000')] bg-cover bg-center opacity-30 grayscale" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-transparent to-[#0a0a0a]" />
-                <div className="relative z-10 text-center max-w-4xl">
-                  <motion.span 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-[#c5a059] text-[10px] font-black uppercase tracking-[0.6em] mb-6 block"
-                  >
-                    The Collective Legacy
-                  </motion.span>
-                  <motion.h1 
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-6xl md:text-[9rem] font-serif font-bold italic leading-[0.9] text-white uppercase"
-                  >
-                    Crafting <span className="text-gray-500">Silence</span> <br /> & <span className="text-[#c5a059]">Flavor.</span>
-                  </motion.h1>
-                </div>
-              </section>
+              The Collective Legacy
+            </motion.span>
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="text-6xl md:text-[9rem] font-serif font-bold italic leading-[0.9] text-white uppercase"
+            >
+              Crafting <span className="text-gray-500">Silence</span> <br /> & <span className="text-[#c5a059]">Flavor.</span>
+            </motion.h1>
+          </div>
+        </section>
 
-              {/* Boutique: Ethereal Inn Section */}
-              <section className="max-w-7xl mx-auto py-32 px-6 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-                <div className="order-2 lg:order-1 relative">
-                    <div className="absolute -top-10 -left-10 w-40 h-40 border-l border-t border-[#c5a059]/30 hidden md:block" />
-                    <img 
-                      src="https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=1200" 
-                      alt="Boutique Stay" 
-                      className="rounded-[3rem] grayscale hover:grayscale-0 transition-all duration-700 shadow-2xl"
-                    />
-                </div>
-                <div className="order-1 lg:order-2 space-y-8">
-                    <div className="flex items-center gap-4 text-[#c5a059]">
-                        <BedDouble size={32} />
-                        <h2 className="text-xs font-black uppercase tracking-widest">The Boutique Sanctuary</h2>
-                    </div>
-                    <h3 className="text-4xl md:text-5xl font-serif font-bold italic">Ethereal Inn.</h3>
-                    <p className="text-gray-400 text-lg leading-relaxed">
-                        Located in Delhi, Ethereal Inn was envisioned as an escape from the urban cacophony. We don't just provide rooms; we provide <span className="text-white italic">curated stillness.</span> 
-                    </p>
-                    <div className="flex gap-6 border-l border-[#c5a059] pl-6">
-                        <div>
-                            <h4 className="font-bold text-white uppercase text-xs tracking-widest mb-1">Architecture of Comfort</h4>
-                            <p className="text-gray-500 text-sm">Minimalist design meets warm hospitality, focusing on tactile luxury and acoustic privacy.</p>
-                        </div>
-                    </div>
-                </div>
-              </section>
+        {/* Brand Philosophy */}
+        <section className="max-w-4xl mx-auto py-24 px-6 text-center space-y-12">
+          <div className="flex justify-center gap-4 text-[#c5a059]">
+            <Sparkles size={24} />
+            <Target size={24} />
+            <ShieldCheck size={24} />
+          </div>
+          <p className="text-xl md:text-3xl font-serif text-gray-300 leading-relaxed italic">
+            "Ethereal Inn was born from a simple realization: that modern luxury isn't about excess, but about the 
+            <span className="text-white"> intentionality of space </span> and the 
+            <span className="text-[#c5a059]"> purity of nourishment.</span>"
+          </p>
+          <div className="h-20 w-px bg-gradient-to-b from-[#c5a059] to-transparent mx-auto" />
+        </section>
 
-              {/* Culinary: Urban Ambrosia Section */}
-              <section className="w-full bg-white/5 py-40">
-                <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-                    <div className="space-y-8">
-                        <div className="flex items-center gap-4 text-[#c5a059]">
-                            <Utensils size={32} />
-                            <h2 className="text-xs font-black uppercase tracking-widest">The Culinary Brand</h2>
-                        </div>
-                        <h3 className="text-4xl md:text-5xl font-serif font-bold italic text-white">Urban <span className="text-[#c5a059]">Ambrosia.</span></h3>
-                        <p className="text-gray-300 text-lg leading-relaxed">
-                            Born as a premium cloud kitchen venture, Urban Ambrosia serves as the soul of our collective, delivering restaurant-grade warmth and texture to your doorstep.
-                        </p>
-                        <div className="grid grid-cols-2 gap-8 pt-6">
-                            <div>
-                                <h4 className="text-[#c5a059] font-black text-[10px] uppercase mb-2">The Philosophy</h4>
-                                <p className="text-gray-400 text-xs leading-relaxed">Using "Ambrosia" as our benchmark for every recipe.</p>
-                            </div>
-                            <div>
-                                <h4 className="text-[#c5a059] font-black text-[10px] uppercase mb-2">The Standard</h4>
-                                <p className="text-gray-400 text-xs leading-relaxed">Pioneering delivery tech for optimal heat retention.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="relative group">
-                        <img 
-                            src="https://images.unsplash.com/photo-1559339352-11d035aa65de?q=80&w=1200" 
-                            alt="Culinary Excellence" 
-                            className="relative rounded-[4rem] border border-white/10 shadow-3xl grayscale group-hover:grayscale-0 transition-all duration-700"
-                        />
-                    </div>
+        {/* Leadership / Founders Grid */}
+        <section className="max-w-7xl mx-auto py-32 px-6 w-full border-t border-white/5">
+          <div className="flex flex-col items-center mb-20 text-center">
+            <Users className="text-[#c5a059] mb-4" size={32} />
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-500 mb-4">Founding Board</h2>
+            <h3 className="text-4xl font-serif font-bold italic text-white">The Minds Behind the Magic</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { 
+                name: "Sandeep Kumar Chaudhry", 
+                role: "Managing Partner", 
+                desc: "Directs the collective vision with a focus on operational precision and strategic excellence." 
+              },
+              { 
+                name: "Shyam Kumar Chaudhry", 
+                role: "Founder", 
+                desc: "The architect of our hospitality standards, ensuring every guest feels the 'Ethereal' touch." 
+              },
+              { 
+                name: "Deepak Tyagi", 
+                role: "Strategic Partner", 
+                desc: "An investor and board member driving the brand's expansion and financial integrity." 
+              },
+              { 
+                name: "Tushar Kumar Chaudhry", 
+                role: "Operations Lead", 
+                desc: "Master of the daily rhythm, bridging the gap between culinary art and guest satisfaction." 
+              }
+            ].map((leader, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                viewport={{ once: true }}
+                className="bg-white/5 p-10 rounded-[3rem] border border-white/5 hover:border-[#c5a059]/30 transition-all group flex flex-col justify-between h-[350px]"
+              >
+                <div>
+                  <div className="w-12 h-12 bg-[#c5a059]/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-[#c5a059] group-hover:text-black transition-all">
+                    <Users size={20} />
+                  </div>
+                  <h4 className="text-white font-serif text-2xl font-bold italic mb-2 group-hover:text-[#c5a059] transition-colors">
+                    {leader.name}
+                  </h4>
+                  <p className="text-[#c5a059] text-[9px] font-black uppercase tracking-widest mb-6">
+                    {leader.role}
+                  </p>
                 </div>
-              </section>
+                <p className="text-gray-500 text-xs leading-relaxed border-t border-white/5 pt-6">
+                  {leader.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </section>
 
-              {/* Leadership Grid */}
-              <section className="max-w-7xl mx-auto py-32 px-6 w-full border-t border-white/5">
-                <div className="flex flex-col items-center mb-16 text-center">
-                  <Users className="text-[#c5a059] mb-4" size={32} />
-                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-500">Founding Board</h2>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {[
-                    { name: "Sandeep Kumar Chaudhry", role: "Managing Partner", desc: "Expert in operational excellence and leadership." },
-                    { name: "Shyam Kumar Chaudhry", role: "Founder", desc: "Architect of the brand's identity and service standards." },
-                    { name: "Deepak Tyagi", role: "Strategic Partner", desc: "Guiding financial growth and market positioning." },
-                    { name: "Tushar Kumar Chaudhry", role: "Operations Lead", desc: "Master of guest experience and daily rhythm." }
-                  ].map((leader, i) => (
-                    <div key={i} className="bg-white/5 p-10 rounded-[3rem] border border-white/5 hover:border-[#c5a059]/30 transition-all group flex flex-col justify-between h-full">
-                      <div>
-                        <h4 className="text-white font-serif text-xl font-bold italic mb-2 group-hover:text-[#c5a059] transition-colors">{leader.name}</h4>
-                        <p className="text-[#c5a059] text-[9px] font-black uppercase tracking-widest mb-6">{leader.role}</p>
-                      </div>
-                      <p className="text-gray-500 text-xs leading-relaxed">{leader.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* Pillars / Values */}
-              <section className="max-w-7xl mx-auto pb-40 px-6 w-full">
-                <motion.div 
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    className="mt-20 grid grid-cols-1 lg:grid-cols-3 gap-12 items-center border-t border-white/10 pt-32"
-                >
-                    <div className="lg:col-span-1">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-[#c5a059] mb-4">Official Mission</h3>
-                        <h4 className="text-4xl font-serif font-bold italic leading-tight text-white">Elevating the <br />Standard of <br />Presence.</h4>
-                    </div>
-                    <div className="lg:col-span-2 bg-[#c5a059] p-12 md:p-20 rounded-[4rem] text-black">
-                        <p className="text-xl md:text-4xl leading-relaxed font-bold italic">
-                            "To build a hospitality ecosystem where technology meets tranquility, redefining the essence of modern presence."
-                        </p>
-                    </div>
-                </motion.div>
-                
-                <div className="mt-32 text-center">
-                   <Sparkles className="text-[#c5a059] mb-8 mx-auto" size={48} />
-                   <h4 className="text-5xl md:text-7xl font-serif font-bold italic mb-12 uppercase tracking-tighter text-white">Join the <span className="text-[#c5a059]">Collective.</span></h4>
-                   <button onClick={() => setShowAbout(false)} className="group inline-flex items-center gap-4 text-[#c5a059] font-black uppercase text-[11px] tracking-[0.4em]">
-                    Return to Sanctuary <ArrowRight className="group-hover:translate-x-2 transition-transform" size={16} />
-                  </button>
-                </div>
-              </section>
+        {/* Core Values Section */}
+        <section className="w-full bg-white/[0.02] py-32 px-6">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-16">
+            <div className="space-y-4">
+              <div className="text-[#c5a059] font-serif text-5xl italic">01.</div>
+              <h5 className="text-white font-black uppercase tracking-widest text-xs">Sattvic Roots</h5>
+              <p className="text-gray-500 text-sm leading-relaxed">Everything we serve through Urban Ambrosia is designed to energize the body and calm the mind.</p>
             </div>
-          </motion.div>
-        )}
+            <div className="space-y-4">
+              <div className="text-[#c5a059] font-serif text-5xl italic">02.</div>
+              <h5 className="text-white font-black uppercase tracking-widest text-xs">Minimalist Luxury</h5>
+              <p className="text-gray-500 text-sm leading-relaxed">We strip away the noise of the city to provide a sanctuary of visual and auditory peace.</p>
+            </div>
+            <div className="space-y-4">
+              <div className="text-[#c5a059] font-serif text-5xl italic">03.</div>
+              <h5 className="text-white font-black uppercase tracking-widest text-xs">Modern Legacy</h5>
+              <p className="text-gray-500 text-sm leading-relaxed">Built on family values but powered by modern technology for a seamless experience.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Closing Call to Action */}
+        <section className="max-w-7xl mx-auto py-40 px-6 w-full text-center">
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowAbout(false)} 
+            className="group inline-flex items-center gap-6 text-[#c5a059] font-black uppercase text-[12px] tracking-[0.5em] bg-white/5 px-12 py-6 rounded-full border border-white/10 hover:bg-[#c5a059] hover:text-black transition-all"
+          >
+            Return to Sanctuary <ArrowRight className="group-hover:translate-x-2 transition-transform" size={18} />
+          </motion.button>
+        </section>
+
+        <footer className="py-12 border-t border-white/5 w-full text-center">
+          <p className="text-[9px] text-gray-700 uppercase tracking-[0.4em]">Designed for the Discerning • 2026</p>
+        </footer>
+      </div>
+    </motion.div>
+  )}
 
         {/* --- INQUIRY / LOGIN / POLICIES MODALS --- */}
         {(showInquiry || showLogin || policyType) && (
