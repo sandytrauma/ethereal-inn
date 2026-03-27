@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, History, Settings, TrendingUp, TrendingDown, 
   Plus, BarChart3, LogOut, Wallet, Activity, Zap, CheckCircle2,
-  DoorOpen, LineChart
+  DoorOpen, LineChart, ConciergeBell, RefreshCcw, Clock, AlertCircle,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // SERVER ACTIONS & COMPONENTS
@@ -20,7 +21,7 @@ import { SettingsTab } from './dashboard/SettingsTab';
 import { DayBookForm } from './DayBookForm';
 import RoomOccupancyClient from '@/app/(staff)/occupancy/RoomOccupancyClient';
 import ReportView from "@/components/dashboard/ReportView";
-import { getRoomsList } from '@/lib/actions/room-actions';
+import { getRoomsList, getLiveReceptionData } from '@/lib/actions/room-actions';
 import DashboardBackground from './dashboard/DashboardBackground';
 import MarketIntelView from './dashboard/RevenueChart';
 
@@ -29,7 +30,6 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user }: DashboardProps) {
-  // Tabs: dashboard, history, occupancy, intel, analytics, settings, add
   const [activeTab, setActiveTab] = useState('dashboard');
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year'>('month');
   const [dbData, setDbData] = useState<any>(null);
@@ -38,8 +38,8 @@ export default function Dashboard({ user }: DashboardProps) {
   const [roomsFromState, setRoomsFromState] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [currentName, setCurrentName] = useState(user?.name || "User");
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
-  // NEW: Expanded state for Intel View
   const [intelData, setIntelData] = useState<{
     logs: any[],
     inquiries: any[],
@@ -94,8 +94,22 @@ export default function Dashboard({ user }: DashboardProps) {
     setRoomsFromState(rooms || []);
   };
 
-  // EFFECT: Fetching multi-table report data for Intel/Analytics
+  const syncReception = async () => {
+    const res = await getLiveReceptionData();
+    if (res.success) {
+      setRoomsFromState(res.rooms || []);
+      setIntelData(prev => ({ ...prev, tasks: res.tasks || [], inquiries: res.inquiries || [] }));
+      setLastUpdated(new Date());
+    }
+  };
+
   useEffect(() => {
+    if (activeTab === "reception") {
+        syncReception();
+        const interval = setInterval(syncReception, 15000);
+        return () => clearInterval(interval);
+    }
+    
     if (activeTab === "analytics" || activeTab === "intel") {
       const fetchReports = async () => {
         setLoadingReports(true);
@@ -221,6 +235,38 @@ export default function Dashboard({ user }: DashboardProps) {
             </motion.div>
           )}
 
+          {activeTab === 'reception' && (
+            <motion.div key="recep" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+               <header className="flex justify-between items-end px-2">
+                <div>
+                  <h1 className="text-3xl font-black italic text-white">Registry <span className="text-amber-400">Live</span></h1>
+                  <p className="text-[8px] text-slate-500 uppercase tracking-widest flex items-center gap-2 mt-1">
+                    <Clock size={10} /> Syncing: {lastUpdated.toLocaleTimeString()}
+                  </p>
+                </div>
+                <button onClick={syncReception} className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-amber-400 shadow-xl">
+                  <RefreshCcw size={18} />
+                </button>
+              </header>
+
+              {/* CALENDAR / TAPE CHART VIEW WITH GLASSMORPHISM */}
+              <ReceptionCalendar rooms={roomsFromState} tasks={intelData.tasks} />
+
+              {/* LIVE INQUIRIES WITH GLASSMORPHISM */}
+              <div className="bg-white/[0.05] backdrop-blur-3xl border border-white/10 p-6 rounded-[2.5rem] mt-4 shadow-2xl">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-4">Pending Inquiries</h3>
+                <div className="space-y-3">
+                  {intelData.inquiries.map((iq: any) => (
+                    <div key={iq.id} className="p-3 bg-white/[0.03] backdrop-blur-sm rounded-2xl border-l-2 border-amber-400/50">
+                      <p className="text-xs font-bold text-white leading-tight">{iq.message || "New Booking Request"}</p>
+                      <p className="text-[9px] text-slate-500 mt-1 uppercase">{iq.source || "Direct"}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'intel' && (
             <motion.div key="intel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               {loadingReports ? (
@@ -287,17 +333,14 @@ export default function Dashboard({ user }: DashboardProps) {
         </AnimatePresence>
       </main>
 
-      {/* RE-DESIGNED 6-TAB GLASS NAVIGATION */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-[480px] bg-white/[0.05] backdrop-blur-2xl border border-white/10 p-2 rounded-[3.5rem] flex items-center justify-between z-50 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-        
-        {/* Left Side: Home, History, Occupancy */}
-        <div className="flex items-center justify-between flex-[1.5] px-2">
+      {/* 7-TAB NAVIGATION */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-[500px] bg-white/[0.08] backdrop-blur-3xl border border-white/20 p-2 rounded-[3.5rem] flex items-center justify-between z-50 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center justify-between flex-1 px-1">
           <NavIcon active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Home" />
           <NavIcon active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} label="Audit" />
           <NavIcon active={activeTab === 'occupancy'} onClick={() => setActiveTab('occupancy')} icon={DoorOpen} label="Rooms" />
         </div>
 
-        {/* Center: Action Button */}
         <div className="relative w-14 h-10 flex justify-center items-center">
           <button 
             onClick={() => setActiveTab('add')} 
@@ -308,13 +351,64 @@ export default function Dashboard({ user }: DashboardProps) {
           </button>
         </div>
 
-        {/* Right Side: Intel, Analytics, Settings */}
-        <div className="flex items-center justify-between flex-[1.5] px-2">
+        <div className="flex items-center justify-between flex-1 px-1">
+          <NavIcon active={activeTab === 'reception'} onClick={() => setActiveTab('reception')} icon={ConciergeBell} label="Desk" />
           <NavIcon active={activeTab === 'intel'} onClick={() => setActiveTab('intel')} icon={LineChart} label="Intel" />
-          <NavIcon active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} icon={BarChart3} label="Data" />
           <NavIcon active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings} label="User" />
         </div>
       </nav>
+    </div>
+  );
+}
+
+// CALENDAR COMPONENT WITH GLASSMORPHISM EFFECT
+function ReceptionCalendar({ rooms, tasks }: { rooms: any[], tasks: any[] }) {
+  const days = Array.from({ length: 5 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  return (
+    <div className="bg-white/[0.04] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 overflow-hidden shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
+      {/* Table Header */}
+      <div className="grid grid-cols-6 border-b border-white/10 bg-white/[0.02]">
+        <div className="p-4 border-r border-white/10 text-[8px] font-black uppercase text-slate-400 tracking-widest flex items-center">Room</div>
+        {days.map((d, i) => (
+          <div key={i} className="p-3 text-center border-r border-white/10 last:border-0">
+            <p className="text-[7px] font-black uppercase text-slate-500 mb-0.5">{d.toLocaleDateString('en-IN', { weekday: 'short' })}</p>
+            <p className="text-[10px] font-black text-white">{d.getDate()}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Table Body */}
+      <div className="max-h-[320px] overflow-y-auto scrollbar-hide">
+        {rooms.map((room) => (
+          <div key={room.id} className="grid grid-cols-6 border-b border-white/5 last:border-0 transition-colors hover:bg-white/[0.02]">
+            <div className="p-4 border-r border-white/10 bg-white/[0.03] text-xs font-black text-white italic">{room.number}</div>
+            {days.map((_, i) => {
+              const isOccupied = i === 0 && room.status === 'occupied';
+              const roomTask = tasks.find(t => t.roomNumber === room.number && t.status !== 'completed');
+              
+              return (
+                <div key={i} className="p-1.5 border-r border-white/5 last:border-0 relative min-h-[50px]">
+                  {isOccupied && (
+                    <div className="absolute inset-x-1.5 inset-y-2 bg-amber-400 rounded-2xl p-2 flex flex-col justify-center shadow-lg shadow-amber-400/20 active:scale-95 transition-transform">
+                      <p className="text-[6px] font-black text-slate-950 uppercase truncate leading-none">{room.guestName}</p>
+                    </div>
+                  )}
+                  {i === 0 && roomTask && !isOccupied && (
+                    <div className="absolute inset-1.5 border border-blue-400/30 bg-blue-500/10 backdrop-blur-sm rounded-2xl flex items-center justify-center animate-pulse">
+                        <AlertCircle size={10} className="text-blue-400" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -323,8 +417,8 @@ function NavIcon({ active, onClick, icon: Icon, label }: { active: boolean, onCl
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-1 group">
       <div className={`p-2 rounded-2xl transition-all duration-300 group-active:scale-90
-        ${active ? 'text-amber-400 bg-amber-400/10' : 'text-slate-500 hover:text-slate-300'}`}>
-        <Icon size={20} />
+        ${active ? 'text-amber-400 bg-amber-400/10 backdrop-blur-md' : 'text-slate-500 hover:text-slate-300'}`}>
+        <Icon size={18} />
       </div>
       <span className={`text-[7px] font-black uppercase tracking-tighter transition-opacity duration-300 ${active ? 'opacity-100 text-amber-400' : 'opacity-0'}`}>
         {label}
@@ -335,7 +429,7 @@ function NavIcon({ active, onClick, icon: Icon, label }: { active: boolean, onCl
 
 function StatCard({ title, value, icon: Icon, color }: { title: string, value: number, icon: any, color: string }) {
   return (
-    <div className="bg-white/[0.03] backdrop-blur-lg border border-white/5 p-6 rounded-[2.5rem] shadow-xl">
+    <div className="bg-white/[0.05] backdrop-blur-xl border border-white/10 p-6 rounded-[2.5rem] shadow-xl">
       <div className={`w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center mb-3 ${color}`}><Icon size={18} /></div>
       <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{title}</p>
       <p className="text-xl font-black text-white mt-1">₹{value.toLocaleString('en-IN')}</p>

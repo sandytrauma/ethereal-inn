@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/db";
-import { financialRecords, invoices, rooms } from "@/db/schema";
-import { asc, eq, sql } from "drizzle-orm";
+import { clients, financialRecords, inquiries, invoices, rooms, tasks } from "@/db/schema";
+import { asc, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export type RoomStatus = "available" | "occupied" | "cleaning" | "maintenance";
@@ -122,5 +122,34 @@ export async function seedRooms() {
   } catch (error) {
     console.error("Seed Error:", error);
     return { success: false };
+  }
+}
+
+
+export async function getLiveReceptionData() {
+  try {
+    // 1. Fetch all rooms
+    const allRooms = await db.select().from(rooms).orderBy(rooms.number);
+
+    // 2. Fetch active tasks for those rooms (Cleaning or Maintenance)
+    const activeTasks = await db.select()
+      .from(tasks)
+      .where(ne(tasks.status, "completed"));
+
+    // 3. Fetch fresh inquiries for the alert sidebar
+    const recentInquiries = await db.select()
+      .from(inquiries)
+      .where(eq(inquiries.status, "new"))
+      .limit(5);
+
+    return {
+      success: true,
+      rooms: allRooms,
+      tasks: activeTasks,
+      inquiries: recentInquiries
+    };
+  } catch (error) {
+    console.error("Database Error:", error);
+    return { success: false, error: "Database connection failed" };
   }
 }
