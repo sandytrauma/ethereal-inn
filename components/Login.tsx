@@ -28,6 +28,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import Script from "next/script";
 import { getGoogleReviews } from "@/lib/actions/reviews";
+import Link from "next/link";
 
 // --- CONFIGURATION ---
 const GA_MEASUREMENT_ID = "G-XXXXXXXXXX";
@@ -317,6 +318,37 @@ export default function LandingLoginPage() {
         </div>
       </section>
 
+       <div className="space-y-4 pt-4">
+          <p className="text-[9px] text-slate-600 font-black uppercase tracking-[0.3em] text-center">Explore Our Ventures</p>
+          
+          <Link href="/glam">
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="group relative p-1 rounded-[2rem] bg-gradient-to-r from-rose-500/20 to-purple-600/20 border border-white/5 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-white/[0.02] backdrop-blur-xl transition-all group-hover:bg-rose-500/10" />
+              <div className="relative p-5 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-rose-500/20 rounded-2xl flex items-center justify-center text-rose-400 shadow-inner">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-tight">Ethereal Glam</h3>
+                    <p className="text-[9px] text-rose-300/60 uppercase font-black tracking-widest mt-0.5">Boutique & Makeup</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                   <div className="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-[7px] font-black text-rose-300 uppercase animate-pulse">
+                     Coming Soon
+                   </div>
+                   <ArrowRight size={14} className="text-slate-500 group-hover:translate-x-1 group-hover:text-rose-400 transition-all" />
+                </div>
+              </div>
+            </motion.div>
+          </Link>
+        </div>
+
       {/* --- REVIEWS MARQUEE --- */}
       <section className="py-24 border-t border-white/5 overflow-hidden">
         <div className="flex flex-col items-center mb-16 text-center">
@@ -355,6 +387,8 @@ export default function LandingLoginPage() {
           </div>
         </div>
       </section>
+
+     
 
       {/* --- MAIN FOOTER --- */}
       <footer className="bg-black pt-24 pb-12 px-6 border-t border-white/5 text-center">
