@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  /* 1. Map the functional variables so @apply border-border works */
+  /* 1. Map the functional variables */
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -21,6 +21,10 @@
   /* 2. Custom Radius for Glassmorphism */
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* 3. Theme-level Animations */
+  --animation-drift: drift 25s infinite ease-in-out;
+  --animation-flicker: flicker 0.15s infinite;
 }
 
 :root {
@@ -30,7 +34,6 @@
   
   --radius: 0.625rem;
   
-  /* Use RGBA or Hex for borders to ensure they work with @apply */
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.1);
   --ring: oklch(0.556 0 0);
@@ -44,13 +47,16 @@
 
 @layer base {
   * {
-    /* Now 'border-border' is recognized because of the --color-border mapping */
     @apply border-border outline-ring/50;
   }
   
   body {
     @apply bg-background text-foreground antialiased overflow-x-hidden;
+    /* Ensure the browser treats the background as dark for system UI */
+    color-scheme: dark;
   }
+
+  /* --- ANIMATIONS --- */
 
   @keyframes drift {
     0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
@@ -58,9 +64,22 @@
     100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
   }
 
+  /* Subtle CRT-style luminance flicker */
+  @keyframes flicker {
+    0% { opacity: 0.045; }
+    25% { opacity: 0.052; }
+    50% { opacity: 0.048; }
+    75% { opacity: 0.055; }
+    100% { opacity: 0.045; }
+  }
+
   .animate-drift {
     will-change: transform;
-    animation: drift 25s infinite ease-in-out;
+    animation: var(--animation-drift);
+  }
+
+  .animate-flicker {
+    animation: var(--animation-flicker);
   }
 }
 
@@ -70,5 +89,14 @@
     background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-top: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Text Glow for that "Glam" Luxury branding */
+  .text-glow-amber {
+    text-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+  }
+
+  .text-glow-rose {
+    text-shadow: 0 0 15px rgba(251, 113, 133, 0.4);
   }
 }
