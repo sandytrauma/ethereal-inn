@@ -74,7 +74,7 @@ export default function EtherealGlam() {
             </div>
             <div className="pr-2">
               <p className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-500 leading-none">Ethereal Inn Presents</p>
-              <p className="text-[10px] font-bold text-white uppercase tracking-tighter mt-0.5">Hotel Portal</p>
+              <p className="text-[10px] font-bold text-white uppercase tracking-tighter mt-0.5">Hospitality Portal</p>
             </div>
           </Link>
           <Zap size={18} className="text-rose-400 animate-pulse" />
@@ -83,22 +83,22 @@ export default function EtherealGlam() {
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 pt-32 pb-40">
         <div className="text-center mb-16">
-          <h1 className="text-7xl font-serif font-bold italic text-white tracking-tighter uppercase leading-none drop-shadow-2xl">
+          <h1 className="text-6xl font-serif font-bold italic text-white tracking-tighter uppercase leading-none drop-shadow-2xl">
             Ethereal <span className="text-rose-400">Glam</span>
-          </h1>
+          </h1> <span className='text-rose-600 font-bold leading-none drop-shadow-2xl tracking-[0.4rem]'>Opening Soon</span>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.4em] mt-4">Luxury Indian Bridal & Couture</p>
         </div>
 
         {/* HERO GRID */}
         <div className="grid grid-cols-12 gap-6 md:h-[600px]">
-          <div className="col-span-12 md:col-span-8 relative rounded-[3rem] overflow-hidden border border-white/10 bg-zinc-900 group shadow-2xl">
+          <div className="col-span-12 md:col-span-8 relative rounded-[3rem] overflow-hidden border border-white/10 bg-zinc-900 group shadow-6xl">
             <img src="https://images.unsplash.com/photo-1665960211264-5e0a7112bacd?q=80&w=1170&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Hero Bridal" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
           </div>
 
           <div className="col-span-12 md:col-span-4 flex flex-col gap-6">
-            <div className="h-1/2 rounded-[2.5rem] overflow-hidden border border-white/10 bg-zinc-900 shadow-2xl">
-              <img src="https://images.unsplash.com/photo-1756483510840-b0dda5f0dd0f?q=80&w=1110&auto=format&fit=crop" className="w-full h-full object-cover" alt="Couture Detail" />
+            <div className="h-1/2 rounded-[2.5rem] overflow-hidden border border-white/10 bg-zinc-900 shadow-6xl">
+              <img src="https://images.unsplash.com/photo-1756483510840-b0dda5f0dd0f?q=80&w=1110&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" alt="Couture Detail" />
             </div>
             <div className="flex-grow rounded-[2.5rem] bg-white/5 backdrop-blur-3xl border border-white/10 p-8 flex flex-col justify-between shadow-2xl">
               <div>
@@ -113,7 +113,7 @@ export default function EtherealGlam() {
           </div>
         </div>
 
-        {/* RESTORED SERVICE CARDS WITH ICONS */}
+        {/*SERVICE CARDS WITH ICONS */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
           <GlamCard icon={Scissors} label="Bridal Couture" />
           <GlamCard icon={Heart} label="HD Makeup" />
@@ -128,7 +128,7 @@ export default function EtherealGlam() {
         </div>
 
         <footer className="mt-20 pt-10 border-t border-white/5 text-center opacity-40">
-           <p className="text-[8px] uppercase tracking-[1em] font-black text-slate-700">A Venture of Ethereal Inn Hospitality LLP</p>
+           <p className="text-[8px] uppercase tracking-[1em] font-black text-slate-700">A unit of Ethereal Inn Hospitality LLP</p>
         </footer>
       </main>
     </div>

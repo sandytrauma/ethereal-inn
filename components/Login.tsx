@@ -47,7 +47,7 @@ const MOCK_REVIEWS: Review[] = [
     author_name: "Aditya Sharma",
     rating: 5,
     relative_time_description: "2 weeks ago",
-    text: "The most serene stay in Chhatarpur. The attention to detail in the room decor is unmatched.",
+    text: "The most serene stay now in Delhi. The attention to detail in the room decor is unmatched.",
     profile_photo_url: "https://i.pravatar.cc/150?u=aditya",
   },
   {
@@ -228,7 +228,7 @@ export default function LandingLoginPage() {
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-6xl sm:text-7xl md:text-8xl lg:text-[10rem] font-serif font-bold tracking-tighter text-white leading-[0.85] uppercase italic"
+            className="text-4xl sm:text-7xl md:text-8xl lg:text-[10rem] font-serif font-bold tracking-tighter text-white leading-[0.85] uppercase italic"
           >
             Ethereal <br className="hidden md:block" />
             <span style={{ background: `linear-gradient(to right, #fbf2cf 0%, #c5a059 50%, #fbf2cf 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
@@ -318,7 +318,7 @@ export default function LandingLoginPage() {
         </div>
       </section>
 
-       <div className="space-y-4 pt-4">
+       <div className="space-y-4 pt-4 m-4 mb-24">
           <p className="text-[9px] text-slate-600 font-black uppercase tracking-[0.3em] text-center">Explore Our Ventures</p>
           
           <Link href="/glam">
