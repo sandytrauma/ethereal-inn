@@ -29,6 +29,7 @@ export default function EtherealGlam() {
   return (
     <div ref={containerRef} className="min-h-screen bg-transparent text-slate-200 font-sans selection:bg-rose-400 selection:text-white overflow-x-hidden relative cursor-none">
       
+      
       {/* --- FULL PAGE BACKGROUND (Visibility Adjusted) --- */}
       <div className="fixed inset-0 z-0 overflow-hidden">
         <img 

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation"; 
 import { updateRoomStatus, processCheckout, type RoomStatus } from "@/lib/actions/room-actions";
+import DashboardBackground from "@/components/dashboard/DashboardBackground";
 
 interface Room {
   id?: number;
@@ -117,6 +118,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   return (
     <div className="flex min-h-screen bg-transparent text-slate-100 font-sans">
       <div className="flex-1 p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar relative z-10">
+        <DashboardBackground />
         
         {/* Header */}
         <header className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">

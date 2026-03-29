@@ -29,6 +29,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Script from "next/script";
 import { getGoogleReviews } from "@/lib/actions/reviews";
 import Link from "next/link";
+import DashboardBackground from "./dashboard/DashboardBackground";
 
 // --- CONFIGURATION ---
 const GA_MEASUREMENT_ID = "G-XXXXXXXXXX";
@@ -166,6 +167,7 @@ export default function LandingLoginPage() {
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-slate-100 overflow-x-hidden font-sans selection:bg-[#c5a059] selection:text-black pb-24 md:pb-0">
+      <DashboardBackground />
       <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
       
       {/* --- NAVIGATION --- */}
