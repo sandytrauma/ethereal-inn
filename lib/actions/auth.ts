@@ -8,16 +8,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 
-/**
- * Handles Staff and Admin Login
- * Note: redirect() throws a NEXT_REDIRECT error which is caught 
- * internally by Next.js. We keep it outside the try/catch block.
- */
 export async function loginUser(prevState: any, formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  // Early validation
   if (!email || !password) {
     return { error: "Please enter both email and password." };
   }
@@ -25,7 +19,6 @@ export async function loginUser(prevState: any, formData: FormData) {
   let success = false;
 
   try {
-    // 1. Fetch user from Drizzle
     const [user] = await db
       .select()
       .from(users)
@@ -35,13 +28,11 @@ export async function loginUser(prevState: any, formData: FormData) {
       return { error: "Account not found." };
     }
 
-    // 2. Verify Password with bcrypt
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
       return { error: "Incorrect password. Please try again." };
     }
 
-    // 3. Create Session Payload
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 Hours
     const session = await encrypt({ 
       userId: user.id, 
@@ -49,15 +40,19 @@ export async function loginUser(prevState: any, formData: FormData) {
       name: user.name 
     });
 
-    // 4. Set Secure Cookie
+    // --- UPDATED SECURE COOKIE LOGIC ---
     const cookieStore = await cookies();
+    
     cookieStore.set("auth-token", session, { 
       expires, 
       httpOnly: true, 
-      secure: process.env.NODE_ENV === "production",
-      sameSite: 'lax',
+      // MUST BE TRUE: 'none' requires secure. 
+      // If you are testing on localhost WITHOUT HTTPS, use 'lax' temporarily.
+      secure: true, 
+      // CRITICAL: 'none' allows the cookie to be sent in the POS iframe.
+      sameSite: 'none', 
       path: '/',
-      priority: 'high' // Ensures the redirect picks up the cookie immediately
+      priority: 'high'
     });
 
     success = true;
@@ -66,23 +61,20 @@ export async function loginUser(prevState: any, formData: FormData) {
     return { error: "A server error occurred. Please try again." };
   }
 
-  // 5. Final Redirect
   if (success) {
-    // Ensure this matches your protected route (usually "/" or "/dashboard")
     redirect("/"); 
   }
 }
 
-/**
- * Clears session and redirects to public landing
- */
 export async function logout() {
   const cookieStore = await cookies();
   
-  // Clear the cookie by setting expiration to past
   cookieStore.set("auth-token", "", { 
     expires: new Date(0),
-    path: '/' 
+    path: '/',
+    // Match the login settings for clean removal
+    secure: true,
+    sameSite: 'none'
   });
   
   redirect("/login");
