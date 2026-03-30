@@ -8,33 +8,25 @@ export async function middleware(req: NextRequest) {
 
   // 1. Define Public vs Private routes
   const isLoginPage = path === '/login';
+  
+  // NEW: Define Ethereal Glam as a public-facing marketing page
   const isGlamPage = path === '/glam'; 
   
-  // Define static assets and internal Next.js paths
   const isPublicAsset = 
     path.startsWith('/_next') || 
     path.startsWith('/api') || 
     path.includes('.');
 
+  // If it's a static asset, let it pass immediately
   if (isPublicAsset) return NextResponse.next();
 
   // 2. Decrypt the session
   const session = token ? await decrypt(token).catch(() => null) : null;
 
-  // 3. SECURE REDIRECT LOGIC
+  // 3. REDIRECT LOGIC
   
-  // If no session and trying to access protected routes
+  // If no session and user is NOT on login OR the public glam page, redirect to login
   if (!session && !isLoginPage && !isGlamPage) {
-    // SECURITY CHECK: If this is an iframe request (POS context), 
-    // a redirect to /login might fail due to cookie partitioning.
-    const isIframe = req.headers.get('sec-fetch-dest') === 'iframe' || req.headers.get('x-requested-with') === 'XMLHttpRequest';
-    
-    if (isIframe) {
-      // Instead of a hard redirect which breaks iframes, return a 401 Unauthorized
-      // This allows the client-side to handle the logout gracefully
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
@@ -43,16 +35,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
-  // 4. SECURITY HEADERS (Crucial for POS/Iframe stability)
-  const response = NextResponse.next();
-  
-  // Allow your own domain to frame the POS (replace with your actual domain if different)
-  response.headers.set('Content-Security-Policy', "frame-ancestors 'self'");
-  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
-
-  return response;
+  // Allow access to /glam (public), /login (public), or protected routes (if session exists)
+  return NextResponse.next();
 }
 
+// Optimized matcher
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

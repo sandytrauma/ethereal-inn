@@ -18,7 +18,7 @@ export async function decrypt(input: string): Promise<any> {
   return payload;
 }
 
-//FUNCTION TO FIX LOGOUTS ---
+// --- ADD THIS FUNCTION TO FIX LOGOUTS ---
 export async function setSession(user: any) {
   const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   const session = await encrypt({ user, expires });
