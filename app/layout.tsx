@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  // --- THE FIX: metadataBase sets the root for all social images ---
+  // SET METADATABASE: This resolves the warning and social image paths
   metadataBase: new URL(
     process.env.NODE_ENV === "production"
-      ? "https://ethereal-inn.vercel.app" // Your production URL
+      ? "https://ethereal-inn.vercel.app"
       : "http://localhost:3000"
   ),
   title: "Ethereal Inn | Luxury Boutique Stay in Delhi",
@@ -30,11 +30,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Ethereal Inn | Delhi's Most Refined Experience",
     description: "Boutique luxury, minutes from the Metro.",
-    url: "https://ethereal-inn.vercel.app/login",
+    url: "/login",
     siteName: "Ethereal Inn",
-    // Swapping to a high-quality bridal/luxury image for better conversion
     images: [{ 
-      url: "/bridal-bg.jpg", 
+      url: "/bridal-bg.jpg", // Corrected to relative path (resolved by metadataBase)
       width: 1200, 
       height: 630, 
       alt: "Luxury at Ethereal Inn" 
@@ -50,7 +49,7 @@ export const metadata: Metadata = {
   },
 };
 
-// --- Background Blobs Component (Kept exactly as provided) ---
+// --- Dashboard Background ---
 function DashboardBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden bg-[#02040a]">
@@ -62,7 +61,7 @@ function DashboardBackground() {
         className="absolute inset-0 opacity-[0.2] mix-blend-soft-light pointer-events-none"
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23F5F5F5'/%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E")` }}
       />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_4px,3px_100%] pointer-events-none animate-flicker opacity-[0.05]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_4px,3px_100%] pointer-events-none opacity-[0.05]" />
     </div>
   );
 }

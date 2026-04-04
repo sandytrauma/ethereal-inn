@@ -7,7 +7,7 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get('auth-token')?.value;
 
   // 1. Define Public vs Private routes
-  const isLoginPage = path === '/login';
+  const isLoginPage = path === '/ethereal-inn';
   
   // NEW: Define Ethereal Glam as a public-facing marketing page
   const isGlamPage = path === '/glam'; 
@@ -27,7 +27,7 @@ export async function middleware(req: NextRequest) {
   
   // If no session and user is NOT on login OR the public glam page, redirect to login
   if (!session && !isLoginPage && !isGlamPage) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    return NextResponse.redirect(new URL('/ethereal-inn', req.url));
   }
 
   // If session exists and user tries to go to login, send to dashboard
