@@ -23,7 +23,10 @@ import {
   Target,
   Sparkles,
   BookOpen,
-  Monitor
+  Monitor,
+  Instagram,
+  Facebook,
+  PhoneCall
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Script from "next/script";
@@ -187,6 +190,7 @@ export default function LandingLoginPage() {
           <button onClick={() => setShowLogin(true)} className="bg-[#c5a059] text-black px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform">
             Staff Gate
           </button>
+          
         </div>
       </nav>
 
@@ -205,9 +209,11 @@ export default function LandingLoginPage() {
             onClick={() => setShowPOS(true)}
             className="flex flex-col items-center gap-1 p-3 text-gray-400 hover:text-[#c5a059] active:scale-90 transition-all"
           >
+             
             <Monitor size={20} />
             <span className="text-[8px] font-black uppercase tracking-tighter">Terminal</span>
           </button>
+          
         </div>
       </div>
 
@@ -393,14 +399,99 @@ export default function LandingLoginPage() {
      
 
       {/* --- MAIN FOOTER --- */}
-      <footer className="bg-black pt-24 pb-12 px-6 border-t border-white/5 text-center">
-        <h2 className="text-4xl md:text-6xl font-serif font-bold text-white mb-10 uppercase italic">Ethereal <span className="text-[#c5a059]">Inn.</span></h2>
-        <div className="flex flex-wrap justify-center gap-12 mb-12 text-[10px] font-black uppercase tracking-[0.4em] text-slate-600">
-          <button onClick={() => setPolicyType("privacy")} className="hover:text-[#c5a059]">Privacy</button>
-          <button onClick={() => setPolicyType("terms")} className="hover:text-[#c5a059]">Terms</button>
-          <button onClick={() => setPolicyType("refunds")} className="hover:text-[#c5a059]">Refunds</button>
+     <footer className="relative bg-[#050505] pt-24 pb-12 px-6 border-t border-white/5 overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#c5a059]/5 blur-[120px] rounded-full -z-10" />
+
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20 text-left">
+            
+            {/* Brand Column */}
+            <div className="md:col-span-2 space-y-8">
+              <div className="flex flex-col">
+                <span className="text-[10px] tracking-[0.5em] uppercase text-gray-500 font-black mb-2">The Collective</span>
+                <h2 className="text-4xl md:text-5xl font-serif font-bold text-white uppercase italic leading-none">
+                  Ethereal <span className="text-[#c5a059]">Inn.</span>
+                </h2>
+              </div>
+              <p className="text-gray-500 text-sm max-w-sm leading-relaxed font-light">
+                Redefining the art of urban sanctuary. Where architectural elegance meets the divine culinary craft of Urban Ambrosia.
+              </p>
+              <div className="flex gap-4">
+                {[
+                  { icon: <Instagram size={18} />, label: "Instagram" },
+                  { icon: <Facebook size={18} />, label: "Facebook" },
+                  { icon: <PhoneCall size={18} />, label: "Contact" }
+                ].map((social, i) => (
+                  <button key={i} className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all">
+                    {social.icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Navigation Column */}
+           <div className="space-y-6">
+  <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
+    Experience
+  </h4>
+  <ul className="space-y-4">
+    <li>
+      <Link 
+        href="/suites" 
+        className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+      >
+        The Suites
+      </Link>
+    </li>
+    <li>
+      <Link 
+        href="/culinary" 
+        className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+      >
+        Urban Ambrosia
+      </Link>
+    </li>
+    <li>
+      <Link 
+        href="/contact" 
+        className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+      >
+        Contact & Inquiry
+      </Link>
+    </li>
+  </ul>
+</div>
+
+            {/* Legal Column */}
+            <div className="space-y-6">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">Legal</h4>
+              <ul className="space-y-4 text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                <li onClick={() => setPolicyType("privacy")} className="hover:text-[#c5a059] transition-colors cursor-pointer">Privacy Policy</li>
+                <li onClick={() => setPolicyType("terms")} className="hover:text-[#c5a059] transition-colors cursor-pointer">Terms of Service</li>
+                <li onClick={() => setPolicyType("refunds")} className="hover:text-[#c5a059] transition-colors cursor-pointer">Refund Policy</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+              <p className="text-[9px] text-gray-600 uppercase tracking-[0.2em] font-black">
+                © 2026 Ethereal Inn Collective
+              </p>
+              <div className="h-px w-8 bg-white/10 hidden md:block" />
+              <p className="text-[9px] text-[#c5a059] uppercase tracking-[0.2em] font-black">
+                Urban Ambrosia Culinary by Ethereal Inn Hospitality
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2 px-4 py-2 bg-white/[0.02] border border-white/5 rounded-full">
+              <ShieldCheck size={12} className="text-emerald-500" />
+              <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest">Encrypted Booking Engine</span>
+            </div>
+          </div>
         </div>
-        <p className="text-[9px] text-gray-700 uppercase tracking-widest">© 2026 Ethereal Inn Collective | Urban Ambrosia Culinary</p>
       </footer>
 
       {/* --- MODALS & OVERLAYS --- */}

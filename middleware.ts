@@ -6,11 +6,16 @@ export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const token = req.cookies.get('auth-token')?.value;
 
-  // 1. Define Public vs Private routes
-  const isLoginPage = path === '/ethereal-inn';
-  
-  // NEW: Define Ethereal Glam as a public-facing marketing page
-  const isGlamPage = path === '/glam'; 
+  // 1. Define all Publicly Accessible Pages
+  const PUBLIC_ROUTES = [
+    '/ethereal-inn', // Login Page
+    '/glam',         // Membership Page
+    '/suites',       // Accommodations
+    '/culinary',     // Urban Ambrosia
+    '/contact'       // Contact Page
+  ];
+
+  const isPublicPage = PUBLIC_ROUTES.includes(path);
   
   const isPublicAsset = 
     path.startsWith('/_next') || 
@@ -25,17 +30,17 @@ export async function middleware(req: NextRequest) {
 
   // 3. REDIRECT LOGIC
   
-  // If no session and user is NOT on login OR the public glam page, redirect to login
-  if (!session && !isLoginPage && !isGlamPage) {
+  // If no session and the user is NOT on a public page, redirect to login
+  if (!session && !isPublicPage) {
     return NextResponse.redirect(new URL('/ethereal-inn', req.url));
   }
 
-  // If session exists and user tries to go to login, send to dashboard
-  if (session && isLoginPage) {
+  // If session exists (staff logged in) and they try to go to login, send to dashboard
+  if (session && path === '/ethereal-inn') {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
-  // Allow access to /glam (public), /login (public), or protected routes (if session exists)
+  // Allow access to all public pages or protected routes (if session exists)
   return NextResponse.next();
 }
 

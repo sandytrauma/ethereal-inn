@@ -2,28 +2,36 @@ import { Metadata } from 'next';
 import EtherealGlam from '@/components/EtherealGlam';
 
 export const metadata: Metadata = {
-  title: 'Ethereal Glam | Luxury Bridal Makeup Studio & Boutique',
-  description: 'Discover the art of bridal elegance at Ethereal Glam, a premier boutique and makeup studio under Ethereal Inn Hospitality LLP. Opening soon.',
+  metadataBase: new URL("https://ethereal-inn.vercel.app"),
+  title: 'Ethereal Glam | Luxury Bridal & Aesthetic Procedures',
+  description: 'Experience elite bridal makeup, couture styling, and advanced aesthetic procedures at Ethereal Glam. Part of Ethereal Inn Hospitality LLP.',
   openGraph: {
-    title: 'Ethereal Glam - Opening Soon',
-    description: 'Luxury Bridal Makeup & Couture Boutique.',
-    images: ['/glam-preview.jpg'], // Ensure you have a marketing image in public folder
+    title: 'Ethereal Glam - Procedures & Luxury Styling',
+    description: 'Advanced Bridal Artistry and Couture Boutique.',
+    images: ['https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=1200&h=630&fit=crop'], 
   },
-  keywords: ['Bridal Makeup Gurugram', 'Luxury Boutique', 'Ethereal Inn Hospitality', 'Makeup Studio'],
+  keywords: ['Bridal Makeup Delhi', 'Airbrush Makeup', 'Couture Boutique Gurugram', 'Aesthetic Procedures'],
 };
 
 export default function Glam() {
-  // SEO Structured Data for Google
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BeautySalon",
     "name": "Ethereal Glam: Boutique & Makeup Studio",
+    "description": "Premium Bridal Artistry and Aesthetic Procedures.",
     "parentOrganization": {
       "@type": "Organization",
       "name": "Ethereal Inn Hospitality LLP"
     },
-    "description": "Premium Bridal Makeup and Luxury Couture Boutique.",
-    "status": "https://schema.org/ComingSoon"
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Ethereal Glam Services",
+      "itemListElement": [
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Signature Airbrush HD Procedure" }},
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Couture Silhouette Draping" }},
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Dermal Radiance Prep" }}
+      ]
+    }
   };
 
   return (
