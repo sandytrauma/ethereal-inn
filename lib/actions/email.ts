@@ -22,8 +22,8 @@ export async function sendEmailAction(formData: FormData) {
   try {
     const { data, error } = await resend.emails.send({
       // Your verified Resend domain identity
-      from: 'Ethereal Inn Concierge <inquiry@feruecrisu.resend.app>',
-      to: 'etherealinn055@gmail.com', 
+      from: 'Ethereal Inn Concierge <onboarding@resend.dev>',
+      to:'sksandeep443@gmail.com', 
       subject: `[Website Inquiry] ${subject}`,
       replyTo: email, 
       // Plain text version for accessibility/spam filters

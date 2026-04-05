@@ -1,15 +1,18 @@
 "use client";
 import React, { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, Mail, MapPin, ChevronLeft, Loader2, Send, CheckCircle2 } from "lucide-react";
+import { MessageCircle, MapPin, ChevronLeft, Loader2, Send, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
+// Ensure this path matches where you saved the server action
+import { sendEmailAction } from "@/lib/actions/email";
 
 export default function ContactPage() {
   const [isPending, startTransition] = useTransition();
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Configuration
-  const WHATSAPP_NUMBER = "919315371613"; // Your verified number
+  const WHATSAPP_NUMBER = "919315371613";
   const WHATSAPP_MSG = encodeURIComponent("Hi Ethereal Inn, I would like to inquire about a booking.");
 
   const handleWhatsApp = () => {
@@ -18,13 +21,22 @@ export default function ContactPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError(null);
     const formData = new FormData(e.currentTarget);
     
     startTransition(async () => {
-      // Replace this with your actual Server Action or API call
-      // await sendEmailAction(formData); 
-      await new Promise((res) => setTimeout(res, 1500)); // Simulating API
-      setSubmitted(true);
+      try {
+        const result = await sendEmailAction(formData);
+        
+        if (result.success) {
+          setSubmitted(true);
+        } else {
+          // Captures the error message from Resend or our validation
+          setError(result.error || "Something went wrong. Please try WhatsApp.");
+        }
+      } catch (err) {
+        setError("Network error. Please check your connection.");
+      }
     });
   }
 
@@ -81,7 +93,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Location</p>
-                  <p className="text-lg font-serif italic">Delhi, India</p>
+                  <p className="text-lg font-serif italic">Gurugram, Haryana, India</p>
                 </div>
               </div>
             </div>
@@ -112,7 +124,7 @@ export default function ContactPage() {
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-2">Subject</label>
-                    <select name="subject" className="w-full bg-black border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] transition-colors appearance-none">
+                    <select name="subject" className="w-full bg-black border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] transition-colors appearance-none cursor-pointer">
                       <option>Suite Reservation</option>
                       <option>Urban Ambrosia Catering</option>
                       <option>Event Hosting</option>
@@ -125,10 +137,21 @@ export default function ContactPage() {
                     <textarea required name="message" rows={4} placeholder="How can we assist you today?" className="w-full bg-black border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] transition-colors resize-none" />
                   </div>
 
+                  {error && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-[10px] font-bold uppercase tracking-widest"
+                    >
+                      <AlertCircle size={14} />
+                      {error}
+                    </motion.div>
+                  )}
+
                   <button 
                     disabled={isPending}
                     type="submit"
-                    className="w-full bg-white text-black h-16 rounded-2xl font-black uppercase text-[11px] tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-[#c5a059] transition-all"
+                    className="w-full bg-white text-black h-16 rounded-2xl font-black uppercase text-[11px] tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-[#c5a059] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isPending ? <Loader2 className="animate-spin" /> : <><Send size={16} /> Send Message</>}
                   </button>
@@ -145,7 +168,7 @@ export default function ContactPage() {
                   <p className="font-bold uppercase tracking-widest text-[10px]">The concierge will reach out shortly.</p>
                   <button 
                     onClick={() => setSubmitted(false)}
-                    className="text-[10px] font-black uppercase tracking-widest border-b-2 border-black pb-1"
+                    className="text-[10px] font-black uppercase tracking-widest border-b-2 border-black pb-1 hover:opacity-60 transition-opacity"
                   >
                     Send another inquiry
                   </button>
