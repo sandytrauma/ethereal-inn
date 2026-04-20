@@ -9,9 +9,10 @@ import {
   tasks 
 } from "@/db/schema";
 import { revalidatePath } from "next/cache";
-import { desc, sql, eq, gte, asc } from "drizzle-orm";
+import { desc, sql, eq, gte, asc, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "../auth"; 
+import { properties } from "@/db/micro-schema";
 
 /**
  * Helper to calculate start dates based on period
@@ -181,9 +182,9 @@ export async function getStaffMembers() {
 }
 
 /**
- * Reconciles day book figures (upsert based on date)
+ * Reconciles day book figures for a specific property
  */
-export async function closeDayBook(formData: any) {
+export async function closeDayBook(formData: any, propertyId: string) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
@@ -194,27 +195,27 @@ export async function closeDayBook(formData: any) {
       return { success: false, error: "Unauthorized. Please re-login." };
     }
 
+    if (!propertyId) {
+      return { success: false, error: "Property ID is required for multi-property tracking." };
+    }
+
     const todayStr = new Date().toISOString().split('T')[0];
 
-    await db.insert(financialRecords)
-      .values({
-        date: todayStr,
-        userId: Number(userId),
-        createdById: Number(userId),
-        cashRevenue: String(formData.cashRevenue || "0"),
-        upiRevenue: String(formData.upiRevenue || "0"),
-        otaPayouts: String(formData.otaPayouts || "0"),
-        roomRevenue: String(formData.roomRevenue || "0"), 
-        serviceRevenue: String(formData.serviceRevenue || "0"),
-        pettyExpenses: String(formData.pettyExpenses || "0"),
-        totalCollection: String(formData.totalCollection || "0"),
-        netCash: String(formData.netCash || "0"),
-        notes: formData.notes || "",
-        status: "reconciled",
-      })
-      .onConflictDoUpdate({
-        target: financialRecords.date,
-        set: {
+    // 1. Check if a record already exists for this specific Date AND Property
+    const existingRecord = await db.select()
+      .from(financialRecords)
+      .where(
+        and(
+          eq(financialRecords.date, todayStr),
+          eq(financialRecords.propertyId, propertyId)
+        )
+      )
+      .limit(1);
+
+    if (existingRecord.length > 0) {
+      // 2. If it exists, perform an UPDATE
+      await db.update(financialRecords)
+        .set({
           userId: Number(userId),
           cashRevenue: String(formData.cashRevenue || "0"),
           upiRevenue: String(formData.upiRevenue || "0"),
@@ -225,10 +226,35 @@ export async function closeDayBook(formData: any) {
           totalCollection: String(formData.totalCollection || "0"),
           netCash: String(formData.netCash || "0"),
           status: "reconciled",
-        },
-      });
+          updatedAt: new Date(),
+        })
+        .where(eq(financialRecords.id, existingRecord[0].id));
+    } else {
+      // 3. If it doesn't exist, perform an INSERT
+      await db.insert(financialRecords)
+        .values({
+          propertyId: propertyId,
+          date: todayStr,
+          userId: Number(userId),
+          createdById: Number(userId),
+          cashRevenue: String(formData.cashRevenue || "0"),
+          upiRevenue: String(formData.upiRevenue || "0"),
+          otaPayouts: String(formData.otaPayouts || "0"),
+          roomRevenue: String(formData.roomRevenue || "0"), 
+          serviceRevenue: String(formData.serviceRevenue || "0"),
+          pettyExpenses: String(formData.pettyExpenses || "0"),
+          totalCollection: String(formData.totalCollection || "0"),
+          netCash: String(formData.netCash || "0"),
+          notes: formData.notes || "",
+          status: "reconciled",
+        });
+    }
 
+    // Refresh all relevant views
     revalidatePath("/dashboard");
+    revalidatePath("/inventory");
+    revalidatePath("/reports");
+    
     return { success: true };
 
   } catch (error: any) {
@@ -237,6 +263,9 @@ export async function closeDayBook(formData: any) {
   }
 }
 
+/**
+ * Updates status of a lead/inquiry
+ */
 export async function updateInquiryStatus(id: number, status: string) {
   try {
     await db.update(inquiries)
@@ -260,5 +289,53 @@ export async function deleteInquiry(id: number) {
     return { success: true };
   } catch (e) {
     return { success: false };
+  }
+}
+
+
+/**
+ * Fetches all revenue and expense records for CSV export
+ */
+export async function getExportData(period: 'month' | 'quarter' | 'year' = 'month') {
+  try {
+    const now = new Date();
+    let startDate: Date;
+
+    if (period === 'month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (period === 'quarter') {
+      startDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+    } else {
+      startDate = new Date(now.getFullYear(), 0, 1);
+    }
+
+    const records = await db
+      .select({
+        id: financialRecords.id,
+        date: financialRecords.date,
+        propertyName: properties.name,
+        staffName: users.name,
+        roomRevenue: financialRecords.roomRevenue,
+        serviceRevenue: financialRecords.serviceRevenue,
+        cashRevenue: financialRecords.cashRevenue,
+        upiRevenue: financialRecords.upiRevenue,
+        otaPayouts: financialRecords.otaPayouts,
+        totalCollection: financialRecords.totalCollection,
+        pettyExpenses: financialRecords.pettyExpenses,
+        netCash: financialRecords.netCash,
+        status: financialRecords.status,
+        notes: financialRecords.notes,
+        createdAt: financialRecords.createdAt,
+      })
+      .from(financialRecords)
+      .leftJoin(properties, eq(financialRecords.propertyId, properties.id))
+      .leftJoin(users, eq(financialRecords.userId, users.id))
+      .where(gte(financialRecords.date, startDate.toISOString().split('T')[0]))
+      .orderBy(asc(financialRecords.date));
+
+    return { success: true, data: records };
+  } catch (error) {
+    console.error("Export Fetch Error:", error);
+    return { success: false, data: [] };
   }
 }

@@ -1,12 +1,16 @@
 "use server";
 
 import { db } from "@/db";
+import { properties } from "@/db/micro-schema";
 import { clients, financialRecords, inquiries, invoices, rooms, tasks } from "@/db/schema";
-import { asc, eq, ne, sql } from "drizzle-orm";
+import { asc, eq, ne, sql, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export type RoomStatus = "available" | "occupied" | "cleaning" | "maintenance";
 
+/**
+ * Fetches all rooms ordered by unit number.
+ */
 export async function getRoomsList() {
   try {
     return await db.select().from(rooms).orderBy(asc(rooms.number));
@@ -16,6 +20,9 @@ export async function getRoomsList() {
   }
 }
 
+/**
+ * Updates status and guest metadata for a specific unit.
+ */
 export async function updateRoomStatus(
   roomNumber: number | string, 
   status: RoomStatus, 
@@ -31,6 +38,7 @@ export async function updateRoomStatus(
       })
       .where(eq(rooms.number, Number(roomNumber)));
 
+    revalidatePath("/occupancy");
     revalidatePath("/inventory");
     revalidatePath("/dashboard");
     return { success: true };
@@ -40,11 +48,26 @@ export async function updateRoomStatus(
   }
 }
 
+/**
+ * Processes checkout, generates invoice, and updates financial records.
+ */
 export async function processCheckout(roomNumber: number, guestName: string, totalAmount: number) {
   try {
     return await db.transaction(async (tx) => {
       
-      // 1. Update Room Status to cleaning
+      const [roomDetails] = await tx
+        .select({ propertyId: rooms.propertyId })
+        .from(rooms)
+        .where(eq(rooms.number, roomNumber))
+        .limit(1);
+
+      if (!roomDetails || !roomDetails.propertyId) {
+        throw new Error(`Room ${roomNumber} is not assigned to a property.`);
+      }
+
+      const activePropertyId = roomDetails.propertyId;
+
+      // Update Room State
       await tx.update(rooms)
         .set({ 
           status: 'cleaning', 
@@ -53,7 +76,7 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
         })
         .where(eq(rooms.number, roomNumber));
 
-      // 2. Insert into Invoices Table
+      // Log Invoice
       await tx.insert(invoices).values({
         roomNumber,
         guestName,
@@ -61,25 +84,29 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
         checkoutDate: new Date(),
       });
 
-      // 3. Update or Insert into Financial Records (The Day Book)
       const todayDate = new Date().toISOString().split('T')[0];
 
+      // Update or Create Financial Record for the day
       const existingRecord = await tx.select()
         .from(financialRecords)
-        .where(eq(financialRecords.date, todayDate))
+        .where(
+          and(
+            eq(financialRecords.date, todayDate),
+            eq(financialRecords.propertyId, activePropertyId)
+          )
+        )
         .limit(1);
 
       if (existingRecord.length > 0) {
-        // Update existing daily record - using numeric cast for safety
         await tx.update(financialRecords)
           .set({
             roomRevenue: sql`CAST(${financialRecords.roomRevenue} AS NUMERIC) + ${totalAmount}`,
             totalCollection: sql`CAST(${financialRecords.totalCollection} AS NUMERIC) + ${totalAmount}`,
           })
-          .where(eq(financialRecords.date, todayDate));
+          .where(eq(financialRecords.id, existingRecord[0].id));
       } else {
-        // Create new record for the day
         await tx.insert(financialRecords).values({
+          propertyId: activePropertyId,
           date: todayDate,
           roomRevenue: totalAmount.toString(),
           totalCollection: totalAmount.toString(),
@@ -93,6 +120,7 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
         });
       }
 
+      revalidatePath("/occupancy");
       revalidatePath("/inventory");
       revalidatePath("/dashboard");
       return { success: true };
@@ -103,40 +131,62 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
   }
 }
 
-export async function seedRooms() {
+/**
+ * seedRooms
+ * CLEARS existing room data and builds the new structural grid.
+ */
+export async function seedRooms(floorCount: number, roomsPerFloor: number) {
   try {
-    const existing = await db.select().from(rooms).limit(1);
-    if (existing.length > 0) return { success: false };
+    const property = await db.select().from(properties).limit(1);
+    if (!property || property.length === 0) throw new Error("No property found.");
 
-    const roomData = [1, 2, 3, 4, 5].flatMap((floor) => 
-      [1, 2, 3].map((num) => ({
-        number: Number(`${floor}0${num}`),
-        floor: floor,
-        status: "available" as const,
-      }))
-    );
+    const actualPropertyId = property[0].id;
+    
+    // 1. CLEAR EXISTING DATA (This prevents the "5 floors" ghosting issue)
+    await db.delete(rooms).where(eq(rooms.propertyId, actualPropertyId));
 
-    await db.insert(rooms).values(roomData);
+    const roomData = [];
+
+    // 2. Loop through floors dynamically based on UI input
+    for (let f = 1; f <= floorCount; f++) {
+      for (let r = 1; r <= roomsPerFloor; r++) {
+        roomData.push({
+          number: f * 100 + r, // e.g. Floor 1: 101, 102...
+          floor: f,
+          status: "available" as const,
+          propertyId: actualPropertyId,
+        });
+      }
+    }
+
+    // 3. Insert the new infrastructure
+    if (roomData.length > 0) {
+        await db.insert(rooms).values(roomData);
+    }
+    
+    // 4. Force UI Refresh
+    revalidatePath("/occupancy");
     revalidatePath("/inventory");
-    return { success: true };
-  } catch (error) {
-    console.error("Seed Error:", error);
-    return { success: false };
+    revalidatePath("/dashboard");
+
+    return { success: true, count: roomData.length };
+  } catch (error: any) {
+    console.error("Seed Error:", error.message);
+    throw new Error(error.message);
   }
 }
 
-
+/**
+ * Fetches rooms, tasks, and inquiries for the reception interface.
+ */
 export async function getLiveReceptionData() {
   try {
-    // 1. Fetch all rooms
     const allRooms = await db.select().from(rooms).orderBy(rooms.number);
 
-    // 2. Fetch active tasks for those rooms (Cleaning or Maintenance)
     const activeTasks = await db.select()
       .from(tasks)
       .where(ne(tasks.status, "completed"));
 
-    // 3. Fetch fresh inquiries for the alert sidebar
     const recentInquiries = await db.select()
       .from(inquiries)
       .where(eq(inquiries.status, "new"))

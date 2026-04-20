@@ -6,7 +6,7 @@ import {
   LayoutDashboard, History, Settings, TrendingUp, TrendingDown, 
   Plus, BarChart3, LogOut, Wallet, Activity, Zap, CheckCircle2,
   DoorOpen, LineChart, ConciergeBell, RefreshCcw, Clock, AlertCircle,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 // SERVER ACTIONS & COMPONENTS
@@ -24,12 +24,21 @@ import ReportView from "@/components/dashboard/ReportView";
 import { getRoomsList, getLiveReceptionData } from '@/lib/actions/room-actions';
 import DashboardBackground from './dashboard/DashboardBackground';
 import MarketIntelView from './dashboard/RevenueChart';
+import { ExportRecordsButton } from './dashboard/ExportButton';
+import Link from 'next/link';
 
 interface DashboardProps {
-  user: { id: string | number; name: string; role: string; email?: string; };
+  user: {
+    id: string;
+    name: string;
+    role: string;
+    email: string;
+    propertyId?: string; // Added to support multi-property context
+  };
+  children?: React.ReactNode; 
 }
 
-export default function Dashboard({ user }: DashboardProps) {
+export default function Dashboard({ user, children }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year'>('month');
   const [dbData, setDbData] = useState<any>(null);
@@ -55,6 +64,7 @@ export default function Dashboard({ user }: DashboardProps) {
     return ['admin', 'manager', 'owner'].includes(r);
   }, [user?.role]);
 
+  // Robust data normalization to handle string-to-number conversion from DB
   const normalizeData = (data: any[]) => {
     return data.map(item => ({
       ...item,
@@ -70,6 +80,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const refreshData = useCallback(async () => {
     setLoading(true);
     try {
+      // These actions are now property-scoped in the backend based on user session
       const [summary, history, staff, rooms] = await Promise.all([
         getFinancialSummary(period),
         getFullHistory(),
@@ -142,7 +153,7 @@ export default function Dashboard({ user }: DashboardProps) {
     return {
       total,
       avgEntry: avg,
-      todayPerformance: logs[0] ? ((logs[0].totalCollection / avg) * 100).toFixed(0) : "0"
+      todayPerformance: logs[0] ? ((logs[0].totalCollection / (avg || 1)) * 100).toFixed(0) : "0"
     };
   }, [logs]);
 
@@ -166,12 +177,19 @@ export default function Dashboard({ user }: DashboardProps) {
             </p>
           </div>
         </div>
+        <ExportRecordsButton />
         <div className="flex items-center gap-4">
+          <Link href='/occupancy' className="p-3 bg-white/5 text-slate-400 rounded-2xl hover:bg-rose-500/10 hover:text-rose-500 transition-all border border-white/5">Rooms</Link>
           <button onClick={() => logout()} className="p-3 bg-white/5 text-slate-400 rounded-2xl hover:bg-rose-500/10 hover:text-rose-500 transition-all border border-white/5">
             <LogOut size={18}/>
           </button>
         </div>
+        
       </header>
+
+       <section className="mb-12 mt-12">
+          {children}
+        </section>
 
       <main className="px-6 max-w-lg mx-auto mt-8">
         <AnimatePresence mode="wait">
@@ -249,10 +267,8 @@ export default function Dashboard({ user }: DashboardProps) {
                 </button>
               </header>
 
-              {/* CALENDAR / TAPE CHART VIEW WITH GLASSMORPHISM */}
               <ReceptionCalendar rooms={roomsFromState} tasks={intelData.tasks} />
 
-              {/* LIVE INQUIRIES WITH GLASSMORPHISM */}
               <div className="bg-white/[0.05] backdrop-blur-3xl border border-white/10 p-6 rounded-[2.5rem] mt-4 shadow-2xl">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-4">Pending Inquiries</h3>
                 <div className="space-y-3">
@@ -361,7 +377,6 @@ export default function Dashboard({ user }: DashboardProps) {
   );
 }
 
-// CALENDAR COMPONENT WITH GLASSMORPHISM EFFECT
 function ReceptionCalendar({ rooms, tasks }: { rooms: any[], tasks: any[] }) {
   const days = Array.from({ length: 5 }, (_, i) => {
     const d = new Date();
@@ -371,7 +386,6 @@ function ReceptionCalendar({ rooms, tasks }: { rooms: any[], tasks: any[] }) {
 
   return (
     <div className="bg-white/[0.04] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 overflow-hidden shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
-      {/* Table Header */}
       <div className="grid grid-cols-6 border-b border-white/10 bg-white/[0.02]">
         <div className="p-4 border-r border-white/10 text-[8px] font-black uppercase text-slate-400 tracking-widest flex items-center">Room</div>
         {days.map((d, i) => (
@@ -382,7 +396,6 @@ function ReceptionCalendar({ rooms, tasks }: { rooms: any[], tasks: any[] }) {
         ))}
       </div>
 
-      {/* Table Body */}
       <div className="max-h-[320px] overflow-y-auto scrollbar-hide">
         {rooms.map((room) => (
           <div key={room.id} className="grid grid-cols-6 border-b border-white/5 last:border-0 transition-colors hover:bg-white/[0.02]">

@@ -34,6 +34,9 @@ import { getGoogleReviews } from "@/lib/actions/reviews";
 import Link from "next/link";
 import DashboardBackground from "./dashboard/DashboardBackground";
 
+
+
+
 // --- CONFIGURATION ---
 const GA_MEASUREMENT_ID = "G-XXXXXXXXXX";
 const POS_APP_URL = "https://pos-cloud-jade.vercel.app/"; 

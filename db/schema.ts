@@ -8,9 +8,11 @@ import {
   pgEnum, 
   boolean, 
   decimal,
-  date
+  date,
+  uuid
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { properties } from "./micro-schema";
 
 // --- ENUMS ---
 export const recordStatusEnum = pgEnum("record_status", ["pending", "deposited", "reconciled"]);
@@ -47,11 +49,13 @@ export const rooms = pgTable("rooms", {
   status: text("status").$type<"available" | "occupied" | "cleaning" | "maintenance">().default("available"),
   guestName: text("guest_name"),
   checkInTime: timestamp("check_in_time"),
+  propertyId: uuid("property_id").references(() => properties.id).notNull(),
 });
 
 // 4. Inquiries (Lead management)
 export const inquiries = pgTable("inquiries", {
   id: serial("id").primaryKey(),
+  propertyId: uuid("property_id").references(() => properties.id),
   clientId: integer("client_id").references(() => clients.id),
   source: text("source"), 
   message: text("message"),
@@ -62,6 +66,7 @@ export const inquiries = pgTable("inquiries", {
 // 5. Tasks (Internal operations)
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
+  propertyId: uuid("property_id").references(() => properties.id).notNull(),
   title: text("title").notNull(), 
   description: text("description"), 
   status: text("status").default("todo"), 
@@ -75,6 +80,7 @@ export const tasks = pgTable("tasks", {
 // 6. Financial Records (The Day Book)
 export const financialRecords = pgTable("financial_records", {
   id: serial("id").primaryKey(),
+  propertyId: uuid("property_id").references(() => properties.id).notNull(),
   // Use date() for uniqueness to ensure one record per day
 date: date("date").notNull().unique(),  
   // Revenue
@@ -97,6 +103,7 @@ date: date("date").notNull().unique(),
   userId: integer("user_id").references(() => users.id), 
   createdById: integer("created_by_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // 7. Statutory Master
