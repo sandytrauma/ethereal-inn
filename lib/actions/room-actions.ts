@@ -135,50 +135,49 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
  * seedRooms
  * CLEARS existing room data and builds the new structural grid.
  */
-export async function seedRooms() {
+export async function seedRooms(propertyId: string, floors: number, roomsPerFloor: number) {
   try {
-    const property = await db.select().from(properties).limit(1);
-    if (!property || property.length === 0) throw new Error("No property found.");
+    // 1. VALIDATION
+    // Use the propertyId passed from the frontend instead of selecting the first property from DB
+    if (!propertyId) throw new Error("Property ID is required for seeding.");
 
-    const actualPropertyId = property[0].id;
-    
-    // 1. CLEAR EXISTING DATA
-    // This ensures any old "5 floor" data is wiped before setting up your 9-room wing.
-    await db.delete(rooms).where(eq(rooms.propertyId, actualPropertyId));
+    // 2. CLEAR EXISTING DATA
+    // Only delete rooms belonging to THIS specific property
+    await db.delete(rooms).where(eq(rooms.propertyId, propertyId));
 
     const roomData = [];
 
-    // 2. Optimized for 9 Rooms on a Single Floor
-    const floorCount = 1; 
-    const roomsPerFloor = 9;
-
-    for (let f = 1; f <= floorCount; f++) {
+    // 3. DYNAMIC GENERATION 
+    // We use the arguments passed from the frontend (e.g., 1 floor, 9 rooms)
+    for (let f = 1; f <= floors; f++) {
       for (let r = 1; r <= roomsPerFloor; r++) {
         roomData.push({
-          // Generates 101 through 109
+          // Generates 101-109 for floor 1, 201-209 for floor 2, etc.
           number: f * 100 + r, 
           floor: f,
           status: "available" as const,
-          propertyId: actualPropertyId,
+          propertyId: propertyId,
         });
       }
     }
 
-    // 3. Insert the new infrastructure
+    // 4. BATCH INSERT
     if (roomData.length > 0) {
         await db.insert(rooms).values(roomData);
     }
     
-    // 4. Force UI Refresh
-    // This triggers the re-fetch for your new 9-tile layout
+    // 5. CACHE INVALIDATION
+    // Ensure all possible routes using this data are refreshed
     revalidatePath("/occupancy");
     revalidatePath("/inventory");
     revalidatePath("/dashboard");
+    // If you have a dynamic route [id], revalidate that too:
+    revalidatePath(`/pms/${propertyId}`);
 
     return { success: true, count: roomData.length };
   } catch (error: any) {
     console.error("Seed Error:", error.message);
-    throw new Error(error.message);
+    return { success: false, error: error.message };
   }
 }
 

@@ -33,6 +33,10 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const searchParams = useSearchParams();
   const router = useRouter();
   
+  // Since occupancy is a separate folder, we pull propertyId from query params
+  // visit at: /occupancy?propertyId=YOUR_ID
+  const propertyId = searchParams.get("propertyId") || "";
+
   const rawPrefill = propPrefill || searchParams.get("prefillGuest");
   const prefillName = (rawPrefill && rawPrefill !== "undefined") ? rawPrefill : null;
 
@@ -47,7 +51,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const [roomRent, setRoomRent] = useState(0);
   const [serviceFoodTotal, setServiceFoodTotal] = useState(0);
 
-  // Sync rooms when server data changes
   useEffect(() => {
     setRooms(initialRooms);
     if (prefillName) {
@@ -57,7 +60,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
         setSelectedRoom(firstVacant);
       }
     }
-  }, [initialRooms, prefillName]);
+  }, [initialRooms, prefillName, selectedRoom]);
 
   const occupancyStats = useMemo(() => {
     const occupied = rooms.filter(r => r.status === 'occupied').length;
@@ -68,7 +71,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
       current: occupied,
       totalToday: occupied + cleaning,
       reconciled: cleaning,
-      revenue: 0, 
       available,
       total: rooms.length
     };
@@ -81,7 +83,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
     );
   }, [rooms, searchQuery]);
 
-  // Logic to handle single floor sorting
   const uniqueFloors = useMemo(() => {
     const floors = Array.from(new Set(rooms.map(r => r.floor)));
     return floors.sort((a, b) => a - b);
@@ -93,11 +94,13 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
     if (onRoomUpdate) onRoomUpdate();
   };
 
-  // Trigger the seed function to reset to 9 rooms / 1 floor
   const handleResetInventory = () => {
-    if (!confirm("This will wipe all existing room data and reset to 9 rooms on a single floor. Continue?")) return;
+    if (!propertyId) return alert("Property ID missing from URL");
+    if (!confirm("Reset to 9-room single floor cluster?")) return;
+    
     startTransition(async () => {
-      const res = await seedRooms();
+      // Corrected: passing 3 arguments (ID, floors, roomsPerFloor)
+      const res = await seedRooms(propertyId, 1, 9);
       if (res.success) {
         router.refresh();
       }
@@ -149,7 +152,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
       <div className="flex-1 p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar relative z-10">
         <DashboardBackground />
         
-        {/* Header */}
         <header className="max-w-[1700px] mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
           <div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase italic leading-[0.8]">Inventory.</h1>
@@ -169,7 +171,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                 {isPending ? <Loader2 size={12} className="animate-spin" /> : <Database size={12} />}
                 Initialize 9-Room Layout
                </button>
-               <Link href='/' className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500'>Return</Link>
+               <Link href={`/pms/${propertyId}`} className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500'>Return</Link>
             </div>
             
             <div className="relative w-full max-w-md">
@@ -182,7 +184,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
           </div>
         </header>
 
-        {/* Stats Grid */}
         <div className="max-w-[1700px] mx-auto mb-16">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatBox label="Live Occupancy" value={occupancyStats.current} icon={BedDouble} color="text-amber-400" />
@@ -192,7 +193,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
           </div>
         </div>
 
-        {/* Floors Grid - Optimized for 9-across layout */}
         <div className="max-w-[1700px] mx-auto space-y-24 pb-20">
           {uniqueFloors.map((f) => {
             const floorRooms = filteredRooms.filter(r => r.floor === f);
@@ -212,7 +212,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                   </span>
                 </div>
 
-                {/* xl:grid-cols-9 ensures all 9 rooms fit in a single line on desktop */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-3">
                   {floorRooms.map(room => (
                     <RoomTile 
@@ -229,7 +228,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
         </div>
       </div>
 
-      {/* Sidebar Panel */}
       <AnimatePresence>
         {selectedRoom && (
           <>
@@ -329,6 +327,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   );
 }
 
+// Support components
 function SideInput({ label, value, onChange }: any) {
   return (
     <div className="relative">
