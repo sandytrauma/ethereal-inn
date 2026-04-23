@@ -6,14 +6,24 @@ import { rooms, tasks, financialRecords, inquiries, statutoryMaster } from "@/db
 import { eq, desc, sql, and, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-// --- EXISTING FUNCTIONS (Kept as requested) ---
+// --- EXISTING FUNCTIONS ---
+
+/**
+ * Fetches all properties from the database
+ */
 export async function getAllProperties() {
-  try { return await db.select().from(properties); } 
-  catch (e) { return []; }
+  try { 
+    return await db.select().from(properties); 
+  } catch (e) { 
+    return []; 
+  }
 }
 
 const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
+/**
+ * Fetches consolidated dashboard data for a specific property
+ */
 export async function getMultiPropertyData(propertyId: string) {
   if (!isValidUUID(propertyId)) return { error: "Invalid ID", property: null };
   try {
@@ -42,10 +52,52 @@ export async function getMultiPropertyData(propertyId: string) {
         occupancyPercent: `${Math.round((occupiedCount / (rm.length || 9)) * 100)}%`
       }
     };
-  } catch (e) { throw new Error("Sync failed"); }
+  } catch (e) { 
+    throw new Error("Sync failed"); 
+  }
 }
 
 // --- NEW FUNCTIONAL ACTIONS ---
+
+/**
+ * FIXED: Added seedRooms to accept floors and roomsPerFloor arguments
+ * This resolves the "Expected 0 arguments, but got 2" build error.
+ */
+export async function seedRooms(propertyId: string, floors: number, roomsPerFloor: number) {
+  if (!isValidUUID(propertyId)) throw new Error("Invalid Property ID");
+
+  try {
+    // 1. Explicitly type the array using Drizzle's InferInsert model
+    // This ensures 'status' matches the Enum defined in your schema
+    const roomEntries: (typeof rooms.$inferInsert)[] = [];
+
+    for (let f = 1; f <= floors; f++) {
+      for (let r = 1; r <= roomsPerFloor; r++) {
+        const roomNumber = f * 100 + r;
+        
+        roomEntries.push({
+          propertyId: propertyId,
+          number: roomNumber,
+          floor: f,
+          // 2. Changed "vacant" to "available" to match your schema's Enum
+          status: "available", 
+        });
+      }
+    }
+
+    if (roomEntries.length > 0) {
+      // 3. The insert will now pass validation
+      await db.insert(rooms).values(roomEntries);
+    }
+
+    revalidatePath(`/pms/${propertyId}`);
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Seeding Error:", error);
+    throw new Error("Failed to initialize property rooms");
+  }
+}
 
 /**
  * Fetches historical financial data for Reports
@@ -59,7 +111,7 @@ export async function getReportData(propertyId: string) {
 }
 
 /**
- * Fetches unique guest history from the rooms and inquiries tables
+ * Fetches unique guest history from the rooms table
  */
 export async function getGuestList(propertyId: string) {
   try {
@@ -73,7 +125,7 @@ export async function getGuestList(propertyId: string) {
       .where(
         and(
           eq(rooms.propertyId, propertyId),
-          isNotNull(rooms.guestName) // Correct Drizzle way to check for null
+          isNotNull(rooms.guestName)
         )
       );
 
