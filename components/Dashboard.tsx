@@ -179,6 +179,7 @@ export default function Dashboard({ user, children }: DashboardProps) {
         </div>
         <ExportRecordsButton />
         <div className="flex items-center gap-4">
+          <Link href='/pms' className="p-3 bg-white/5 text-slate-400 rounded-2xl hover:bg-rose-500/10 hover:text-rose-500 transition-all border border-white/5">Investors Lodge</Link>
           <Link href='/occupancy' className="p-3 bg-white/5 text-slate-400 rounded-2xl hover:bg-rose-500/10 hover:text-rose-500 transition-all border border-white/5">Rooms</Link>
           <button onClick={() => logout()} className="p-3 bg-white/5 text-slate-400 rounded-2xl hover:bg-rose-500/10 hover:text-rose-500 transition-all border border-white/5">
             <LogOut size={18}/>

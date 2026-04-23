@@ -135,23 +135,28 @@ export async function processCheckout(roomNumber: number, guestName: string, tot
  * seedRooms
  * CLEARS existing room data and builds the new structural grid.
  */
-export async function seedRooms(floorCount: number, roomsPerFloor: number) {
+export async function seedRooms() {
   try {
     const property = await db.select().from(properties).limit(1);
     if (!property || property.length === 0) throw new Error("No property found.");
 
     const actualPropertyId = property[0].id;
     
-    // 1. CLEAR EXISTING DATA (This prevents the "5 floors" ghosting issue)
+    // 1. CLEAR EXISTING DATA
+    // This ensures any old "5 floor" data is wiped before setting up your 9-room wing.
     await db.delete(rooms).where(eq(rooms.propertyId, actualPropertyId));
 
     const roomData = [];
 
-    // 2. Loop through floors dynamically based on UI input
+    // 2. Optimized for 9 Rooms on a Single Floor
+    const floorCount = 1; 
+    const roomsPerFloor = 9;
+
     for (let f = 1; f <= floorCount; f++) {
       for (let r = 1; r <= roomsPerFloor; r++) {
         roomData.push({
-          number: f * 100 + r, // e.g. Floor 1: 101, 102...
+          // Generates 101 through 109
+          number: f * 100 + r, 
           floor: f,
           status: "available" as const,
           propertyId: actualPropertyId,
@@ -165,6 +170,7 @@ export async function seedRooms(floorCount: number, roomsPerFloor: number) {
     }
     
     // 4. Force UI Refresh
+    // This triggers the re-fetch for your new 9-tile layout
     revalidatePath("/occupancy");
     revalidatePath("/inventory");
     revalidatePath("/dashboard");

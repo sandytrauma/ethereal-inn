@@ -6,10 +6,12 @@ import {
   DoorOpen, UserCheck, Wind, AlertCircle, X, Loader2, 
   Receipt, ArrowLeft, UserPlus, Search, Calendar, 
   CheckCircle2, Zap, Sparkles, TrendingUp,
-  Check
+  Check, BedDouble, RefreshCcw,
+  CalendarCheck,
+  Database
 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation"; 
-import { updateRoomStatus, processCheckout, type RoomStatus } from "@/lib/actions/room-actions";
+import { updateRoomStatus, processCheckout, seedRooms, type RoomStatus } from "@/lib/actions/room-actions";
 import DashboardBackground from "@/components/dashboard/DashboardBackground";
 import Link from "next/link";
 
@@ -45,7 +47,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const [roomRent, setRoomRent] = useState(0);
   const [serviceFoodTotal, setServiceFoodTotal] = useState(0);
 
-  // Sync rooms when server data changes & handle prefill focus
+  // Sync rooms when server data changes
   useEffect(() => {
     setRooms(initialRooms);
     if (prefillName) {
@@ -57,12 +59,20 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
     }
   }, [initialRooms, prefillName]);
 
-  const stats = useMemo(() => ({
-    occupied: rooms.filter(r => r.status === 'occupied').length,
-    available: rooms.filter(r => r.status === 'available').length,
-    cleaning: rooms.filter(r => r.status === 'cleaning').length,
-    total: rooms.length
-  }), [rooms]);
+  const occupancyStats = useMemo(() => {
+    const occupied = rooms.filter(r => r.status === 'occupied').length;
+    const available = rooms.filter(r => r.status === 'available').length;
+    const cleaning = rooms.filter(r => r.status === 'cleaning').length;
+    
+    return {
+      current: occupied,
+      totalToday: occupied + cleaning,
+      reconciled: cleaning,
+      revenue: 0, 
+      available,
+      total: rooms.length
+    };
+  }, [rooms]);
 
   const filteredRooms = useMemo(() => {
     const q = searchQuery.toLowerCase();
@@ -71,15 +81,27 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
     );
   }, [rooms, searchQuery]);
 
+  // Logic to handle single floor sorting
   const uniqueFloors = useMemo(() => {
     const floors = Array.from(new Set(rooms.map(r => r.floor)));
-    return floors.sort((a, b) => b - a);
+    return floors.sort((a, b) => a - b);
   }, [rooms]);
 
   const updateLocal = (num: number, up: Partial<Room>) => {
     setRooms(prev => prev.map(r => r.number === num ? { ...r, ...up } : r));
     setSelectedRoom(prev => (prev?.number === num ? { ...prev, ...up } : prev));
     if (onRoomUpdate) onRoomUpdate();
+  };
+
+  // Trigger the seed function to reset to 9 rooms / 1 floor
+  const handleResetInventory = () => {
+    if (!confirm("This will wipe all existing room data and reset to 9 rooms on a single floor. Continue?")) return;
+    startTransition(async () => {
+      const res = await seedRooms();
+      if (res.success) {
+        router.refresh();
+      }
+    });
   };
 
   const handleStatusChange = (s: RoomStatus) => {
@@ -133,28 +155,44 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
             <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase italic leading-[0.8]">Inventory.</h1>
             <div className="flex items-center gap-3 mt-4 ml-1">
                 <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em]">Live Cluster Control — Dynamic Deployment</p>
+                <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em]">Single Floor Operation — 9 Room Cluster</p>
             </div>
           </div>
-          <div className="relative w-full max-w-md">
-            <Link href='/' className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] mb-24 hover:text-rose-500'>Return</Link>
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-            <input 
-              type="text" placeholder="Search Unit / Guest Name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl" 
-            />
+
+          <div className="flex flex-col items-end gap-4">
+            <div className="flex items-center gap-4">
+               <button 
+                onClick={handleResetInventory}
+                disabled={isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:border-amber-400/30 transition-all"
+               >
+                {isPending ? <Loader2 size={12} className="animate-spin" /> : <Database size={12} />}
+                Initialize 9-Room Layout
+               </button>
+               <Link href='/' className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500'>Return</Link>
+            </div>
+            
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+              <input 
+                type="text" placeholder="Search Unit / Guest Name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl" 
+              />
+            </div>
           </div>
         </header>
 
-        {/* Stats Bar */}
-        <div className="max-w-[1700px] mx-auto mb-16 grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatBox label="In-House" value={stats.occupied} icon={UserCheck} color="text-amber-400" />
-          <StatBox label="Available" value={stats.available} icon={DoorOpen} color="text-emerald-500" />
-          <StatBox label="Cleaning" value={stats.cleaning} icon={Wind} color="text-blue-500" />
-          <StatBox label="Total Units" value={stats.total} icon={CheckCircle2} color="text-slate-500" />
+        {/* Stats Grid */}
+        <div className="max-w-[1700px] mx-auto mb-16">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatBox label="Live Occupancy" value={occupancyStats.current} icon={BedDouble} color="text-amber-400" />
+            <StatBox label="Daily Bookings" value={occupancyStats.totalToday} icon={CalendarCheck} color="text-emerald-500" />
+            <StatBox label="In Cleaning" value={occupancyStats.reconciled} icon={CheckCircle2} color="text-blue-500" />
+            <StatBox label="Ready Units" value={occupancyStats.available} icon={DoorOpen} color="text-slate-400" />
+          </div>
         </div>
 
-        {/* Floors Grid */}
+        {/* Floors Grid - Optimized for 9-across layout */}
         <div className="max-w-[1700px] mx-auto space-y-24 pb-20">
           {uniqueFloors.map((f) => {
             const floorRooms = filteredRooms.filter(r => r.floor === f);
@@ -163,18 +201,19 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
             return (
               <div key={f} className="relative">
                 <div className="flex items-center gap-6 mb-10 sticky top-4 z-20 px-6 py-4 rounded-3xl glass-morphism border border-white/5 shadow-2xl">
-                  <span className="text-white/20 font-black text-6xl uppercase tracking-tighter italic leading-none">F0{f}</span>
+                  <span className="text-white/20 font-black text-6xl uppercase tracking-tighter italic leading-none">P0{f}</span>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Structural Level</span>
+                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Primary Floor</span>
                     <div className="h-[2px] w-32 bg-gradient-to-r from-amber-500 to-transparent mt-1" />
                   </div>
                   <div className="h-[1px] flex-1 bg-white/5 mx-4" />
                   <span className="text-[10px] text-white/40 font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5">
-                    {floorRooms.length} Operational Units
+                    {floorRooms.length} Active Rooms
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9 gap-3">
+                {/* xl:grid-cols-9 ensures all 9 rooms fit in a single line on desktop */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-3">
                   {floorRooms.map(room => (
                     <RoomTile 
                       key={room.number} 
@@ -199,7 +238,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
               
               <div className="flex justify-between items-center mb-16">
                 <div className="px-6 py-3 bg-white/5 rounded-3xl border border-white/10">
-                  <span className="text-amber-400 font-black text-2xl tracking-tighter italic uppercase">Unit {selectedRoom.number}</span>
+                  <span className="text-amber-400 font-black text-2xl tracking-tighter italic uppercase">Room {selectedRoom.number}</span>
                 </div>
                 <button onClick={() => setSelectedRoom(null)} className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 hover:text-rose-500 rounded-2xl transition-all text-slate-500"><X size={20}/></button>
               </div>
@@ -208,7 +247,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                 {!showBill ? (
                   <div className="space-y-12">
                     <section>
-                      <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 mb-6 block underline decoration-amber-500/50 underline-offset-8">Quick Operations</label>
+                      <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 mb-6 block underline decoration-amber-500/50 underline-offset-8">Status Update</label>
                       <div className="grid grid-cols-2 gap-4">
                         {(["available", "occupied", "cleaning", "maintenance"] as RoomStatus[]).map((s) => (
                           <button 
@@ -229,11 +268,10 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                             <div className="space-y-1">
                                 <h3 className={`text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 ${prefillName ? 'text-amber-400' : 'text-slate-500'}`}>
                                   {prefillName ? <Zap size={14} className="animate-pulse" /> : <UserPlus size={14} />} 
-                                  {prefillName ? "Convert Lead" : "New Check-in"}
+                                  Check-in Registry
                                 </h3>
-                                <p className="text-[9px] font-bold text-slate-600 uppercase">Registry Entry</p>
+                                <p className="text-[9px] font-bold text-slate-600 uppercase">Confirm Arrival</p>
                             </div>
-                            {prefillName && <div className="bg-amber-400 text-slate-950 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-lg">Lead Active</div>}
                         </div>
                         
                         <div className="space-y-4">
@@ -252,10 +290,10 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                     {selectedRoom.guestName && selectedRoom.status === 'occupied' && (
                       <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={40} /></div>
-                        <label className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-3 block italic">Occupant Details</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-3 block italic">Occupant</label>
                         <p className="text-3xl font-black text-white italic tracking-tighter mb-10 leading-tight uppercase truncate">{selectedRoom.guestName}</p>
                         <button onClick={() => setShowBill(true)} className="w-full bg-white text-slate-950 py-6 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-amber-400 transition-all active:scale-95 flex items-center justify-center gap-3">
-                            <TrendingUp size={18} /> Process Checkout
+                            <TrendingUp size={18} /> Checkout & Settle
                         </button>
                       </div>
                     )}
@@ -265,21 +303,21 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                     <div className="bg-white/5 p-10 rounded-[3.5rem] border border-white/10 space-y-10">
                       <div className="flex items-center gap-3 text-amber-400">
                           <Receipt size={18}/> 
-                          <h4 className="font-black uppercase tracking-[0.3em] text-[10px]">Financial Audit</h4>
+                          <h4 className="font-black uppercase tracking-[0.3em] text-[10px]">Financial Summary</h4>
                       </div>
                       <div className="space-y-6">
-                        <SideInput label="Unit Tariff" value={roomRent} onChange={setRoomRent} />
-                        <SideInput label="Food & Services" value={serviceFoodTotal} onChange={setServiceFoodTotal} />
+                        <SideInput label="Daily Rent" value={roomRent} onChange={setRoomRent} />
+                        <SideInput label="Add-ons / Food" value={serviceFoodTotal} onChange={setServiceFoodTotal} />
                         <div className="pt-10 border-t border-white/10 flex justify-between items-end">
-                          <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Net Revenue</span>
+                          <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Total Bill</span>
                           <span className="text-5xl font-black italic text-white tracking-tighter">₹{(roomRent || 0) + (serviceFoodTotal || 0)}</span>
                         </div>
                       </div>
                     </div>
                     <button onClick={finalizeCheckout} disabled={isPending} className="w-full bg-amber-400 text-slate-950 font-black py-7 rounded-[2.5rem] uppercase text-xs tracking-[0.3em] shadow-2xl shadow-amber-400/30 active:scale-95 transition-all">
-                      {isPending ? "Syncing Transaction..." : "Authorize Settlement"}
+                      {isPending ? "Updating Database..." : "Authorize Settle"}
                     </button>
-                    <button onClick={() => setShowBill(false)} className="w-full text-slate-600 font-black text-[10px] uppercase flex items-center justify-center gap-3 hover:text-white transition-colors"><ArrowLeft size={14} /> Cancel Processing</button>
+                    <button onClick={() => setShowBill(false)} className="w-full text-slate-600 font-black text-[10px] uppercase flex items-center justify-center gap-3 hover:text-white transition-colors"><ArrowLeft size={14} /> Back to Room</button>
                   </motion.div>
                 )}
               </div>
@@ -291,7 +329,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   );
 }
 
-// Sub-components for clean modularity
 function SideInput({ label, value, onChange }: any) {
   return (
     <div className="relative">
@@ -303,7 +340,7 @@ function SideInput({ label, value, onChange }: any) {
 
 function StatBox({ label, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white/[0.03] border border-white/5 backdrop-blur-md p-10 rounded-[3rem] relative overflow-hidden group">
+    <div className="bg-white/[0.03] border border-white/5 backdrop-blur-md p-10 rounded-[3rem] relative overflow-hidden group text-center lg:text-left">
       <div className={`absolute -right-4 -bottom-4 opacity-[0.03] ${color} group-hover:scale-125 transition-transform duration-700`}><Icon size={120} /></div>
       <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 mb-2">{label}</p>
       <h4 className={`text-5xl font-black italic tracking-tighter ${color}`}>{value}</h4>
@@ -342,10 +379,7 @@ function RoomTile({ room, onClick, isLeadActive }: any) {
              <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${currentStyle.color}`}>{s}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {isLeadActive && <Sparkles size={12} className="text-amber-400 animate-bounce" />}
-          <Icon size={18} className={`${currentStyle.color} opacity-30`} />
-        </div>
+        <Icon size={18} className={`${currentStyle.color} opacity-30`} />
       </div>
 
       <div className="mt-auto">

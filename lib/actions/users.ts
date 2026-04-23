@@ -37,40 +37,35 @@ export async function createStaffMember(data: any) {
   }
 }
 
-export async function updateStaffProfile(id: number, data: { name: string; password?: string }) {
-  // 1. SAFETY CHECK: Prevent the NaN error from hitting the DB
-  if (!id || isNaN(id)) {
-    console.error("Action rejected: Received invalid ID", id);
+export async function updateStaffProfile(id: number | string, data: { name: string; password?: string }) {
+  // 1. Convert ID safely - Drizzle 'eq' expects the exact type defined in schema
+  const userId = typeof id === 'string' ? parseInt(id, 10) : id;
+
+  if (!userId || isNaN(userId)) {
     return { success: false, error: "System Error: Invalid User ID." };
   }
 
-  try {
-    const updateData: any = { name: data.name };
+  try { 
+    // Prepare update object with explicit typing
+    const updateData: Partial<typeof users.$inferInsert> = { name: data.name };
 
-    // 2. PASSWORD HASHING: Only update if a new password is provided
+    // 2. PASSWORD HASHING
     if (data.password && data.password.trim().length >= 6) {
-      const hashedPassword = await bcrypt.hash(data.password, 10);
-      updateData.password = hashedPassword;
+      updateData.password = await bcrypt.hash(data.password, 10);
     }
 
     // 3. DATABASE EXECUTION
     const result = await db.update(users)
       .set(updateData)
-      .where(eq(users.id, id));
+      .where(eq(users.id, userId));
 
-    // 4. CACHE INVALIDATION: Force Next.js to pull fresh data for the entire app
-    // This fixes the "profile not updating" visual bug.
+    // 4. CACHE INVALIDATION
+    // 'layout' is good, but for specific PMS data, revalidating the specific path is faster
     revalidatePath('/', 'layout'); 
     
     return { success: true };
   } catch (error: any) {
     console.error("Database Update Failed:", error);
-    
-    // Check for specific Postgres errors if needed (e.g., unique constraint)
-    if (error.code === '23505') {
-      return { success: false, error: "This email or name is already taken." };
-    }
-    
-    return { success: false, error: "Database rejected the update. Please try again." };
+    return { success: false, error: "Update failed. Please try again." };
   }
 }
