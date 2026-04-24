@@ -171,7 +171,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                 {isPending ? <Loader2 size={12} className="animate-spin" /> : <Database size={12} />}
                 Initialize 9-Room Layout
                </button>
-               <Link href={`/pms/${propertyId}`} className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500'>Return</Link>
+               <Link href={`/`} className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500'>Return</Link>
             </div>
             
             <div className="relative w-full max-w-md">
