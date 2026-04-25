@@ -93,7 +93,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Location</p>
-                  <p className="text-lg font-serif italic">Gurugram, Haryana, India</p>
+                  <p className="text-lg font-serif italic">F 1/3 A first floor near Panchsheel Nursing home hospital Moahn Garden, Delhi, 110059, India</p>
                 </div>
               </div>
             </div>

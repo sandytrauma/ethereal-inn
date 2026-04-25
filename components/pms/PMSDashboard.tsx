@@ -5,7 +5,7 @@ import {
   Grid, RefreshCw, LogIn, LogOut, Bed, Banknote, 
   FileText, User, ShieldCheck, Calendar as CalendarIcon, 
   ArrowUpRight, Clock, Menu, X, CheckCircle2,
-  SkipBack
+  SkipBack, Search
 } from "lucide-react";
 
 interface DashboardProps {
@@ -22,32 +22,29 @@ interface DashboardProps {
 export default function PMSDashboard({ property, rooms, finance, inquiries, stats, tasks, statutory, user }: DashboardProps) {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. STRENGTHENED ADMIN CHECK
-  // Redirects or shows lock screen if the role in your users table isn't 'admin'
-// 1. STRENGTHENED ADMIN CHECK (With Normalization)
-// .trim() removes the hidden space, .toLowerCase() handles "Admin" vs "admin"
-const normalizedRole = user?.role?.trim().toLowerCase();
+  const normalizedRole = user?.role?.trim().toLowerCase();
 
-if (normalizedRole !== "admin") {
-  return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-6 text-center">
-      <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
-        <ShieldCheck size={40} className="text-red-500" />
+  if (normalizedRole !== "admin") {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-6 text-center">
+        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+          <ShieldCheck size={40} className="text-red-500" />
+        </div>
+        <h1 className="text-2xl font-black uppercase italic text-slate-900">Access Restricted</h1>
+        <p className="text-slate-500 text-sm mt-2 font-bold max-w-xs">
+          Your account role ({user?.role || 'Guest'}) does not match the required 'admin' privilege.
+        </p>
+        <button 
+          onClick={() => window.location.href = '/ethereal-inn'}
+          className="mt-8 px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl tracking-widest"
+        >
+          Return to Login
+        </button>
       </div>
-      <h1 className="text-2xl font-black uppercase italic text-slate-900">Access Restricted</h1>
-      <p className="text-slate-500 text-sm mt-2 font-bold max-w-xs">
-        Your account role ({user?.role || 'Guest'}) does not match the required 'admin' privilege.
-      </p>
-      <button 
-        onClick={() => window.location.href = '/ethereal-inn'}
-        className="mt-8 px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl tracking-widest"
-      >
-        Return to Login
-      </button>
-    </div>
-  );
-}
+    );
+  }
 
   const navLinks = [
     { label: "Dashboard", icon: <Grid size={18}/> },
@@ -55,6 +52,14 @@ if (normalizedRole !== "admin") {
     { label: "Reports", icon: <FileText size={18}/> },
     { label: "Guests", icon: <User size={18}/> },
   ];
+
+  // Helper for Guest Filtering
+  const filteredRooms = rooms.filter(r => 
+    r.guestName && (
+      r.guestName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      r.number.toString().includes(searchTerm)
+    )
+  );
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans relative">
@@ -96,7 +101,7 @@ if (normalizedRole !== "admin") {
             />
           ))}
         </nav>
-        {/* BOTTOM NAVIGATION SECTION */}
+
         <div className="p-6 border-t border-white/5 space-y-2">
           <button 
             onClick={() => window.location.href = "/"}
@@ -127,7 +132,6 @@ if (normalizedRole !== "admin") {
             </div>
           </div>
 
-          {/* USER TAB ONLY */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 pl-2 pr-5 py-1.5 bg-slate-50 border border-slate-200 rounded-full shadow-sm">
               <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white text-xs font-black">
@@ -141,7 +145,6 @@ if (normalizedRole !== "admin") {
           </div>
         </header>
 
-        {/* SCROLLABLE CONTENT */}
         <div className="p-6 lg:p-10 overflow-y-auto space-y-8 pb-20">
           
           {/* VIEW: DASHBOARD */}
@@ -159,7 +162,6 @@ if (normalizedRole !== "admin") {
                 </button>
               </div>
 
-              {/* STATS GRID */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-8">
                 <StatCard icon={<LogIn size={22}/>} label="Arrivals" value={stats.arrivals} bgColor="bg-emerald-50 text-emerald-600" />
                 <StatCard icon={<LogOut size={22}/>} label="Departures" value="0" bgColor="bg-amber-50 text-amber-600" />
@@ -168,7 +170,6 @@ if (normalizedRole !== "admin") {
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                {/* ROOM STATUS TABLE */}
                 <div className="xl:col-span-8 bg-white rounded-[2rem] border border-slate-200 p-6 lg:p-8 shadow-sm">
                   <div className="flex justify-between items-center mb-8">
                     <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest italic">Live Unit Inventory</h3>
@@ -206,7 +207,6 @@ if (normalizedRole !== "admin") {
                   </div>
                 </div>
 
-                {/* RECENT INQUIRIES */}
                 <div className="xl:col-span-4 bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
                   <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest italic mb-8">Recent Leads</h3>
                   <div className="space-y-5">
@@ -228,22 +228,66 @@ if (normalizedRole !== "admin") {
             </>
           )}
 
-          {/* VIEW: GUESTS */}
+          {/* VIEW: GUESTS (ENHANCED TABLE) */}
           {activeTab === "Guests" && (
-            <div className="bg-white rounded-[2rem] border border-slate-200 p-6 lg:p-10">
-              <h3 className="font-black text-slate-900 uppercase italic text-2xl mb-10 tracking-tighter">Guest Directory</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {rooms.filter(r => r.guestName).map((room) => (
-                  <div key={room.id} className="p-6 border border-slate-100 rounded-3xl bg-white hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/5 transition-all group">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-lg mb-5 group-hover:scale-110 transition-transform">
-                      {room.guestName?.charAt(0)}
-                    </div>
-                    <p className="font-black text-slate-800 uppercase text-xs mb-1 truncate">{room.guestName}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                      <Bed size={12} className="text-blue-500"/> Unit {room.number}
-                    </p>
-                  </div>
-                ))}
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-8 lg:p-10 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                  <h3 className="font-black text-slate-900 uppercase italic text-2xl tracking-tighter">Guest Master</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Registry and Identity Management</p>
+                </div>
+                <div className="relative w-full md:w-80">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder="Search Name or Room..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-12 pr-6 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100">
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Resident</th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Unit</th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Pax</th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">State/Origin</th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID/Aadhar Number</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredRooms.map((room) => (
+                      <tr key={room.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-sm">
+                              {room.guestName?.charAt(0)}
+                            </div>
+                            <span className="font-black text-slate-800 uppercase text-xs">{room.guestName}</span>
+                          </div>
+                        </td>
+                        <td className="p-6">
+                          <span className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black italic">#{room.number}</span>
+                        </td>
+                        <td className="p-6 text-center">
+                          <span className="text-xs font-black text-slate-700">{room.totalGuests || 1}</span>
+                        </td>
+                        <td className="p-6">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">{room.state || "Local / India"}</span>
+                        </td>
+                        <td className="p-6">
+                          <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider">
+                            {room.idNumber ? room.idNumber.replace(/.(?=.{4})/g, '•') : "•••• •••• ••••"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -292,29 +336,58 @@ if (normalizedRole !== "admin") {
             </div>
           )}
 
-          {/* VIEW: CALENDAR */}
+          {/* VIEW: CALENDAR (GRID STATUS MAP) */}
           {activeTab === "Calendar" && (
-            <div className="bg-white rounded-[2rem] border border-slate-200 p-6 lg:p-10">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-12">
-                <h3 className="font-black text-slate-900 uppercase italic text-2xl tracking-tighter">Availability Timeline</h3>
-                <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border">
-                   <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                      <span className="text-[9px] font-black uppercase text-slate-600">Vacant</span>
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 lg:p-12 shadow-sm">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12">
+                <div>
+                  <h3 className="font-black text-slate-900 uppercase italic text-3xl tracking-tighter">Inventory Status Map</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Real-time Visual Distribution</p>
+                </div>
+                <div className="flex items-center gap-4 bg-slate-50 p-2.5 rounded-[1.5rem] border border-slate-200">
+                   <div className="flex items-center gap-2 px-5 py-2.5 bg-white rounded-xl shadow-sm">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/20"></div>
+                      <span className="text-[10px] font-black uppercase text-slate-600">Available</span>
                    </div>
-                   <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm">
-                      <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                      <span className="text-[9px] font-black uppercase text-slate-600">Occupied</span>
+                   <div className="flex items-center gap-2 px-5 py-2.5 bg-white rounded-xl shadow-sm">
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-lg shadow-amber-500/20"></div>
+                      <span className="text-[10px] font-black uppercase text-slate-600">Occupied</span>
                    </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-5">
-                 {rooms.map((room) => (
-                   <div key={room.id} className={`p-8 rounded-[2rem] border flex flex-col items-center justify-center transition-all hover:scale-105 ${room.status === 'occupied' ? 'bg-amber-50 border-amber-200 shadow-lg shadow-amber-500/5' : 'bg-emerald-50 border-emerald-200 shadow-lg shadow-emerald-500/5'}`}>
-                      <p className="text-3xl font-black italic text-slate-900 leading-none mb-2 tracking-tighter">{room.number}</p>
-                      <p className={`text-[9px] font-black uppercase tracking-widest ${room.status === 'occupied' ? 'text-amber-600' : 'text-emerald-600'}`}>{room.status}</p>
+
+              <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-11 gap-4">
+                 {[...rooms].sort((a,b) => parseInt(a.number) - parseInt(b.number)).map((room) => (
+                   <div 
+                    key={room.id} 
+                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-sm border
+                      ${room.status === 'occupied' 
+                        ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/10' 
+                        : 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-500/10'}`}
+                   >
+                      <span className="text-xl font-black italic tracking-tighter leading-none mb-1">{room.number}</span>
+                      <span className="text-[7px] font-black uppercase opacity-60 tracking-tighter">
+                        {room.status === 'occupied' ? 'Busy' : 'Free'}
+                      </span>
                    </div>
                  ))}
+              </div>
+
+              <div className="mt-12 p-8 bg-slate-900 rounded-[2.5rem] text-white flex flex-col md:flex-row justify-between items-center gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center">
+                      <Bed className="text-blue-400" size={32} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Utilization Index</p>
+                      <h4 className="text-4xl font-black italic tracking-tighter mt-1">{stats.occupancyPercent}</h4>
+                    </div>
+                  </div>
+                  <div className="h-px w-full md:h-12 md:w-px bg-white/10"></div>
+                  <div className="text-center md:text-right">
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Active Residents</p>
+                      <p className="text-xl font-black italic mt-1">{rooms.filter(r => r.status === 'occupied').length} / {rooms.length}</p>
+                  </div>
               </div>
             </div>
           )}

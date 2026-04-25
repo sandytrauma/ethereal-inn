@@ -8,7 +8,10 @@ import {
   CheckCircle2, Zap, Sparkles, TrendingUp,
   Check, BedDouble, RefreshCcw,
   CalendarCheck,
-  Database
+  Database,
+  MapPin,
+  Fingerprint,
+  Users
 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation"; 
 import { updateRoomStatus, processCheckout, seedRooms, type RoomStatus } from "@/lib/actions/room-actions";
@@ -33,10 +36,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  // Since occupancy is a separate folder, we pull propertyId from query params
-  // visit at: /occupancy?propertyId=YOUR_ID
   const propertyId = searchParams.get("propertyId") || "";
-
   const rawPrefill = propPrefill || searchParams.get("prefillGuest");
   const prefillName = (rawPrefill && rawPrefill !== "undefined") ? rawPrefill : null;
 
@@ -44,6 +44,12 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [showBill, setShowBill] = useState(false);
   const [guestNameInput, setGuestNameInput] = useState("");
+  
+  // NEW REGISTRY FIELDS
+  const [paxInput, setPaxInput] = useState(1);
+  const [idNumberInput, setIdNumberInput] = useState("");
+  const [stateOriginInput, setStateOriginInput] = useState("");
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -99,7 +105,6 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
     if (!confirm("Reset to 9-room single floor cluster?")) return;
     
     startTransition(async () => {
-      // Corrected: passing 3 arguments (ID, floors, roomsPerFloor)
       const res = await seedRooms(propertyId, 1, 9);
       if (res.success) {
         router.refresh();
@@ -122,10 +127,20 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const handleCheckIn = () => {
     if (!guestNameInput || !selectedRoom) return;
     startTransition(async () => {
-      const res = await updateRoomStatus(selectedRoom.number, "occupied", guestNameInput);
+      // Updated to include new fields in the registry update logic
+      const res = await updateRoomStatus(
+        selectedRoom.number, 
+        "occupied", 
+        guestNameInput,
+        // Ensure your server action is updated to receive these 3 extra params
+        { pax: paxInput, idNumber: idNumberInput, origin: stateOriginInput } 
+      );
       if (res.success) {
         updateLocal(selectedRoom.number, { status: "occupied", guestName: guestNameInput });
         setGuestNameInput("");
+        setPaxInput(1);
+        setIdNumberInput("");
+        setStateOriginInput("");
         setSelectedRoom(null);
         if (prefillName) router.replace('/occupancy', { scroll: false });
       }
@@ -273,11 +288,36 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                         </div>
                         
                         <div className="space-y-4">
-                            <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 px-6 text-sm text-white outline-none focus:border-amber-400 transition-all font-black uppercase italic" placeholder="Guest Full Name" value={guestNameInput} onChange={(e) => setGuestNameInput(e.target.value)} />
+                            {/* Guest Name */}
                             <div className="relative">
-                                <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                                <input type="date" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 font-black uppercase" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} />
+                              <UserPlus className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-sm text-white outline-none focus:border-amber-400 transition-all font-black uppercase italic" placeholder="Guest Full Name" value={guestNameInput} onChange={(e) => setGuestNameInput(e.target.value)} />
                             </div>
+
+                            {/* Date and Pax (Total Guests) */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="relative">
+                                  <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                                  <input type="date" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-[10px] text-white outline-none focus:border-amber-400 font-black uppercase" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} />
+                              </div>
+                              <div className="relative">
+                                  <Users className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                                  <input type="number" placeholder="Pax" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-[10px] text-white outline-none focus:border-amber-400 font-black uppercase" value={paxInput} onChange={(e) => setPaxInput(Number(e.target.value))} />
+                              </div>
+                            </div>
+
+                            {/* ID Number */}
+                            <div className="relative">
+                              <Fingerprint className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase" placeholder="ID / Aadhar Number" value={idNumberInput} onChange={(e) => setIdNumberInput(e.target.value)} />
+                            </div>
+
+                            {/* State/Origin */}
+                            <div className="relative">
+                              <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase" placeholder="State / Origin" value={stateOriginInput} onChange={(e) => setStateOriginInput(e.target.value)} />
+                            </div>
+
                             <button onClick={handleCheckIn} disabled={isPending || !guestNameInput} className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-3xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-2xl shadow-amber-400/30 active:scale-95 transition-all">
                                 {isPending ? <Loader2 size={20} className="animate-spin" /> : <> <Check size={20} /> Finalize Entry</>}
                             </button>
@@ -373,7 +413,7 @@ function RoomTile({ room, onClick, isLeadActive }: any) {
       <div className="flex justify-between items-start w-full">
         <div className="flex flex-col">
           <h3 className="text-4xl font-black tracking-tighter italic leading-none text-white">{room.number}</h3>
-          <div className="flex items-center gap-1.5 mt-1">
+          <div className="items-center gap-1.5 mt-1 hidden sm:flex">
              <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${currentStyle.bg.replace('/10', '')}`} />
              <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${currentStyle.color}`}>{s}</span>
           </div>
