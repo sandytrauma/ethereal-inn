@@ -9,7 +9,8 @@ import {
   boolean, 
   decimal,
   date,
-  uuid
+  uuid,
+  uniqueIndex
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { properties } from "./micro-schema";
@@ -23,6 +24,8 @@ export const taskStatusEnum = pgEnum("task_status", ["todo", "in_progress", "com
 // 1. Users (Staff & Admin)
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+    propertyId: uuid("property_id").references(() => properties.id),
+
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(), // Hashed
@@ -44,12 +47,18 @@ export const clients = pgTable("clients", {
 // 3. Rooms
 export const rooms = pgTable("rooms", {
   id: serial("id").primaryKey(),
-  number: integer("number").notNull().unique(),
+  number: integer("number").notNull(),
   floor: integer("floor").notNull(),
   status: text("status").$type<"available" | "occupied" | "cleaning" | "maintenance">().default("available"),
   guestName: text("guest_name"),
   checkInTime: timestamp("check_in_time"),
   propertyId: uuid("property_id").references(() => properties.id).notNull(),
+},(table) => {
+  return {
+    // This allows Room 101 to exist in multiple properties, 
+    // but prevents duplicate 101s in the SAME property.
+    propertyRoomIndex: uniqueIndex("property_room_idx").on(table.propertyId, table.number),
+  };
 });
 
 // 4. Inquiries (Lead management)
@@ -130,6 +139,7 @@ export const documents = pgTable("documents", {
 // 9. Invoices
 export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
+  propertyId: uuid("property_id").references(() => properties.id),
   roomNumber: integer("room_number"),
   guestName: text("guest_name"),
   totalAmount: integer("total_amount"),
@@ -161,5 +171,12 @@ export const inquiriesRelations = relations(inquiries, ({ one }) => ({
   client: one(clients, {
     fields: [inquiries.clientId],
     references: [clients.id],
+  }),
+}));
+
+export const roomsRelations = relations(rooms, ({ one }) => ({
+  property: one(properties, {
+    fields: [rooms.propertyId],
+    references: [properties.id],
   }),
 }));

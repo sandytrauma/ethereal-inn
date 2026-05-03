@@ -1,4 +1,6 @@
+import { relations } from "drizzle-orm";
 import { pgTable, uuid, text, doublePrecision, timestamp, numeric } from "drizzle-orm/pg-core";
+import { financialRecords, rooms } from "./schema";
 
 // 1. New Table: The Master Directory of all your properties
 export const properties = pgTable("properties", {
@@ -20,3 +22,15 @@ export const propertyRevenueBridge = pgTable("property_revenue_bridge", {
   source: text("source"), // e.g., "Room Revenue", "Urban Ambrosia"
   date: timestamp("date").defaultNow(),
 });
+
+export const propertiesRelations = relations(properties, ({ many }) => ({
+  rooms: many(rooms),
+  finance: many(financialRecords),
+}));
+
+export const propertyRevenueBridgeRelations = relations(propertyRevenueBridge, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertyRevenueBridge.propertyId],
+    references: [properties.id],
+  }),
+}));

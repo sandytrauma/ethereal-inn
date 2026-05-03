@@ -13,9 +13,19 @@ import { desc, sql, eq, gte, asc, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "../auth"; 
 import { properties } from "@/db/micro-schema";
+import { validate as validateUuid } from "uuid";
+
+// --- HELPERS ---
 
 /**
- * Helper to calculate start dates based on period
+ * Validates if a string is a valid UUID to prevent Postgres runtime errors
+ */
+const isValidUUID = (uuid: string) => {
+  return validateUuid(uuid);
+};
+
+/**
+ * Calculates start dates based on the requested period
  */
 function getStartDateString(period: 'month' | 'quarter' | 'year') {
   const now = new Date();
@@ -34,20 +44,44 @@ function getStartDateString(period: 'month' | 'quarter' | 'year') {
   return date.toISOString().split('T')[0];
 }
 
+// --- CORE ACTIONS ---
+
 /**
- * Fetches high-level financial cards data
+ * Fetches high-level financial cards data.
+ * UPDATED: propertyId is now optional to support global overview.
+ * Includes property metadata for context.
  */
-export async function getFinancialSummary(period: 'month' | 'quarter' | 'year' = 'month') {
+export async function getFinancialSummary(
+  propertyId?: string, 
+  period: 'month' | 'quarter' | 'year' = 'month'
+) {
   try {
+    if (propertyId && !isValidUUID(propertyId)) {
+      console.error("Invalid UUID in getFinancialSummary:", propertyId);
+      return { 
+        success: false, 
+        error: "Invalid Property ID",
+        data: { revenue: 0, expenses: 0, netProfit: 0, propertyName: "Unknown" } 
+      };
+    }
+
     const startDateStr = getStartDateString(period);
+    const whereConditions = [gte(financialRecords.date, startDateStr)];
+    
+    if (propertyId) {
+      whereConditions.push(eq(financialRecords.propertyId, propertyId));
+    }
 
     const [summary] = await db
       .select({
-        totalRevenue: sql<string>`coalesce(sum(cast(total_collection as numeric)), '0')`,
-        totalExpenses: sql<string>`coalesce(sum(cast(petty_expenses as numeric)), '0')`,
+        totalRevenue: sql<string>`coalesce(sum(cast(${financialRecords.totalCollection} as numeric)), '0')`,
+        totalExpenses: sql<string>`coalesce(sum(cast(${financialRecords.pettyExpenses} as numeric)), '0')`,
+        propertyName: properties.name,
       })
       .from(financialRecords)
-      .where(gte(financialRecords.date, startDateStr));
+      .leftJoin(properties, eq(financialRecords.propertyId, properties.id))
+      .where(and(...whereConditions))
+      .groupBy(properties.name);
 
     const revenue = Number(summary?.totalRevenue || 0);
     const expenses = Number(summary?.totalExpenses || 0);
@@ -57,20 +91,27 @@ export async function getFinancialSummary(period: 'month' | 'quarter' | 'year' =
       data: { 
         revenue, 
         expenses, 
-        netProfit: revenue - expenses 
+        netProfit: revenue - expenses,
+        propertyName: summary?.propertyName || "Global Fleet"
       } 
     };
   } catch (error) {
     console.error("Stats fetch error:", error);
-    return { success: false, error: "Stats failed" };
+    return { 
+      success: false, 
+      error: "Stats failed",
+      data: { revenue: 0, expenses: 0, netProfit: 0 }
+    };
   }
 }
 
 /**
- * Fetches audit trail history with user joins
+ * Fetches audit trail history with user and property joins
  */
-export async function getFullHistory() {
+export async function getFullHistory(propertyId: string) {
   try {
+    if (!propertyId || !isValidUUID(propertyId)) return [];
+
     return await db
       .select({
         id: financialRecords.id,
@@ -84,9 +125,12 @@ export async function getFullHistory() {
         serviceRevenue: financialRecords.serviceRevenue,
         status: financialRecords.status,
         staffName: users.name, 
+        propertyName: properties.name,
       })
       .from(financialRecords)
       .leftJoin(users, eq(financialRecords.userId, users.id)) 
+      .leftJoin(properties, eq(financialRecords.propertyId, properties.id))
+      .where(eq(financialRecords.propertyId, propertyId))
       .orderBy(desc(financialRecords.date))
       .limit(50);
   } catch (e) { 
@@ -96,13 +140,25 @@ export async function getFullHistory() {
 }
 
 /**
- * Fetches individual checkout invoices
+ * Fetches individual checkout invoices for a specific property
  */
-export async function getInvoiceHistory() {
+export async function getInvoiceHistory(propertyId: string) {
   try {
+    if (!propertyId || !isValidUUID(propertyId)) return [];
+
     return await db
-      .select()
+      .select({
+        id: invoices.id,
+        propertyId: invoices.propertyId,
+        propertyName: properties.name,
+        roomNumber: invoices.roomNumber,
+        guestName: invoices.guestName,
+        totalAmount: invoices.totalAmount,
+        checkoutDate: invoices.checkoutDate,
+      })
       .from(invoices)
+      .leftJoin(properties, eq(invoices.propertyId, properties.id))
+      .where(eq(invoices.propertyId, propertyId))
       .orderBy(desc(invoices.checkoutDate))
       .limit(100);
   } catch (e) {
@@ -112,41 +168,55 @@ export async function getInvoiceHistory() {
 }
 
 /**
- * Fetches comprehensive report data for Market Intel Analytics
+ * Fetches comprehensive report data for Market Intel Analytics (Scoped by Property)
  */
-export async function getReportData(period: 'month' | 'quarter' | 'year') {
+export async function getReportData(propertyId: string, period: 'month' | 'quarter' | 'year') {
   try {
+    if (!propertyId || !isValidUUID(propertyId)) {
+      return { success: false, message: "Invalid Property ID", logs: [], inquiries: [], guests: [], tasks: [] };
+    }
+
     const startDateStr = getStartDateString(period);
     const startDateObj = new Date(startDateStr);
 
-    const logs = await db
-      .select()
+    const [logs, inquiryList, guestHistory, taskList] = await Promise.all([
+      // FIXED: Explicitly select fields instead of using ...financialRecords
+      db.select({
+        id: financialRecords.id,
+        date: financialRecords.date,
+        totalCollection: financialRecords.totalCollection,
+        cashRevenue: financialRecords.cashRevenue,
+        upiRevenue: financialRecords.upiRevenue,
+        otaPayouts: financialRecords.otaPayouts,
+        roomRevenue: financialRecords.roomRevenue,
+        serviceRevenue: financialRecords.serviceRevenue,
+        pettyExpenses: financialRecords.pettyExpenses,
+        netCash: financialRecords.netCash,
+        status: financialRecords.status,
+        notes: financialRecords.notes,
+        propertyName: properties.name // Joined field
+      })
       .from(financialRecords)
-      .where(gte(financialRecords.date, startDateStr))
-      .orderBy(asc(financialRecords.date));
-
-    const inquiryList = await db
-      .select()
-      .from(inquiries)
-      .where(gte(inquiries.createdAt, startDateObj));
-
-    const guestHistory = await db
-      .select({
+      .leftJoin(properties, eq(financialRecords.propertyId, properties.id))
+      .where(and(eq(financialRecords.propertyId, propertyId), gte(financialRecords.date, startDateStr)))
+      .orderBy(asc(financialRecords.date)),
+      
+      db.select().from(inquiries).where(and(eq(inquiries.propertyId, propertyId), gte(inquiries.createdAt, startDateObj))),
+      
+      db.select({
         id: invoices.id,
         guestName: invoices.guestName,
         roomNumber: invoices.roomNumber,
         totalAmount: invoices.totalAmount,
         checkoutDate: invoices.checkoutDate,
-      })
-      .from(invoices)
-      .where(gte(invoices.checkoutDate, startDateObj))
-      .orderBy(desc(invoices.checkoutDate))
-      .limit(20);
-
-    const taskList = await db
-      .select()
-      .from(tasks)
-      .where(gte(tasks.createdAt, startDateObj));
+        propertyName: properties.name,
+      }).from(invoices)
+      .leftJoin(properties, eq(invoices.propertyId, properties.id))
+      .where(and(eq(invoices.propertyId, propertyId), gte(invoices.checkoutDate, startDateObj)))
+      .orderBy(desc(invoices.checkoutDate)).limit(20),
+      
+      db.select().from(tasks).where(and(eq(tasks.propertyId, propertyId), gte(tasks.createdAt, startDateObj)))
+    ]);
 
     return {
       success: true,
@@ -191,72 +261,45 @@ export async function closeDayBook(formData: any, propertyId: string) {
     const session = token ? await decrypt(token) : null;
     const userId = session?.id || (session as any)?.userId;
 
-    if (!userId) {
-      return { success: false, error: "Unauthorized. Please re-login." };
-    }
-
-    if (!propertyId) {
-      return { success: false, error: "Property ID is required for multi-property tracking." };
-    }
+    if (!userId) return { success: false, error: "Unauthorized. Please re-login." };
+    if (!propertyId || !isValidUUID(propertyId)) return { success: false, error: "Valid Property ID is required." };
 
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // 1. Check if a record already exists for this specific Date AND Property
     const existingRecord = await db.select()
       .from(financialRecords)
-      .where(
-        and(
-          eq(financialRecords.date, todayStr),
-          eq(financialRecords.propertyId, propertyId)
-        )
-      )
+      .where(and(eq(financialRecords.date, todayStr), eq(financialRecords.propertyId, propertyId)))
       .limit(1);
 
+    const payload = {
+      userId: Number(userId),
+      cashRevenue: String(formData.cashRevenue || "0"),
+      upiRevenue: String(formData.upiRevenue || "0"),
+      otaPayouts: String(formData.otaPayouts || "0"),
+      roomRevenue: String(formData.roomRevenue || "0"), 
+      serviceRevenue: String(formData.serviceRevenue || "0"),
+      pettyExpenses: String(formData.pettyExpenses || "0"),
+      totalCollection: String(formData.totalCollection || "0"),
+      netCash: String(formData.netCash || "0"),
+      status: "reconciled" as const,
+      updatedAt: new Date(),
+    };
+
     if (existingRecord.length > 0) {
-      // 2. If it exists, perform an UPDATE
-      await db.update(financialRecords)
-        .set({
-          userId: Number(userId),
-          cashRevenue: String(formData.cashRevenue || "0"),
-          upiRevenue: String(formData.upiRevenue || "0"),
-          otaPayouts: String(formData.otaPayouts || "0"),
-          roomRevenue: String(formData.roomRevenue || "0"), 
-          serviceRevenue: String(formData.serviceRevenue || "0"),
-          pettyExpenses: String(formData.pettyExpenses || "0"),
-          totalCollection: String(formData.totalCollection || "0"),
-          netCash: String(formData.netCash || "0"),
-          status: "reconciled",
-          updatedAt: new Date(),
-        })
-        .where(eq(financialRecords.id, existingRecord[0].id));
+      await db.update(financialRecords).set(payload).where(eq(financialRecords.id, existingRecord[0].id));
     } else {
-      // 3. If it doesn't exist, perform an INSERT
-      await db.insert(financialRecords)
-        .values({
-          propertyId: propertyId,
-          date: todayStr,
-          userId: Number(userId),
-          createdById: Number(userId),
-          cashRevenue: String(formData.cashRevenue || "0"),
-          upiRevenue: String(formData.upiRevenue || "0"),
-          otaPayouts: String(formData.otaPayouts || "0"),
-          roomRevenue: String(formData.roomRevenue || "0"), 
-          serviceRevenue: String(formData.serviceRevenue || "0"),
-          pettyExpenses: String(formData.pettyExpenses || "0"),
-          totalCollection: String(formData.totalCollection || "0"),
-          netCash: String(formData.netCash || "0"),
-          notes: formData.notes || "",
-          status: "reconciled",
-        });
+      await db.insert(financialRecords).values({
+        ...payload,
+        propertyId,
+        date: todayStr,
+        createdById: Number(userId),
+        notes: formData.notes || "",
+      });
     }
 
-    // Refresh all relevant views
     revalidatePath("/dashboard");
-    revalidatePath("/inventory");
     revalidatePath("/reports");
-    
     return { success: true };
-
   } catch (error: any) {
     console.error("DayBook Submission Error:", error);
     return { success: false, error: "System failed to archive record." };
@@ -268,10 +311,7 @@ export async function closeDayBook(formData: any, propertyId: string) {
  */
 export async function updateInquiryStatus(id: number, status: string) {
   try {
-    await db.update(inquiries)
-      .set({ status })
-      .where(eq(inquiries.id, id));
-    
+    await db.update(inquiries).set({ status }).where(eq(inquiries.id, id));
     revalidatePath("/dashboard");
     return { success: true };
   } catch (e) {
@@ -292,21 +332,27 @@ export async function deleteInquiry(id: number) {
   }
 }
 
-
 /**
  * Fetches all revenue and expense records for CSV export
  */
-export async function getExportData(period: 'month' | 'quarter' | 'year' = 'month') {
-  try {
-    const now = new Date();
-    let startDate: Date;
+export type ExportDataResult = 
+  | { success: true; data: any[]; error?: never }
+  | { success: false; data: []; error: string };
 
-    if (period === 'month') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    } else if (period === 'quarter') {
-      startDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-    } else {
-      startDate = new Date(now.getFullYear(), 0, 1);
+export async function getExportData(
+  propertyId?: string, 
+  period: 'month' | 'quarter' | 'year' = 'month'
+): Promise<ExportDataResult> {
+  try {
+    if (propertyId && !isValidUUID(propertyId)) {
+      return { success: false, error: "Invalid Property ID format", data: [] };
+    }
+
+    const startDateStr = getStartDateString(period);
+    const whereConditions = [gte(financialRecords.date, startDateStr)];
+    
+    if (propertyId) {
+      whereConditions.push(eq(financialRecords.propertyId, propertyId));
     }
 
     const records = await db
@@ -330,12 +376,16 @@ export async function getExportData(period: 'month' | 'quarter' | 'year' = 'mont
       .from(financialRecords)
       .leftJoin(properties, eq(financialRecords.propertyId, properties.id))
       .leftJoin(users, eq(financialRecords.userId, users.id))
-      .where(gte(financialRecords.date, startDate.toISOString().split('T')[0]))
+      .where(and(...whereConditions))
       .orderBy(asc(financialRecords.date));
 
     return { success: true, data: records };
   } catch (error) {
     console.error("Export Fetch Error:", error);
-    return { success: false, data: [] };
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to fetch export data",
+      data: [] 
+    };
   }
 }

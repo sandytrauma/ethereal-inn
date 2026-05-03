@@ -91,7 +91,7 @@ export default function EtherealGlam() {
               <ArrowLeft size={18} strokeWidth={3} />
             </div>
             <div className="pr-2">
-              <p className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-500 leading-none">Ethereal Inn Presents</p>
+              <p className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-500 leading-none">Etherealinn Presents</p>
               <p className="text-[10px] font-bold text-white uppercase tracking-tighter mt-0.5">Hospitality Portal</p>
             </div>
           </Link>
@@ -181,7 +181,7 @@ export default function EtherealGlam() {
         </div>
 
         <footer className="mt-20 pt-10 border-t border-white/5 text-center opacity-40">
-            <p className="text-[8px] uppercase tracking-[1em] font-black text-slate-700">A unit of Ethereal Inn Hospitality LLP</p>
+            <p className="text-[8px] uppercase tracking-[1em] font-black text-slate-700">A unit of Etherealinn Hospitality LLP</p>
         </footer>
       </main>
     </div>

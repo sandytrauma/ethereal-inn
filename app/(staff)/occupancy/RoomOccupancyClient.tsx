@@ -11,32 +11,56 @@ import {
   Database,
   MapPin,
   Fingerprint,
-  Users
+  Users,
+  ChevronDown,
+  Building2
 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation"; 
-import { updateRoomStatus, processCheckout, seedRooms, type RoomStatus } from "@/lib/actions/room-actions";
+import { updateRoomStatus, processCheckout, seedRooms, type RoomStatus, trimExcessRooms } from "@/lib/actions/room-actions";
 import DashboardBackground from "@/components/dashboard/DashboardBackground";
 import Link from "next/link";
 
+// --- TYPES ---
+
 interface Room {
-  id?: number;
+  id: number;           
   number: number;
   floor: number;
   status: RoomStatus | null; 
   guestName?: string | null;
+  checkInTime?: Date | null; 
+  propertyId: string;        
+}
+
+interface Property {
+  id: string;
+  name: string;
 }
 
 interface RoomOccupancyProps {
+  properties: Property[];
+  currentPropertyId: string;
   initialRooms: Room[];
   prefillName?: string | null; 
   onRoomUpdate?: () => Promise<void>; 
+  onlySwitcher?: boolean;
 }
 
-export default function RoomOccupancyClient({ initialRooms, prefillName: propPrefill, onRoomUpdate }: RoomOccupancyProps) {
+// --- MAIN COMPONENT ---
+
+export default function RoomOccupancyClient({ 
+  initialRooms, 
+  prefillName: propPrefill, 
+  onRoomUpdate,
+  properties = [], 
+  currentPropertyId, 
+  onlySwitcher = false 
+}: RoomOccupancyProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const propertyId = searchParams.get("propertyId") || "";
+  // Use the propertyId from URL as the primary source of truth
+  const urlPropertyId = searchParams.get("propertyId") || currentPropertyId || "";
   const rawPrefill = propPrefill || searchParams.get("prefillGuest");
   const prefillName = (rawPrefill && rawPrefill !== "undefined") ? rawPrefill : null;
 
@@ -45,11 +69,9 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const [showBill, setShowBill] = useState(false);
   const [guestNameInput, setGuestNameInput] = useState("");
   
-  // NEW REGISTRY FIELDS
   const [paxInput, setPaxInput] = useState(1);
   const [idNumberInput, setIdNumberInput] = useState("");
   const [stateOriginInput, setStateOriginInput] = useState("");
-
   const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -57,6 +79,9 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   const [roomRent, setRoomRent] = useState(0);
   const [serviceFoodTotal, setServiceFoodTotal] = useState(0);
 
+   
+
+  // Sync rooms when server data changes
   useEffect(() => {
     setRooms(initialRooms);
     if (prefillName) {
@@ -66,7 +91,20 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
         setSelectedRoom(firstVacant);
       }
     }
-  }, [initialRooms, prefillName, selectedRoom]);
+  }, [initialRooms, prefillName]);
+
+  const handleCleanup = async () => {
+  if (!confirm("This will delete the extra 6 rooms per floor. Proceed?")) return;
+  
+  startTransition(async () => {
+    // Assuming 4 floors, trimming each to 6 rooms
+    for (let f = 1; f <= 4; f++) {
+      await trimExcessRooms(urlPropertyId, f, 6);
+    }
+    router.refresh();
+    alert("Cleanup complete. 6 rooms per floor remaining.");
+  });
+};
 
   const occupancyStats = useMemo(() => {
     const occupied = rooms.filter(r => r.status === 'occupied').length;
@@ -89,104 +127,218 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
     );
   }, [rooms, searchQuery]);
 
-  const uniqueFloors = useMemo(() => {
-    const floors = Array.from(new Set(rooms.map(r => r.floor)));
-    return floors.sort((a, b) => a - b);
-  }, [rooms]);
+  // Group rooms by floor strictly for the active property
+  const roomsByFloor = useMemo(() => {
+    const floors: Record<number, Room[]> = {};
+    
+    filteredRooms.forEach(room => {
+      if (room.propertyId === urlPropertyId) {
+        if (!floors[room.floor]) floors[room.floor] = [];
+        if (!floors[room.floor].find(r => r.id === room.id)) {
+          floors[room.floor].push(room);
+        }
+      }
+    });
 
-  const updateLocal = (num: number, up: Partial<Room>) => {
-    setRooms(prev => prev.map(r => r.number === num ? { ...r, ...up } : r));
-    setSelectedRoom(prev => (prev?.number === num ? { ...prev, ...up } : prev));
+    return Object.keys(floors)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map(f => ({ floor: f, rooms: floors[f].sort((a, b) => a.number - b.number) }));
+  }, [filteredRooms, urlPropertyId]);
+
+  const updateLocal = (id: number, up: Partial<Room>) => {
+    setRooms(prev => prev.map(r => r.id === id ? { ...r, ...up } : r));
+    setSelectedRoom(prev => (prev?.id === id ? { ...prev, ...up } : prev));
     if (onRoomUpdate) onRoomUpdate();
   };
 
   const handleResetInventory = () => {
-    if (!propertyId) return alert("Property ID missing from URL");
-    if (!confirm("Reset to 9-room single floor cluster?")) return;
+    if (!urlPropertyId) return alert("Property ID missing");
+    if (!confirm("Reset inventory cluster?")) return;
     
     startTransition(async () => {
-      const res = await seedRooms(propertyId, 1, 9);
+      const res = await seedRooms(urlPropertyId, 1, 9);
       if (res.success) {
         router.refresh();
       }
     });
   };
 
-  const handleStatusChange = (s: RoomStatus) => {
-    if (!selectedRoom) return;
-    if (selectedRoom.status === "occupied" && s === "cleaning") {
-      setShowBill(true);
-    } else {
-      startTransition(async () => {
-        const res = await updateRoomStatus(selectedRoom.number, s);
-        if (res.success) updateLocal(selectedRoom.number, { status: s, guestName: null });
-      });
-    }
-  };
+ const handleStatusChange = (s: RoomStatus) => {
+  if (!selectedRoom) return;
+
+  if (selectedRoom.status === "occupied" && s === "cleaning") {
+    setShowBill(true);
+  } else {
+    startTransition(async () => {
+      // Use 'urlPropertyId' here instead of 'propertyId'
+      const res = await updateRoomStatus(
+        urlPropertyId, 
+        selectedRoom.number, 
+        s
+      );
+
+      if (res.success) {
+        updateLocal(selectedRoom.id, { status: s, guestName: null });
+      }
+    });
+  }
+};
 
   const handleCheckIn = () => {
-    if (!guestNameInput || !selectedRoom) return;
-    startTransition(async () => {
-      // Updated to include new fields in the registry update logic
-      const res = await updateRoomStatus(
-        selectedRoom.number, 
-        "occupied", 
-        guestNameInput,
-        // Ensure your server action is updated to receive these 3 extra params
-        { pax: paxInput, idNumber: idNumberInput, origin: stateOriginInput } 
-      );
-      if (res.success) {
-        updateLocal(selectedRoom.number, { status: "occupied", guestName: guestNameInput });
-        setGuestNameInput("");
-        setPaxInput(1);
-        setIdNumberInput("");
-        setStateOriginInput("");
-        setSelectedRoom(null);
-        if (prefillName) router.replace('/occupancy', { scroll: false });
-      }
-    });
-  };
+  if (!guestNameInput || !selectedRoom) return;
 
-  const finalizeCheckout = () => {
-    if (!selectedRoom?.guestName) return;
-    startTransition(async () => {
-      const total = Number(roomRent) + Number(serviceFoodTotal);
-      const res = await processCheckout(selectedRoom.number, selectedRoom.guestName!, total);
-      if (res.success) {
-        updateLocal(selectedRoom.number, { status: "cleaning", guestName: null });
-        setShowBill(false);
-        setSelectedRoom(null);
-        setRoomRent(0);
-        setServiceFoodTotal(0);
+  startTransition(async () => {
+    // 1. Pass 'urlPropertyId' as the first argument to match the server action signature
+    const res = await updateRoomStatus(
+      urlPropertyId, // Argument 1: The Property UUID
+      selectedRoom.number, // Argument 2: Room Number
+      "occupied", // Argument 3: Status
+      guestNameInput, // Argument 4: Guest Name
+      { 
+        pax: paxInput, 
+        idNumber: idNumberInput, 
+        origin: stateOriginInput 
+      } // Argument 5: Metadata
+    );
+
+    if (res.success) {
+      updateLocal(selectedRoom.id, { 
+        status: "occupied", 
+        guestName: guestNameInput 
+      });
+      
+      // Reset form states
+      setGuestNameInput("");
+      setPaxInput(1);
+      setIdNumberInput("");
+      setStateOriginInput("");
+      setSelectedRoom(null);
+      
+      if (prefillName) {
+        router.replace('/occupancy', { scroll: false });
       }
-    });
-  };
+    } else {
+      // Handle potential server-side errors
+      console.error("Check-in failed:");
+    }
+  });
+};
+
+ const finalizeCheckout = () => {
+  // Ensure selectedRoom and guestName exist before proceeding
+  if (!selectedRoom?.guestName || !urlPropertyId) return;
+
+  startTransition(async () => {
+    const total = Number(roomRent) + Number(serviceFoodTotal);
+    
+    const res = await processCheckout(
+      urlPropertyId!,          // Use ! to tell TS this won't be null/undefined
+      selectedRoom.number, 
+      selectedRoom.guestName!, // Use ! as we already checked it above
+      total
+    );
+
+    if (res.success) {
+      updateLocal(selectedRoom.id, { status: "cleaning", guestName: null });
+      setShowBill(false);
+      setSelectedRoom(null);
+      setRoomRent(0);
+      setServiceFoodTotal(0);
+    } else {
+      // Accessing 'res.error' is safe if you updated the return type
+      console.error("Checkout failed:", res.error);
+    }
+  });
+};
+
+  const activeProperty = properties.find(p => p.id === urlPropertyId);
+const activePropertyName = activeProperty?.name || "Select Property";
+
+  if (onlySwitcher) {
+    return (
+      <div className="relative group">
+        <button className="px-5 py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2">
+          {activePropertyName} <ChevronDown size={14} />
+        </button>
+        <div className="absolute right-0 mt-2 w-64 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:block z-50 shadow-2xl overflow-hidden">
+          {properties.map((p) => (
+            <button key={p.id} onClick={() => router.push(`/occupancy?propertyId=${p.id}`)} className="flex flex-col items-start w-full px-5 py-3 border-b border-white/5 last:border-0 hover:bg-amber-400 hover:text-slate-950 transition-colors text-left font-black uppercase tracking-tight text-[11px]">
+              {p.name}
+              <span className="text-[8px] opacity-60 font-mono">{p.id}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-transparent text-slate-100 font-sans">
       <div className="flex-1 p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar relative z-10">
         <DashboardBackground />
         
+        {/* PROPERTY SWITCHER HEADER */}
+        <div className="max-w-[1700px] mx-auto mb-10 flex items-center justify-between bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-xl">
+            <div className="flex items-center gap-4">
+              <div className="p-2.5 bg-amber-400 rounded-xl text-slate-950">
+                <Building2 size={20} />
+              </div>
+              <div>
+                <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest leading-none mb-1">Active Property Scope</p>
+                <h3 className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-2">
+                  {activePropertyName} 
+                  <span className="text-[10px] text-amber-500/50">#{urlPropertyId.slice(0,5)}</span>
+                </h3>
+              </div>
+            </div>
+
+            <div className="relative group">
+              <button className="px-5 py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2">
+                Switch Property <ChevronDown size={14} />
+              </button>
+              <div className="absolute right-0 mt-2 w-64 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:block z-50 shadow-2xl overflow-hidden">
+                <div className="flex flex-col">
+                  {properties.map((property) => (
+                    <button
+                      key={property.id}
+                      onClick={() => router.push(`/occupancy?propertyId=${property.id}`)}
+                      className="flex flex-col items-start w-full px-5 py-3 border-b border-white/5 last:border-0 hover:bg-amber-400 hover:text-slate-950 transition-colors text-left"
+                    >
+                      <span className="text-[11px] font-black uppercase tracking-tight">{property.name}</span>
+                      <span className="text-[8px] opacity-60 font-mono mt-0.5 truncate w-full">{property.id}</span>
+                    </button>
+                  ))}
+                  <button onClick={() => router.push('/management')} className="w-full px-5 py-3 text-[10px] font-bold text-amber-400 hover:bg-white/5 text-center border-t border-white/10">
+                    + MANAGE PROPERTIES
+                  </button>
+                </div>
+              </div>
+            </div>
+        </div>
+
+
+
         <header className="max-w-[1700px] mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
           <div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase italic leading-[0.8]">Inventory.</h1>
             <div className="flex items-center gap-3 mt-4 ml-1">
                 <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em]">Single Floor Operation — 9 Room Cluster</p>
+                <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em]">Active Operation Cluster</p>
             </div>
           </div>
 
           <div className="flex flex-col items-end gap-4">
             <div className="flex items-center gap-4">
-               <button 
-                onClick={handleResetInventory}
-                disabled={isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:border-amber-400/30 transition-all"
-               >
-                {isPending ? <Loader2 size={12} className="animate-spin" /> : <Database size={12} />}
-                Initialize 9-Room Layout
-               </button>
-               <Link href={`/`} className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500'>Return</Link>
+                <button 
+                 onClick={handleResetInventory}
+                 disabled={isPending}
+                 className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:border-amber-400/30 transition-all"
+                >
+                 {isPending ? <Loader2 size={12} className="animate-spin" /> : <Database size={12} />}
+                 Reset Registry
+                </button>
+                <Link href={`/`} className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500'>Return</Link>
             </div>
             
             <div className="relative w-full max-w-md">
@@ -209,37 +361,33 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
         </div>
 
         <div className="max-w-[1700px] mx-auto space-y-24 pb-20">
-          {uniqueFloors.map((f) => {
-            const floorRooms = filteredRooms.filter(r => r.floor === f);
-            if (floorRooms.length === 0) return null;
-
-            return (
-              <div key={f} className="relative">
-                <div className="flex items-center gap-6 mb-10 sticky top-4 z-20 px-6 py-4 rounded-3xl glass-morphism border border-white/5 shadow-2xl">
-                  <span className="text-white/20 font-black text-6xl uppercase tracking-tighter italic leading-none">P0{f}</span>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Primary Floor</span>
-                    <div className="h-[2px] w-32 bg-gradient-to-r from-amber-500 to-transparent mt-1" />
-                  </div>
-                  <div className="h-[1px] flex-1 bg-white/5 mx-4" />
-                  <span className="text-[10px] text-white/40 font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5">
-                    {floorRooms.length} Active Rooms
-                  </span>
+          {roomsByFloor.map(({ floor, rooms: floorRooms }) => (
+            <div key={`${floor}-${urlPropertyId}`} className="relative">
+              <div className="flex items-center gap-6 mb-10 sticky top-4 z-20 px-6 py-4 rounded-3xl glass-morphism border border-white/5 shadow-2xl backdrop-blur-md">
+                <span className="text-white/20 font-black text-6xl uppercase tracking-tighter italic leading-none">P0{floor}</span>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Property Floor</span>
+                  <div className="h-[2px] w-32 bg-gradient-to-r from-amber-500 to-transparent mt-1" />
                 </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-3">
-                  {floorRooms.map(room => (
-                    <RoomTile 
-                      key={room.number} 
-                      room={room} 
-                      isLeadActive={prefillName && room.status === 'available'}
-                      onClick={() => { setSelectedRoom(room); setShowBill(false); }} 
-                    />
-                  ))}
-                </div>
+                <div className="h-[1px] flex-1 bg-white/5 mx-4" />
+                <span className="text-[10px] text-white/40 font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5">
+                  {floorRooms.length} Active Rooms
+                </span>
               </div>
-            );
-          })}
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-3">
+                {floorRooms.map(room => (
+                  <RoomTile 
+                    key={room.id} 
+                    room={room} 
+                    isSelected={selectedRoom?.id === room.id}
+                    isLeadActive={prefillName && room.status === 'available'}
+                    onClick={() => { setSelectedRoom(room); setShowBill(false); }} 
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -247,7 +395,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
         {selectedRoom && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRoom(null)} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[90]" />
-            <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#02040a]/90 backdrop-blur-[50px] border-l border-white/10 z-[100] p-10 flex flex-col shadow-[-20px_0_100px_rgba(0,0,0,0.9)]">
+            <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#02040a]/90 backdrop-blur-[50px] border-l border-white/10 z-[100] p-10 flex flex-col shadow-[-20px_0_100px_rgba(0,0,0,0.9)] overflow-y-auto no-scrollbar">
               
               <div className="flex justify-between items-center mb-16">
                 <div className="px-6 py-3 bg-white/5 rounded-3xl border border-white/10">
@@ -256,7 +404,7 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                 <button onClick={() => setSelectedRoom(null)} className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 hover:text-rose-500 rounded-2xl transition-all text-slate-500"><X size={20}/></button>
               </div>
 
-              <div className="flex-1 overflow-y-auto no-scrollbar">
+              <div className="flex-1">
                 {!showBill ? (
                   <div className="space-y-12">
                     <section>
@@ -288,13 +436,11 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                         </div>
                         
                         <div className="space-y-4">
-                            {/* Guest Name */}
                             <div className="relative">
                               <UserPlus className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
                               <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-sm text-white outline-none focus:border-amber-400 transition-all font-black uppercase italic" placeholder="Guest Full Name" value={guestNameInput} onChange={(e) => setGuestNameInput(e.target.value)} />
                             </div>
 
-                            {/* Date and Pax (Total Guests) */}
                             <div className="grid grid-cols-2 gap-4">
                               <div className="relative">
                                   <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
@@ -306,13 +452,11 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
                               </div>
                             </div>
 
-                            {/* ID Number */}
                             <div className="relative">
                               <Fingerprint className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase" placeholder="ID / Aadhar Number" value={idNumberInput} onChange={(e) => setIdNumberInput(e.target.value)} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase" placeholder="ID Number" value={idNumberInput} onChange={(e) => setIdNumberInput(e.target.value)} />
                             </div>
 
-                            {/* State/Origin */}
                             <div className="relative">
                               <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
                               <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase" placeholder="State / Origin" value={stateOriginInput} onChange={(e) => setStateOriginInput(e.target.value)} />
@@ -367,27 +511,9 @@ export default function RoomOccupancyClient({ initialRooms, prefillName: propPre
   );
 }
 
-// Support components
-function SideInput({ label, value, onChange }: any) {
-  return (
-    <div className="relative">
-      <input type="number" value={value || ""} onChange={(e) => onChange(Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded-2xl py-6 px-6 text-lg font-black text-white outline-none focus:border-amber-400 transition-all italic" />
-      <label className="absolute -top-3 left-6 bg-[#01040f] px-3 text-[9px] font-black uppercase text-slate-600 tracking-[0.2em]">{label}</label>
-    </div>
-  );
-}
+// --- SUB-COMPONENTS ---
 
-function StatBox({ label, value, icon: Icon, color }: any) {
-  return (
-    <div className="bg-white/[0.03] border border-white/5 backdrop-blur-md p-10 rounded-[3rem] relative overflow-hidden group text-center lg:text-left">
-      <div className={`absolute -right-4 -bottom-4 opacity-[0.03] ${color} group-hover:scale-125 transition-transform duration-700`}><Icon size={120} /></div>
-      <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 mb-2">{label}</p>
-      <h4 className={`text-5xl font-black italic tracking-tighter ${color}`}>{value}</h4>
-    </div>
-  );
-}
-
-function RoomTile({ room, onClick, isLeadActive }: any) {
+function RoomTile({ room, onClick, isLeadActive, isSelected }: any) {
   const s: RoomStatus = room.status ?? "available";
   const statusStyles = {
     available: { color: "text-emerald-400", bg: "bg-emerald-400/10", icon: DoorOpen },
@@ -407,7 +533,8 @@ function RoomTile({ room, onClick, isLeadActive }: any) {
         glass-deep relative flex flex-col justify-between 
         p-5 rounded-[2.5rem] cursor-pointer transition-all duration-500
         aspect-square w-full overflow-hidden
-        ${isLeadActive ? 'ring-2 ring-amber-400 ring-offset-4 ring-offset-[#02040a]' : 'border border-white/5'}
+        ${isSelected ? 'ring-2 ring-amber-400 bg-amber-400/5' : 'border border-white/5'}
+        ${isLeadActive ? 'ring-2 ring-emerald-400 ring-offset-4 ring-offset-[#02040a]' : ''}
       `}
     >
       <div className="flex justify-between items-start w-full">
@@ -433,5 +560,24 @@ function RoomTile({ room, onClick, isLeadActive }: any) {
 
       <div className={`absolute -bottom-10 -right-10 w-24 h-24 blur-[50px] rounded-full opacity-20 ${currentStyle.bg}`} />
     </motion.div>
+  );
+}
+
+function SideInput({ label, value, onChange }: any) {
+  return (
+    <div className="relative">
+      <input type="number" value={value || ""} onChange={(e) => onChange(Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded-2xl py-6 px-6 text-lg font-black text-white outline-none focus:border-amber-400 transition-all italic" />
+      <label className="absolute -top-3 left-6 bg-[#01040f] px-3 text-[9px] font-black uppercase text-slate-600 tracking-[0.2em]">{label}</label>
+    </div>
+  );
+}
+
+function StatBox({ label, value, icon: Icon, color }: any) {
+  return (
+    <div className="bg-white/[0.03] border border-white/5 backdrop-blur-md p-10 rounded-[3rem] relative overflow-hidden group text-center lg:text-left">
+      <div className={`absolute -right-4 -bottom-4 opacity-[0.03] ${color} group-hover:scale-125 transition-transform duration-700`}><Icon size={120} /></div>
+      <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 mb-2">{label}</p>
+      <h4 className={`text-5xl font-black italic tracking-tighter ${color}`}>{value}</h4>
+    </div>
   );
 }

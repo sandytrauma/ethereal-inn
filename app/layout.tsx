@@ -19,31 +19,31 @@ export const metadata: Metadata = {
       ? "https://ethereal-inn.vercel.app"
       : "http://localhost:3000"
   ),
-  title: "Ethereal Inn | Luxury Boutique Stay in Delhi",
-  description: "Experience refined luxury at Ethereal Inn. Located near Metro, offering boutique rooms, fine dining, and elite amenities.",
-  keywords: ["Luxury Hotel Delhi", "Boutique Stay Delhi", "Hotels near Metro", "Ethereal Inn New Delhi"],
-  authors: [{ name: "Ethereal Inn Hospitality LLP" }],
+  title: "Etherealinn | Luxury Boutique Stay in Delhi",
+  description: "Experience refined luxury at Etherealinn. Located near Metro, offering boutique rooms, fine dining, and elite amenities.",
+  keywords: ["Luxury Hotel Delhi", "Boutique Stay Delhi", "Hotels near Metro", "Etherealinn New Delhi"],
+  authors: [{ name: "Etherealinn Hospitality LLP" }],
   icons: {
     icon: "https://cdn-icons-png.flaticon.com/512/3030/3030336.png", 
     apple: "https://cdn-icons-png.flaticon.com/512/3030/3030336.png",
   },
   openGraph: {
-    title: "Ethereal Inn | Delhi's Most Refined Experience",
+    title: "Etherealinn | Delhi's Most Refined Experience",
     description: "Boutique luxury, minutes from the Metro.",
     url: "/login",
-    siteName: "Ethereal Inn",
+    siteName: "Etherealinn",
     images: [{ 
       url: "https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", // Corrected to relative path (resolved by metadataBase)
       width: 1200, 
       height: 630, 
-      alt: "Luxury at Ethereal Inn" 
+      alt: "Luxury at Etherealinn" 
     }],
     locale: "en_IN",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ethereal Inn | Boutique Luxury",
+    title: "Etherealinn | Boutique Luxury",
     description: "Experience refined luxury in Delhi.",
     images: ["/bridal-bg.jpg"],
   },

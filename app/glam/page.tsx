@@ -4,7 +4,7 @@ import EtherealGlam from '@/components/EtherealGlam';
 export const metadata: Metadata = {
   metadataBase: new URL("https://ethereal-inn.vercel.app"),
   title: 'Ethereal Glam | Luxury Bridal & Aesthetic Procedures',
-  description: 'Experience elite bridal makeup, couture styling, and advanced aesthetic procedures at Ethereal Glam. Part of Ethereal Inn Hospitality LLP.',
+  description: 'Experience elite bridal makeup, couture styling, and advanced aesthetic procedures at Ethereal Glam. Part of Etherealinn Hospitality LLP.',
   openGraph: {
     title: 'Ethereal Glam - Procedures & Luxury Styling',
     description: 'Advanced Bridal Artistry and Couture Boutique.',
@@ -21,7 +21,7 @@ export default function Glam() {
     "description": "Premium Bridal Artistry and Aesthetic Procedures.",
     "parentOrganization": {
       "@type": "Organization",
-      "name": "Ethereal Inn Hospitality LLP"
+      "name": "Etherealinn Hospitality LLP"
     },
     "hasOfferCatalog": {
       "@type": "OfferCatalog",

@@ -39,7 +39,6 @@ import DashboardBackground from "./dashboard/DashboardBackground";
 
 // --- CONFIGURATION ---
 const GA_MEASUREMENT_ID = "G-XXXXXXXXXX";
-const POS_APP_URL = "https://pos-cloud-jade.vercel.app/"; 
 
 interface Review {
   author_name: string;
@@ -61,7 +60,7 @@ const MOCK_REVIEWS: Review[] = [
     author_name: "Sarah Jenkins",
     rating: 5,
     relative_time_description: "1 month ago",
-    text: "Ethereal Inn is a hidden gem. Urban Ambrosia provides the best cloud kitchen experience in Delhi.",
+    text: "Etherealinn is a hidden gem. Urban Ambrosia provides the best cloud kitchen experience in Delhi.",
     profile_photo_url: "https://i.pravatar.cc/150?u=sarah",
   },
   {
@@ -106,7 +105,7 @@ const POLICY_CONTENT = {
     title: "Terms of Service",
     sections: [
       { h: "Guest ID", p: "Government-approved ID is mandatory upon check-in." },
-      { h: "Property Care", p: "Ethereal Inn is a non-smoking property." },
+      { h: "Property Care", p: "Etherealinn is a non-smoking property." },
     ],
   },
   refunds: {
@@ -118,11 +117,10 @@ const POLICY_CONTENT = {
 };
 
 const ENCODED_PHONE = "KzkxOTMxNTM3MTYxMw==";
-const WHATSAPP_MESSAGE = encodeURIComponent("Hi Ethereal Inn & Urban Ambrosia! I'd like to inquire about a booking or meal service.");
+const WHATSAPP_MESSAGE = encodeURIComponent("Hi Etherealinn & Urban Ambrosia! I'd like to inquire about a booking or meal service.");
 
 export default function LandingLoginPage() {
   const [showLogin, setShowLogin] = useState(false);
-  const [showPOS, setShowPOS] = useState(false);
   const [showInquiry, setShowInquiry] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [currentHero, setCurrentHero] = useState(0);
@@ -132,6 +130,8 @@ export default function LandingLoginPage() {
   const [isPendingInquiry, startTransition] = useTransition();
   const [inquirySuccess, setInquirySuccess] = useState(false);
   const [state, formAction, isPending] = useActionState(loginUser, null);
+  // Inside your component
+const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentHero((prev) => (prev + 1) % HERO_IMAGES.length), 6000);
@@ -148,9 +148,9 @@ export default function LandingLoginPage() {
   }, []);
 
   useEffect(() => {
-    const shouldLock = showAbout || showInquiry || showLogin || showPOS || policyType;
+    const shouldLock = showAbout || showInquiry || showLogin || policyType;
     document.body.style.overflow = shouldLock ? "hidden" : "unset";
-  }, [showAbout, showInquiry, showLogin, showPOS, policyType]);
+  }, [showAbout, showInquiry, showLogin, policyType]);
 
   const handleBookingRedirect = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -159,17 +159,31 @@ export default function LandingLoginPage() {
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
-  async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    startTransition(async () => {
-      const res = await createInquiryAction(formData);
-      if (res.success) {
-        setInquirySuccess(true);
-        setTimeout(() => { setShowInquiry(false); setInquirySuccess(false); }, 2500);
-      }
-    });
+async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
+  e.preventDefault();
+  const formData = new FormData(e.currentTarget);
+
+  // Ensure selectedPropertyId is available in your component scope
+  if (!selectedPropertyId) {
+    console.error("Property ID is missing");
+    return;
   }
+
+  startTransition(async () => {
+    // MATCH THE SERVER SIGNATURE: (propertyId, formData)
+    const res = await createInquiryAction(selectedPropertyId, formData);
+    
+    if (res.success) {
+      setInquirySuccess(true);
+      setTimeout(() => { 
+        setShowInquiry(false); 
+        setInquirySuccess(false); 
+      }, 2500);
+    } else {
+      console.error(res.error);
+    }
+  });
+}
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-slate-100 overflow-x-hidden font-sans selection:bg-[#c5a059] selection:text-black pb-24 md:pb-0">
@@ -180,16 +194,14 @@ export default function LandingLoginPage() {
       <nav className="fixed top-0 w-full z-[100] flex justify-between items-center px-6 md:px-12 py-6 backdrop-blur-md border-b border-white/5 bg-black/20">
         <div className="flex flex-col">
           <span className="text-[10px] tracking-[0.4em] uppercase text-gray-500 font-bold">The Collective</span>
-          <span className="text-xl md:text-2xl font-serif font-bold italic text-[#c5a059]">Ethereal Inn</span>
+          <span className="text-xl md:text-2xl font-serif font-bold italic text-[#c5a059]">Etherealinn</span>
         </div>
         <div className="flex items-center gap-4">
           {/* Desktop Only Buttons */}
           <button onClick={() => setShowAbout(true)} className="hidden md:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c5a059] transition-colors mr-4">
             Our Story
           </button>
-          <button onClick={() => setShowPOS(true)} className="hidden md:flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all">
-            <LayoutDashboard size={14} className="text-[#c5a059]" /> Open POS
-          </button>
+         
           <button onClick={() => setShowLogin(true)} className="bg-[#c5a059] text-black px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform">
             Staff Gate
           </button>
@@ -208,14 +220,9 @@ export default function LandingLoginPage() {
             <span className="text-[8px] font-black uppercase tracking-tighter">About Story</span>
           </button>
           <div className="h-8 w-px bg-white/5" />
-          <button 
-            onClick={() => setShowPOS(true)}
-            className="flex flex-col items-center gap-1 p-3 text-gray-400 hover:text-[#c5a059] active:scale-90 transition-all"
-          >
+         
              
-            <Monitor size={20} />
-            <span className="text-[8px] font-black uppercase tracking-tighter">Terminal</span>
-          </button>
+           
           
         </div>
       </div>
@@ -276,7 +283,7 @@ export default function LandingLoginPage() {
                    Urban <span className="text-[#c5a059]">Ambrosia.</span>
                 </h2>
                 <p className="text-gray-400 text-lg leading-relaxed font-light">
-                    A premium culinary brand under the Ethereal Inn umbrella. We blend traditional Indian soul with modern presentation to create the <span className="text-white font-bold italic uppercase tracking-widest">Food of Modern Gods.</span>
+                    A premium culinary brand under the Etherealinn umbrella. We blend traditional Indian soul with modern presentation to create the <span className="text-white font-bold italic uppercase tracking-widest">Food of Modern Gods.</span>
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
                     <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
@@ -481,11 +488,11 @@ export default function LandingLoginPage() {
           <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
               <p className="text-[9px] text-gray-600 uppercase tracking-[0.2em] font-black">
-                © 2026 Ethereal Inn Collective
+                © 2026 Etherealinn Collective
               </p>
               <div className="h-px w-8 bg-white/10 hidden md:block" />
               <p className="text-[9px] text-[#c5a059] uppercase tracking-[0.2em] font-black">
-                Urban Ambrosia Culinary by Ethereal Inn Hospitality
+                Urban Ambrosia Culinary by Etherealinn Hospitality
               </p>
             </div>
             
@@ -554,7 +561,7 @@ export default function LandingLoginPage() {
             <ShieldCheck size={24} />
           </div>
           <p className="text-xl md:text-3xl font-serif text-gray-300 leading-relaxed italic">
-            "Ethereal Inn was born from a simple realization: that modern luxury isn't about excess, but about the 
+            "Etherealinn was born from a simple realization: that modern luxury isn't about excess, but about the 
             <span className="text-white"> intentionality of space </span> and the 
             <span className="text-[#c5a059]"> purity of nourishment.</span>"
           </p>
@@ -569,7 +576,7 @@ export default function LandingLoginPage() {
             <h3 className="text-4xl font-serif font-bold italic text-white">The Minds Behind the Magic</h3>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
             {[
               { 
                 name: "Sandeep Kumar Chaudhry", 
@@ -583,6 +590,11 @@ export default function LandingLoginPage() {
               },
               { 
                 name: "Deepak Tyagi", 
+                role: "Strategic Partner", 
+                desc: "An investor and board member driving the brand's expansion and financial integrity." 
+              },
+               { 
+                name: "Subhash", 
                 role: "Strategic Partner", 
                 desc: "An investor and board member driving the brand's expansion and financial integrity." 
               },
@@ -601,7 +613,7 @@ export default function LandingLoginPage() {
                 className="bg-white/5 p-10 rounded-[3rem] border border-white/5 hover:border-[#c5a059]/30 transition-all group flex flex-col justify-between h-[350px]"
               >
                 <div>
-                  <div className="w-12 h-12 bg-[#c5a059]/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-[#c5a059] group-hover:text-black transition-all">
+                  <div className="w-12 h-12 bg-[#c5a059]/10 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-[#c5a059] group-hover:text-black transition-all">
                     <Users size={20} />
                   </div>
                   <h4 className="text-white font-serif text-2xl font-bold italic mb-2 group-hover:text-[#c5a059] transition-colors">
@@ -611,7 +623,7 @@ export default function LandingLoginPage() {
                     {leader.role}
                   </p>
                 </div>
-                <p className="text-gray-500 text-xs leading-relaxed border-t border-white/5 pt-6">
+                <p className="text-gray-500 text-xs leading-relaxed border-t border-white/5 pt-2">
                   {leader.desc}
                 </p>
               </motion.div>
@@ -708,16 +720,7 @@ export default function LandingLoginPage() {
           </motion.div>
         )}
 
-        {/* --- POS TERMINAL OVERLAY --- */}
-        {showPOS && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[2000] bg-black flex flex-col">
-            <div className="p-4 bg-zinc-900 flex justify-between items-center border-b border-white/10">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">POS Terminal Alpha</span>
-              <button onClick={() => setShowPOS(false)} className="bg-red-500/10 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
-            </div>
-            <iframe src={POS_APP_URL} className="flex-1 w-full border-none" title="POS" />
-          </motion.div>
-        )}
+    
       </AnimatePresence>
     </main>
   );

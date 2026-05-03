@@ -20,7 +20,7 @@ export default function SuitesPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Hotel",
-    "name": "Ethereal Inn",
+    "name": "Etherealinn",
     "description": "Luxury boutique hotel in Gurugram featuring high-end suites and artisanal dining.",
     "containsPlace": Object.values(ROOM_COLLECTION).flat().map(room => ({
       "@type": "HotelRoom",
@@ -58,7 +58,7 @@ export default function SuitesPage() {
             The <span className="text-[#c5a059]">Gallery.</span>
           </h1>
           <p className="text-gray-500 max-w-xl mt-6 text-lg font-light leading-relaxed">
-            From our intimate standard rooms to our sprawling multi-room suites, every space at Ethereal Inn is a masterclass in architectural silence.
+            From our intimate standard rooms to our sprawling multi-room suites, every space at Etherealinn is a masterclass in architectural silence.
           </p>
         </header>
 

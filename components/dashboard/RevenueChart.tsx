@@ -57,7 +57,7 @@ export default function MarketIntelView({ logs = [], inquiries = [], guests = []
       const res = await updateInquiryStatus(id, newStatus);
       if (res?.success) {
         if (newStatus === 'in-house') {
-          // FIX: Strict fallback to prevent 'undefined' string in URL
+          // Strict fallback to prevent 'undefined' string in URL
           const safeName = guestName && guestName !== "undefined" ? guestName : "Walk-In";
           
           startTransition(() => {

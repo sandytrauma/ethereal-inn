@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 config({ path: path.resolve(process.cwd(), ".env.local") });
 
 async function seed() {
-  console.log("🌱 Seeding Ethereal Inn Admin...");
+  console.log("🌱 Seeding Etherealinn Admin...");
 
   // 2. Validate that the DB URL is loaded before proceeding
   if (!process.env.DATABASE_URL) {

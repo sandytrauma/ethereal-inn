@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { BedDouble, CalendarCheck, CheckCircle2, TrendingUp, RefreshCcw } from "lucide-react";
 
@@ -11,46 +11,75 @@ interface StatsProps {
     reconciled: number; // Total check-outs/settlements today
     revenue: number;    // Sum of revenue from tasks
   };
+  propertyId?: string; // Passed down from the parent/user context
 }
 
 /**
- * Updated OccupancyStats with Real-Time Sync
+ * Updated OccupancyStats with Strict Property Scoping
  * Preserves 100% of the original styling and structure.
  */
-export default function OccupancyStats({ stats: initialStats }: StatsProps) {
+export default function OccupancyStats({ stats: initialStats, propertyId }: StatsProps) {
   const [liveStats, setLiveStats] = useState(initialStats);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Real-time Fetch Logic
-  const syncData = async () => {
+  // Memoized fetch logic to prevent unnecessary re-renders
+  const syncData = useCallback(async () => {
+    // Guard: Don't attempt to fetch if the propertyId is missing
+    if (!propertyId) return;
+
     setIsSyncing(true);
     try {
-      // Points to your real-time API route
-      const response = await fetch('/api/stats/occupancy');
+      // Scoped to the specific propertyId provided by the context
+      const response = await fetch(`/api/stats/occupancy?propertyId=${propertyId}`);
+      
       if (response.ok) {
         const newData = await response.json();
         setLiveStats(newData);
       }
     } catch (error) {
-      console.error("Operational Sync Error:", error);
+      console.error("Hotel Metrics Sync Error:", error);
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [propertyId]);
 
   useEffect(() => {
-    // Initial sync
-    syncData();
-    // Poll every 60 seconds for live operational updates
-    const interval = setInterval(syncData, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    // Only start syncing once propertyId is available
+    if (propertyId) {
+      syncData();
+      
+      // Poll every 60 seconds for live operational updates
+      const interval = setInterval(syncData, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [propertyId, syncData]);
 
+  // Derived metrics for UI
   const cards = [
-    { label: "Live Occupancy", value: liveStats.current, icon: BedDouble, color: "text-amber-400" },
-    { label: "Daily Bookings", value: liveStats.totalToday, icon: CalendarCheck, color: "text-emerald-500" },
-    { label: "Reconciled", value: liveStats.reconciled, icon: CheckCircle2, color: "text-blue-500" },
-    { label: "Revenue Today", value: `₹${liveStats.revenue.toLocaleString()}`, icon: TrendingUp, color: "text-white" },
+    { 
+      label: "Live Occupancy", 
+      value: liveStats.current, 
+      icon: BedDouble, 
+      color: "text-amber-400" 
+    },
+    { 
+      label: "Daily Bookings", 
+      value: liveStats.totalToday, 
+      icon: CalendarCheck, 
+      color: "text-emerald-500" 
+    },
+    { 
+      label: "Reconciled", 
+      value: liveStats.reconciled, 
+      icon: CheckCircle2, 
+      color: "text-blue-500" 
+    },
+    { 
+      label: "Revenue Today", 
+      value: `₹${Number(liveStats.revenue || 0).toLocaleString()}`, 
+      icon: TrendingUp, 
+      color: "text-white" 
+    },
   ];
 
   return (

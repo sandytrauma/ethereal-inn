@@ -13,7 +13,7 @@ export default function ContactPage() {
 
   // Configuration
   const WHATSAPP_NUMBER = "919315371613";
-  const WHATSAPP_MSG = encodeURIComponent("Hi Ethereal Inn, I would like to inquire about a booking.");
+  const WHATSAPP_MSG = encodeURIComponent("Hi Etherealinn, I would like to inquire about a booking.");
 
   const handleWhatsApp = () => {
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`, "_blank");

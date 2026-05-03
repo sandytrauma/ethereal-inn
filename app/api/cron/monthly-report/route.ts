@@ -1,8 +1,13 @@
 import { db } from '@/db';
 import { financialRecords } from '@/db/schema';
-import { and, gte, lte } from 'drizzle-orm';
+import { properties } from '@/db/micro-schema';
+import { and, gte, lte, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
+/**
+ * GET /api/cron/monthly-report
+ * Triggered by a cron job to generate financial summaries for all properties.
+ */
 export async function GET(req: Request) {
   // 1. Security Check
   const authHeader = req.headers.get('authorization');
@@ -13,40 +18,71 @@ export async function GET(req: Request) {
   try {
     // 2. Calculate Last Month Range
     const now = new Date();
-    // Go to the first day of the current month, then back one day to get last month
+    // First day of current month
     const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Last day of previous month
     const lastDayLastMonthDate = new Date(firstDayCurrentMonth.getTime() - 86400000);
+    // First day of previous month
     const firstDayLastMonthDate = new Date(lastDayLastMonthDate.getFullYear(), lastDayLastMonthDate.getMonth(), 1);
 
-    // 3. Format to YYYY-MM-DD strings for Drizzle/Postgres compatibility
     const startOfLastMonth = firstDayLastMonthDate.toISOString().split('T')[0];
     const endOfLastMonth = lastDayLastMonthDate.toISOString().split('T')[0];
 
-    // 4. Fetch records using string boundaries
-    const records = await db.select().from(financialRecords)
-      .where(and(
-        gte(financialRecords.date, startOfLastMonth),
-        lte(financialRecords.date, endOfLastMonth)
-      ));
+    // 3. Fetch All Properties to generate individual reports
+    const allProperties = await db.select().from(properties);
 
-    // 5. Generate Summary
-    const summary = records.reduce((acc, curr) => ({
-      revenue: acc.revenue + Number(curr.totalCollection || 0),
-      expenses: acc.expenses + Number(curr.pettyExpenses || 0),
-    }), { revenue: 0, expenses: 0 });
+    if (allProperties.length === 0) {
+      return NextResponse.json({ success: true, message: "No properties found to report." });
+    }
 
-    const netProfit = summary.revenue - summary.expenses;
+    // 4. Process Reports for each property
+    const propertyReports = await Promise.all(allProperties.map(async (prop) => {
+      // Fetch records scoped to THIS property and THIS date range
+      const records = await db.select()
+        .from(financialRecords)
+        .where(
+          and(
+            eq(financialRecords.propertyId, prop.id),
+            gte(financialRecords.date, startOfLastMonth),
+            lte(financialRecords.date, endOfLastMonth)
+          )
+        );
 
-    // 6. Log results (You can later extend this to save to a 'reports' table)
-    console.log(`[CRON] Monthly Report (${startOfLastMonth} to ${endOfLastMonth})`);
-    console.log(`Total Revenue: ₹${summary.revenue}`);
-    console.log(`Total Expenses: ₹${summary.expenses}`);
-    console.log(`Net Profit: ₹${netProfit}`);
+      // Aggregate data for this specific property
+      const summary = records.reduce((acc, curr) => ({
+        revenue: acc.revenue + Number(curr.totalCollection || 0),
+        expenses: acc.expenses + Number(curr.pettyExpenses || 0),
+      }), { revenue: 0, expenses: 0 });
+
+      const netProfit = summary.revenue - summary.expenses;
+
+      // Log property-specific results
+      console.log(`[CRON] Report for ${prop.name} (${startOfLastMonth} to ${endOfLastMonth})`);
+      console.log(`- Revenue: ₹${summary.revenue}`);
+      console.log(`- Expenses: ₹${summary.expenses}`);
+      console.log(`- Net Profit: ₹${netProfit}`);
+
+      return {
+        propertyId: prop.id,
+        propertyName: prop.name,
+        revenue: summary.revenue,
+        expenses: summary.expenses,
+        netProfit
+      };
+    }));
+
+    // 5. Calculate Grand Totals across all properties (Corporate Overview)
+    const grandTotal = propertyReports.reduce((acc, curr) => ({
+      revenue: acc.revenue + curr.revenue,
+      expenses: acc.expenses + curr.expenses,
+      netProfit: acc.netProfit + curr.netProfit,
+    }), { revenue: 0, expenses: 0, netProfit: 0 });
 
     return NextResponse.json({ 
       success: true, 
       range: { start: startOfLastMonth, end: endOfLastMonth },
-      summary: { ...summary, netProfit } 
+      reports: propertyReports,
+      corporateOverview: grandTotal
     });
 
   } catch (error) {

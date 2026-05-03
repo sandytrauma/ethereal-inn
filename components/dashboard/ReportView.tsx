@@ -3,11 +3,11 @@
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Download } from "lucide-react";
-import RevenueChart from "./RevenueChart";
 
 interface ReportLog {
   id: number;
   date: Date | string;
+  propertyName?: string | null; // Added for multi-property breakdown
   cashRevenue: string | number;
   upiRevenue: string | number;
   otaPayouts: string | number;
@@ -27,11 +27,13 @@ export default function ReportView({ logs = [], previousLogs = [] }: ReportViewP
   const exportToCSV = () => {
     if (logs.length === 0) return;
 
-    const headers = "Date,Room Revenue,Cash,UPI,OTA,Total Collection,Status\n";
+    // Added Property column for multi-property context
+    const headers = "Date,Property,Room Revenue,Cash,UPI,OTA,Total Collection,Status\n";
     const rows = logs
       .map((log) => {
         const date = new Date(log.date).toLocaleDateString("en-IN");
-        return `${date},${log.roomRevenue},${log.cashRevenue},${log.upiRevenue},${log.otaPayouts},${log.totalCollection},${log.status}`;
+        const property = log.propertyName || "N/A";
+        return `${date},${property},${log.roomRevenue},${log.cashRevenue},${log.upiRevenue},${log.otaPayouts},${log.totalCollection},${log.status}`;
       })
       .join("\n");
 
@@ -118,8 +120,6 @@ export default function ReportView({ logs = [], previousLogs = [] }: ReportViewP
             </div>
           </div>
 
-         
-
           {/* Breakdown Progress Bars */}
           <div className="space-y-7">
             <ProgressBar
@@ -177,6 +177,7 @@ export default function ReportView({ logs = [], previousLogs = [] }: ReportViewP
             <thead className="bg-white/5 text-slate-400 uppercase font-black">
               <tr>
                 <th className="p-4">Date</th>
+                <th className="p-4">Property</th>
                 <th className="p-4">Room Rev</th>
                 <th className="p-4">Total</th>
                 <th className="p-4 text-right">Status</th>
@@ -186,7 +187,7 @@ export default function ReportView({ logs = [], previousLogs = [] }: ReportViewP
               {logs.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="p-10 text-center text-slate-600 font-bold uppercase italic"
                   >
                     No records found for this period
@@ -203,6 +204,9 @@ export default function ReportView({ logs = [], previousLogs = [] }: ReportViewP
                         day: "2-digit",
                         month: "short",
                       })}
+                    </td>
+                    <td className="p-4 text-slate-400 uppercase font-medium">
+                      {row.propertyName || "Main Depot"}
                     </td>
                     <td className="p-4 text-slate-400">
                       ₹{Number(row.roomRevenue).toLocaleString("en-IN")}

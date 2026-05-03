@@ -22,7 +22,7 @@ export async function sendEmailAction(formData: FormData) {
   try {
     const { data, error } = await resend.emails.send({
       // Your verified Resend domain identity
-      from: 'Ethereal Inn Concierge <onboarding@resend.dev>',
+      from: 'Etherealinn Concierge <onboarding@resend.dev>',
       to:'sksandeep443@gmail.com', 
       subject: `[Website Inquiry] ${subject}`,
       replyTo: email, 
@@ -31,7 +31,7 @@ export async function sendEmailAction(formData: FormData) {
       // HTML version for a clean look in your Gmail inbox
       html: `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #c5a059; font-style: italic;">New Ethereal Inn Inquiry</h2>
+          <h2 style="color: #c5a059; font-style: italic;">New Etherealinn Inquiry</h2>
           <hr style="border: 0; border-top: 1px solid #eee;" />
           <p><strong>From:</strong> ${name}</p>
           <p><strong>Email:</strong> ${email}</p>
@@ -40,7 +40,7 @@ export async function sendEmailAction(formData: FormData) {
             <p style="white-space: pre-wrap;">${message}</p>
           </div>
           <footer style="margin-top: 20px; font-size: 12px; color: #888;">
-            Sent via Ethereal Inn Web Portal
+            Sent via Etherealinn Web Portal
           </footer>
         </div>
       `,

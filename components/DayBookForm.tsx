@@ -12,7 +12,9 @@ import {
   CheckCircle,
   FileText,
   Utensils,
-  BedDouble
+  BedDouble,
+  Building2,
+  ChevronDown
 } from 'lucide-react';
 import { closeDayBook } from '@/lib/actions/finance';
 import { getRoomsList } from '@/lib/actions/room-actions';
@@ -26,17 +28,10 @@ import {
 } from "@/components/ui/card";
 import { motion, AnimatePresence } from 'framer-motion';
 
-/**
- * SEO & ACCESSIBILITY NOTE: 
- * For Next.js App Router, ensure your layout.tsx or page.tsx includes:
- * export const metadata = {
- * title: 'Day Book | Ethereal Inn Management',
- * description: 'Secure financial reconciliation and revenue tracking for Ethereal Inn properties.',
- * };
- */
-
 interface DayBookFormProps {
   onSuccess?: () => void;
+  // Recommended: Pass the active propertyId if known from the URL/context
+  initialPropertyId?: string; 
 }
 
 interface InputFieldProps {
@@ -63,17 +58,17 @@ const InputField = ({ label, value, onChange, icon: Icon, placeholder = "0", cla
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        aria-label={label}
         className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-8 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 outline-none text-white font-bold transition-all placeholder:text-slate-800"
       />
     </div>
   </div>
 );
 
-export function DayBookForm({ onSuccess }: DayBookFormProps) {
+export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) {
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [propertyId, setPropertyId] = useState<string | null>(null);
+  const [availableProperties, setAvailableProperties] = useState<{id: string, name: string}[]>([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string>(initialPropertyId || "");
   
   const [values, setValues] = useState({
     cashRevenue: '',
@@ -85,19 +80,43 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
     notes: ''
   });
 
-  useEffect(() => {
-    async function fetchContext() {
+  // Fetch properties to populate the selector
+useEffect(() => {
+    async function fetchProperties() {
       try {
-        const rooms = await getRoomsList();
+        // Since we updated the server action with 'propertyId?', 
+        // we can now call it without any arguments for a global fetch.
+        const rooms = await getRoomsList(); 
+        
         if (rooms && rooms.length > 0) {
-          setPropertyId(rooms[0].propertyId);
+          const propsMap = new Map();
+          
+          rooms.forEach(room => {
+            // Only add unique properties to our map
+            if (room.propertyId && !propsMap.has(room.propertyId)) {
+              propsMap.set(room.propertyId, {
+                id: room.propertyId,
+                // Using the propertyName from our server-side LEFT JOIN
+                name: room.propertyName || `Property ${room.propertyId.slice(0, 4)}`
+              });
+            }
+          });
+
+          const uniqueProps = Array.from(propsMap.values());
+          setAvailableProperties(uniqueProps);
+          
+          // Auto-select the first property if none is selected
+          if (uniqueProps.length > 0 && !selectedPropertyId) {
+            setSelectedPropertyId(uniqueProps[0].id);
+          }
         }
       } catch (error) {
-        console.error("Context fetch failed", error);
+        console.error("Property fetch failed:", error);
       }
     }
-    fetchContext();
-  }, []);
+    
+    fetchProperties();
+  }, [selectedPropertyId]);
 
   const totalCollection = (Number(values.cashRevenue) || 0) + (Number(values.upiRevenue) || 0) + (Number(values.otaPayouts) || 0);
   const totalAllocation = (Number(values.roomRevenue) || 0) + (Number(values.serviceRevenue) || 0);
@@ -105,8 +124,8 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
   const allocationGap = totalCollection - totalAllocation;
 
   const handleSubmit = async () => {
-    if (!propertyId) {
-      alert("Error: Property context not found.");
+    if (!selectedPropertyId || selectedPropertyId === "") {
+      alert("Malformed or missing Property ID. Please select a property.");
       return;
     }
 
@@ -118,8 +137,12 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
     setLoading(true);
     try {
       const result = await closeDayBook(
-        { ...values, totalCollection, netCash }, 
-        propertyId
+        { 
+          ...values, 
+          totalCollection: totalCollection.toString(), 
+          netCash: netCash.toString() 
+        }, 
+        selectedPropertyId // Linked property context
       );
       
       if (result.success) {
@@ -171,13 +194,35 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
                   {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </CardDescription>
               </div>
-              <div className="bg-amber-400/10 p-2 rounded-xl" aria-hidden="true">
+              <div className="bg-amber-400/10 p-2 rounded-xl">
                  <IndianRupee className="text-amber-400" size={20} />
+              </div>
+            </div>
+
+            {/* PROPERTY SELECTOR SECTION */}
+            <div className="mt-6 space-y-2">
+              <label className="text-[9px] font-black text-amber-400 uppercase tracking-[0.3em] px-1 flex items-center gap-2">
+                <Building2 size={12} />
+                Property Context
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedPropertyId}
+                  onChange={(e) => setSelectedPropertyId(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 appearance-none text-white font-bold focus:border-amber-500 outline-none transition-all pr-12 cursor-pointer"
+                >
+                  <option value="" disabled>Select a property...</option>
+                  {availableProperties.map(prop => (
+                    <option key={prop.id} value={prop.id} className="bg-slate-900">{prop.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={18} />
               </div>
             </div>
           </CardHeader>
 
           <CardContent className="px-8 space-y-6">
+            {/* Payment Sources */}
             <section className="space-y-4">
               <h4 className="text-[9px] font-black text-amber-400 uppercase tracking-[0.3em]">1. Payment Sources</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -195,13 +240,14 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
                 />
               </div>
               <InputField 
-                label="OTA Payouts (Agoda/MMT)" 
+                label="OTA Payouts" 
                 icon={Globe}
                 value={values.otaPayouts} 
                 onChange={(v) => setValues({...values, otaPayouts: v})} 
               />
             </section>
 
+            {/* Allocation */}
             <section className="space-y-4 p-6 bg-white/5 rounded-[2.5rem] border border-white/5">
               <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">2. Category Allocation</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -219,15 +265,16 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
                 />
               </div>
               {allocationGap !== 0 && totalCollection > 0 && (
-                <p className="text-[8px] font-bold text-slate-500 uppercase text-center italic tracking-wider">
-                  Unallocated: ₹{allocationGap.toLocaleString()}
+                <p className="text-[8px] font-bold text-rose-400 uppercase text-center italic tracking-wider">
+                  Discrepancy: ₹{allocationGap.toLocaleString()}
                 </p>
               )}
             </section>
 
+            {/* Petty Expenses */}
             <section>
               <InputField 
-                label="Petty Expenses (Daily Spends)" 
+                label="Petty Expenses" 
                 icon={MinusCircle}
                 value={values.pettyExpenses} 
                 onChange={(v) => setValues({...values, pettyExpenses: v})} 
@@ -235,6 +282,7 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
               />
             </section>
 
+            {/* In-Hand Calculation Display */}
             <section className="p-8 bg-slate-950 rounded-[2.5rem] border border-white/10 relative overflow-hidden group">
               <div className="flex justify-between items-center text-[10px] text-slate-500 uppercase font-black tracking-[0.2em]">
                 <span>Gross Collection</span>
@@ -250,14 +298,14 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
 
             <section className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1 flex items-center gap-2">
-                <FileText size={12} className="text-slate-500" aria-hidden="true" />
-                Daily Shift Report
+                <FileText size={12} className="text-slate-500" />
+                Shift Notes
               </label>
               <textarea 
                 rows={2}
                 value={values.notes}
                 onChange={(e) => setValues({...values, notes: e.target.value})}
-                placeholder="Maintenance issues, late check-ins, or guest complaints..."
+                placeholder="Important shift highlights..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-5 focus:border-amber-500 outline-none text-sm text-white resize-none transition-all placeholder:text-slate-800"
               />
             </section>
@@ -265,7 +313,7 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
 
           <CardFooter className="px-8 flex flex-col gap-6 pb-10">
             <button 
-              disabled={loading || isSuccess || !propertyId}
+              disabled={loading || isSuccess || !selectedPropertyId}
               onClick={handleSubmit}
               className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-[2rem] shadow-2xl shadow-amber-400/20 hover:bg-amber-300 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
             >
@@ -273,16 +321,16 @@ export function DayBookForm({ onSuccess }: DayBookFormProps) {
                 <Loader2 className="animate-spin h-6 w-6" />
               ) : (
                 <>
-                  <Save size={18} strokeWidth={3} aria-hidden="true" />
+                  <Save size={18} strokeWidth={3} />
                   <span className="uppercase tracking-[0.2em] text-[11px]">Finalize Day Book</span>
                 </>
               )}
             </button>
 
             <div className="flex items-start gap-4 p-5 bg-rose-500/5 rounded-[1.8rem] border border-rose-500/10">
-              <AlertCircle className="text-rose-500 w-5 h-5 mt-0.5 flex-shrink-0" aria-hidden="true" />
+              <AlertCircle className="text-rose-500 w-5 h-5 mt-0.5 flex-shrink-0" />
               <p className="text-[9px] text-rose-500/70 font-black leading-relaxed uppercase tracking-wider">
-                Legal Disclaimer: By clicking submit, you confirm that physical cash holdings match the <span className="text-white underline">Net Cash</span> total above. 
+                Note: Ensure the property context above matches the current physical location to avoid auditing errors. 
               </p>
             </div>
           </CardFooter>

@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
 const SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
