@@ -33,6 +33,7 @@ import Script from "next/script";
 import { getGoogleReviews } from "@/lib/actions/reviews";
 import Link from "next/link";
 import DashboardBackground from "./dashboard/DashboardBackground";
+import MultiPropertyMap from "./MultiPropertyMap";
 
 
 
@@ -116,7 +117,7 @@ const POLICY_CONTENT = {
   },
 };
 
-const ENCODED_PHONE = "KzkxOTMxNTM3MTYxMw==";
+const ENCODED_PHONE = "KzkxODc5NjIxMTg0OQ==";
 const WHATSAPP_MESSAGE = encodeURIComponent("Hi Etherealinn & Urban Ambrosia! I'd like to inquire about a booking or meal service.");
 
 export default function LandingLoginPage() {
@@ -385,26 +386,10 @@ async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
         </div>
       </section>
 
-      {/* --- MAP SECTION --- */}
-      <section className="max-w-6xl mx-auto py-24 px-4 border-t border-white/5">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8 text-center lg:text-left">
-            <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 text-[#c5a059] px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest">
-              <MapPin size={16} /> South Delhi
-            </div>
-            <h2 className="text-5xl md:text-7xl font-serif font-bold text-white leading-tight uppercase italic">Delhi's <br /><span className="text-slate-500">Boutique.</span></h2>
-            <button onClick={handleBookingRedirect} className="inline-flex items-center gap-3 bg-white/5 hover:bg-[#c5a059] hover:text-black text-white font-black px-10 py-5 rounded-2xl border border-white/10 transition-all uppercase text-xs tracking-widest">
-              Get Directions <ExternalLink size={18} />
-            </button>
-          </div>
-          <div className="h-[400px] w-full bg-zinc-900 rounded-[3rem] overflow-hidden border border-white/10 grayscale invert opacity-60">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d14021.571401569436!2d77.172404!3d28.503619!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390d1e1766a2e9b9%3A0x6b77292215c326e0!2sChhatarpur%2C%20New%20Delhi%2C%20Delhi!5e0!3m2!1sen!2sin!4v1711111111111"
-              width="100%" height="100%" style={{ border: 0 }} allowFullScreen loading="lazy" title="Location Map"
-            />
-          </div>
-        </div>
-      </section>
+    {/* --- MAP SECTION --- */}
+<section className="max-w-6xl mx-auto py-24 px-4 border-t border-white/5">
+  <MultiPropertyMap/>
+</section>
 
      
 
