@@ -57,7 +57,7 @@ export function AddStaffModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
               required
               type="email"
               className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white outline-none focus:border-amber-400 transition-all"
-              placeholder="rahul@etherealinn.com"
+              placeholder="rahul@Ethereal Inn.com"
               value={form.email}
               onChange={e => setForm({...form, email: e.target.value})}
             />

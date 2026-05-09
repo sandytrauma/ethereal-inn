@@ -61,10 +61,10 @@ export default function Footer() {
         {/* Ownership */}
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
-            © 2026 Etherealinn Hospitality LLP
+            © 2026 Ethereal Inn Hospitality LLP
           </p>
           <p className="text-[9px] font-medium text-slate-400 uppercase tracking-tighter">
-            Managed by Etherealinn Hospitality LLP
+            Managed by Ethereal Inn Hospitality LLP
           </p>
         </div>
       </div>

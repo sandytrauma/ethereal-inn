@@ -251,7 +251,7 @@ const currentProperty = useMemo(
               className="group-hover:text-red-400 transition-colors"
             />
             <span className="text-[11px] font-bold uppercase tracking-[0.2em]">
-              Etherealinn
+              Ethereal Inn
             </span>
           </button>
           <div className="px-6 py-2">

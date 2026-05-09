@@ -77,7 +77,7 @@ export default async function OccupancyPage({ searchParams }: PageProps) {
 
         <div className="mt-20 flex items-center gap-8 text-[10px] text-slate-800 font-black uppercase tracking-[0.5em] opacity-40">
             <div className="h-[1px] w-16 bg-slate-900" />
-            Etherealinn Core v1.0.4
+            Ethereal Inn Core v1.0.4
             <div className="h-[1px] w-16 bg-slate-900" />
         </div>
       </div>

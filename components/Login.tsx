@@ -61,7 +61,7 @@ const MOCK_REVIEWS: Review[] = [
     author_name: "Sarah Jenkins",
     rating: 5,
     relative_time_description: "1 month ago",
-    text: "Etherealinn is a hidden gem. Urban Ambrosia provides the best cloud kitchen experience in Delhi.",
+    text: "Ethereal Inn is a hidden gem. Urban Ambrosia provides the best cloud kitchen experience in Delhi.",
     profile_photo_url: "https://i.pravatar.cc/150?u=sarah",
   },
   {
@@ -106,7 +106,7 @@ const POLICY_CONTENT = {
     title: "Terms of Service",
     sections: [
       { h: "Guest ID", p: "Government-approved ID is mandatory upon check-in." },
-      { h: "Property Care", p: "Etherealinn is a non-smoking property." },
+      { h: "Property Care", p: "Ethereal Inn is a non-smoking property." },
     ],
   },
   refunds: {
@@ -118,7 +118,7 @@ const POLICY_CONTENT = {
 };
 
 const ENCODED_PHONE = "KzkxODc5NjIxMTg0OQ==";
-const WHATSAPP_MESSAGE = encodeURIComponent("Hi Etherealinn & Urban Ambrosia! I'd like to inquire about a booking or meal service.");
+const WHATSAPP_MESSAGE = encodeURIComponent("Hi Ethereal Inn & Urban Ambrosia! I'd like to inquire about a booking or meal service.");
 
 export default function LandingLoginPage() {
   const [showLogin, setShowLogin] = useState(false);
@@ -195,7 +195,7 @@ async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
       <nav className="fixed top-0 w-full z-[100] flex justify-between items-center px-6 md:px-12 py-6 backdrop-blur-md border-b border-white/5 bg-black/20">
         <div className="flex flex-col">
           <span className="text-[10px] tracking-[0.4em] uppercase text-gray-500 font-bold">The Collective</span>
-          <span className="text-xl md:text-2xl font-serif font-bold italic text-[#c5a059]">Etherealinn</span>
+          <span className="text-xl md:text-2xl font-serif font-bold italic text-[#c5a059]">Ethereal Inn</span>
         </div>
         <div className="flex items-center gap-4">
           {/* Desktop Only Buttons */}
@@ -284,7 +284,7 @@ async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
                    Urban <span className="text-[#c5a059]">Ambrosia.</span>
                 </h2>
                 <p className="text-gray-400 text-lg leading-relaxed font-light">
-                    A premium culinary brand under the Etherealinn umbrella. We blend traditional Indian soul with modern presentation to create the <span className="text-white font-bold italic uppercase tracking-widest">Food of Modern Gods.</span>
+                    A premium culinary brand under the Ethereal Inn umbrella. We blend traditional Indian soul with modern presentation to create the <span className="text-white font-bold italic uppercase tracking-widest">Food of Modern Gods.</span>
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
                     <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
@@ -473,11 +473,11 @@ async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
           <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
               <p className="text-[9px] text-gray-600 uppercase tracking-[0.2em] font-black">
-                © 2026 Etherealinn Collective
+                © 2026 Ethereal Inn Collective
               </p>
               <div className="h-px w-8 bg-white/10 hidden md:block" />
               <p className="text-[9px] text-[#c5a059] uppercase tracking-[0.2em] font-black">
-                Urban Ambrosia Culinary by Etherealinn Hospitality
+                Urban Ambrosia Culinary by Ethereal Inn Hospitality
               </p>
             </div>
             
@@ -546,7 +546,7 @@ async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
             <ShieldCheck size={24} />
           </div>
           <p className="text-xl md:text-3xl font-serif text-gray-300 leading-relaxed italic">
-            "Etherealinn was born from a simple realization: that modern luxury isn't about excess, but about the 
+            "Ethereal Inn was born from a simple realization: that modern luxury isn't about excess, but about the 
             <span className="text-white"> intentionality of space </span> and the 
             <span className="text-[#c5a059]"> purity of nourishment.</span>"
           </p>
