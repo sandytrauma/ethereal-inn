@@ -47,6 +47,9 @@ export const metadata: Metadata = {
     description: "Experience refined luxury in Delhi.",
     images: ["/bridal-bg.jpg"],
   },
+  alternates: {
+    canonical: "https://etherealinn.com/",
+  },
 };
 
 // --- Dashboard Background ---
