@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block search engines from indexing the internal dashboard if applicable
+Disallow: /admin
+Disallow: /dashboard
+
+# Link to your sitemap
+Sitemap: https://etherealinn.com/sitemap.xml
