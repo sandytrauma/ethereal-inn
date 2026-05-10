@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   // SET METADATABASE: This resolves the warning and social image paths
   metadataBase: new URL(
     process.env.NODE_ENV === "production"
-      ? "https://ethereal-inn.vercel.app"
+      ? "https://www.etherealinn.com"
       : "http://localhost:3000"
   ),
   title: "Ethereal Inn | Luxury Boutique Stay in Delhi",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Ethereal Inn | Delhi's Most Refined Experience",
     description: "Boutique luxury, minutes from the Metro.",
-    url: "/login",
+    url: "/ethereal-inn",
     siteName: "Ethereal Inn",
     images: [{ 
       url: "https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", // Corrected to relative path (resolved by metadataBase)
