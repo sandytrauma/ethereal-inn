@@ -44,9 +44,15 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceProps>(
               Tax Invoice
             </div>
             <p className="text-sm font-bold text-gray-800">Invoice: #EIH-{invoice.id}</p>
-            <p className="text-sm text-gray-600">
-              Date: {invoice.checkoutDate ? new Date(invoice.checkoutDate).toLocaleDateString() : "N/A"}
-            </p>
+           <p className="text-sm text-gray-600">
+  Date: {invoice.checkoutDate 
+    ? new Date(invoice.checkoutDate).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) 
+    : "N/A"}
+</p>
           </div>
         </div>
 

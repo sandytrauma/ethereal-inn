@@ -12,7 +12,8 @@ export async function middleware(req: NextRequest) {
     '/glam', 
     '/suites', 
     '/culinary', 
-    '/contact'
+    '/contact',
+    '/invoices'
   ];
 
   const isPublicPage = PUBLIC_ROUTES.includes(path);
