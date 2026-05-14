@@ -1,3 +1,4 @@
+import EIHLogoBackground from "@/components/dashboard/EIHLogoBackground";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -28,5 +29,7 @@ export default function SuitesLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return <>
+
+  {children}</>;
 }

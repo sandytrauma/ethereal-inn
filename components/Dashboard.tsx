@@ -24,6 +24,7 @@ import {
   Database,
   CalendarDays,
   LayoutGrid,
+  FileDown,
 } from "lucide-react";
 
 // SERVER ACTIONS & COMPONENTS
@@ -314,8 +315,8 @@ export default function Dashboard({
         </div>
 
         <div className="flex items-center gap-3 md:gap-6">
-          {/* 1. DESKTOP NAVIGATION (Hidden on Mobile/Tab) */}
-          <nav className="hidden lg:flex items-center gap-2 pr-4 border-r border-white/10">
+          {/* 1. DESKTOP VIEW: Persistent Horizontal Icons */}
+          <nav className="hidden lg:flex items-center gap-3 pr-4 border-r border-white/10">
             <Link
               href="/occupancy"
               className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:bg-amber-400/5 transition-all"
@@ -331,59 +332,112 @@ export default function Dashboard({
               <CalendarDays className="w-3.5 h-3.5" />
               PMS
             </Link>
+
+            <Link
+              href="/history"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:bg-amber-400/5 transition-all"
+            >
+              <History className="w-3.5 h-3.5" />
+              History
+            </Link>
           </nav>
 
-          {/* 2. ADAPTIVE MOBILE/TAB DROPDOWN (Hidden on Desktop) */}
-          <div className="relative lg:hidden">
-            <button 
+          {/* 2. CONSOLIDATED ADAPTIVE DROPDOWN (Primary for Mobile/Tablet) */}
+          <div className="relative">
+            <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex items-center gap-2 px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 active:scale-95 transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-400/10 border border-amber-400/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-500 active:scale-95 transition-all"
             >
-              <LayoutGrid className="w-4 h-4 text-amber-400" />
-              <span className="hidden sm:inline">Menu</span>
-              <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isMenuOpen ? 'rotate-180' : ''}`} />
+              <LayoutGrid className="w-4 h-4" />
+              <span>Menu</span>
+              <ChevronDown
+                className={`w-3 h-3 transition-transform duration-300 ${isMenuOpen ? "rotate-180" : ""}`}
+              />
             </button>
 
             {isMenuOpen && (
               <>
-                {/* Backdrop to handle clicks outside the menu */}
-                <div 
-                  className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" 
-                  onClick={() => setIsMenuOpen(false)} 
+                <div
+                  className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                  onClick={() => setIsMenuOpen(false)}
                 />
-                
-                <div className="absolute right-0 mt-3 w-56 bg-[#1E293B] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+
+                <div className="absolute right-0 mt-3 w-64 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="p-2 flex flex-col gap-1">
+                    {/* Section Title */}
                     <div className="px-4 py-2 mb-1 border-b border-white/5">
-                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Navigation</p>
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 italic">
+                        Sanctuary Control
+                      </p>
                     </div>
-                    
+
+                    {/* Navigation Links */}
                     <Link
                       href="/occupancy"
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:bg-amber-400/10 hover:text-amber-400 transition-all"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-amber-400 transition-all"
                     >
                       <DoorOpen className="w-4 h-4" />
                       Occupancy
                     </Link>
-                    
+
                     <Link
                       href="/pms"
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-[8px] font-bold uppercase tracking-widest text-slate-300 hover:bg-amber-400/10 hover:text-amber-400 transition-all"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-amber-400 transition-all"
                     >
                       <CalendarDays className="w-4 h-4" />
                       PMS Dashboard
                     </Link>
 
-                    {/* Mobile Logout Option */}
+                    <Link
+                      href="/history"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-amber-400 transition-all"
+                    >
+                      <History className="w-4 h-4" />
+                      Guest History
+                    </Link>
+
+                    {/* Actions Section */}
                     <div className="mt-1 border-t border-white/5 pt-1">
-                       <button
-                        onClick={() => { setIsMenuOpen(false); logout(); }}
-                        className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 transition-all"
+                      {/* 1. EXPORT SECTION 
+      We use 'relative' and a high 'z-index' here. 
+      Removed 'justify-between' to allow the button to sit closer to the label if needed.
+  */}
+                      <div className="relative z-[70] px-4 py-1 flex items-center hover:bg-white/5 rounded-xl transition-all group">
+                        <div className="flex items-center gap-3 flex-1 text-[10px] font-bold uppercase tracking-widest text-slate-300 group-hover:text-amber-400">
+                          <FileDown className="w-4 h-4" />
+                          <span>
+                            {user?.propertyId === "global"
+                              ? "Export All"
+                              : "Export CSV"}
+                          </span>
+                        </div>
+
+                        {/* FIX: Wrap the component in a relative container 
+       to ensure its internal dropdown anchors correctly.
+    */}
+                        <div className="relative">
+                          <ExportRecordsButton
+                            propertyId={user?.propertyId}
+                            label=""
+                          />
+                        </div>
+                      </div>
+
+                      {/* 2. LOGOUT SECTION 
+      We give this a lower z-index so the Export dropdown floats OVER it.
+  */}
+                      <button
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          logout();
+                        }}
+                        className="relative z-10 flex w-full items-center gap-3 px-4 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 transition-all border-t border-white/5 mt-1"
                       >
                         <LogOut className="w-4 h-4" />
-                        Logout
+                        Logout Account
                       </button>
                     </div>
                   </div>
@@ -392,25 +446,14 @@ export default function Dashboard({
             )}
           </div>
 
-          {/* 3. ACTIONS: EXPORT & LOGOUT (Persistent) */}
-          <div className="flex items-center gap-1 pl-2 border-l border-white/10 lg:border-none font:xs">
-            <ExportRecordsButton
-              propertyId={user?.propertyId}
-              label={
-                user?.propertyId === "global"
-                  ? "CSVALL"
-                  : "CSV"
-              }
-            />
-
-            <button
-              onClick={() => logout()}
-              className="hidden sm:flex p-2.5 bg-rose-500/10 text-rose-500 rounded-xl border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all group"
-              title="Logout"
-            >
-              <LogOut className="w-[18px] h-[18px] group-hover:-translate-x-1 transition-transform" />
-            </button>
-          </div>
+          {/* 3. PERSISTENT DESKTOP LOGOUT (Optional: Keep for quick access) */}
+          <button
+            onClick={() => logout()}
+            className="hidden lg:flex p-2.5 bg-rose-500/10 text-rose-500 rounded-xl border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all group"
+            title="Logout"
+          >
+            <LogOut className="w-[18px] h-[18px] group-hover:-translate-x-1 transition-transform" />
+          </button>
         </div>
       </header>
 

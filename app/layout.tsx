@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import EIHLogoBackground from "@/components/dashboard/EIHLogoBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,7 +49,7 @@ export const metadata: Metadata = {
     images: ["/bridal-bg.jpg"],
   },
   alternates: {
-    canonical: "https://etherealinn.com/",
+    canonical: "https://www.etherealinn.com/",
   },
 };
 
@@ -78,6 +79,7 @@ export default function RootLayout({
     <html lang="en" className="dark" style={{ colorScheme: 'dark' }}>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen relative`}>
         <DashboardBackground />
+        
         <main className="relative z-10">
           {children}
         </main>
