@@ -306,6 +306,66 @@ export async function closeDayBook(formData: any, propertyId: string) {
   }
 }
 
+
+
+export async function manualAdjustment(formData: any, propertyId: string) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+    const session = token ? await decrypt(token) : null;
+    const userId = session?.id || (session as any)?.userId;
+
+    if (!userId) return { success: false, error: "Unauthorized." };
+    
+    // 1. Get the date from the form (e.g., "2026-05-14")
+    const entryDate = formData.selectedDate; 
+    if (!entryDate) return { success: false, error: "Please select a date for the adjustment." };
+
+    // 2. Check if a record already exists for that specific back-date
+    const existingRecord = await db.select()
+      .from(financialRecords)
+      .where(and(eq(financialRecords.date, entryDate), eq(financialRecords.propertyId, propertyId)))
+      .limit(1);
+
+    const payload = {
+      userId: Number(userId),
+      cashRevenue: String(formData.cashRevenue || "0"),
+      upiRevenue: String(formData.upiRevenue || "0"),
+      otaPayouts: String(formData.otaPayouts || "0"),
+      roomRevenue: String(formData.roomRevenue || "0"),
+      serviceRevenue: String(formData.serviceRevenue || "0"),
+      pettyExpenses: String(formData.pettyExpenses || "0"),
+      totalCollection: String(formData.totalCollection || "0"),
+      netCash: String(formData.netCash || "0"),
+      status: "reconciled" as const,
+      updatedAt: new Date(),
+      notes: `[Manual Adjustment]: ${formData.notes || ""}`, // Mark as manual
+    };
+
+    if (existingRecord.length > 0) {
+      // Update the forgotten day
+      await db.update(financialRecords)
+        .set(payload)
+        .where(eq(financialRecords.id, existingRecord[0].id));
+    } else {
+      // Insert a new record for the forgotten day
+      await db.insert(financialRecords).values({
+        ...payload,
+        propertyId,
+        date: entryDate, // Use the back-date here
+        createdById: Number(userId),
+      });
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    return { success: true };
+  } catch (error) {
+    console.error("Adjustment Error:", error);
+    return { success: false, error: "Failed to save adjustment." };
+  }
+}
+
 /**
  * Updates status of a lead/inquiry
  */

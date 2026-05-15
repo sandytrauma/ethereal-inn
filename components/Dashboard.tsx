@@ -83,6 +83,7 @@ export default function Dashboard({
   const [loadingReports, setLoadingReports] = useState(false);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isManual, setIsManual] = useState(false);
 
   // --- PERMISSION LOGIC ---
   const isAdmin = useMemo(() => {
@@ -758,28 +759,48 @@ export default function Dashboard({
 
           {activeTab === "add" && (
             <motion.div
-              key="add-form"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="bg-slate-950/40 backdrop-blur-3xl rounded-[2rem] border border-white/10 p-5 md:p-6 shadow-2xl">
-                <div className="mb-6">
-                  <h2 className="text-xl font-black text-white italic">
-                    New <span className="text-amber-400">Entry</span>
-                  </h2>
-                  <p className="text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">
-                    Recording to {activePropertyName}
-                  </p>
-                </div>
-                {/* FIXED: The form now reacts to the current user property context */}
-                <DayBookForm
-                  onSuccess={() => {
-                    setActiveTab("dashboard");
-                    refreshData();
-                  }}
-                />
-              </div>
-            </motion.div>
+    key="add-form"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <div className="bg-slate-950/40 backdrop-blur-3xl rounded-[2rem] border border-white/10 p-5 md:p-6 shadow-2xl">
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h2 className="text-xl font-black text-white italic">
+            Financial <span className="text-amber-400">Entry</span>
+          </h2>
+          <p className="text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">
+            Recording to {activePropertyName}
+          </p>
+        </div>
+
+        {/* TOGGLE SWITCH: Daily vs Manual */}
+        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+          <button 
+            onClick={() => setIsManual(false)}
+            className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${!isManual ? 'bg-amber-500 text-black' : 'text-slate-500'}`}
+          >
+            Daily
+          </button>
+          <button 
+            onClick={() => setIsManual(true)}
+            className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${isManual ? 'bg-amber-500 text-black' : 'text-slate-500'}`}
+          >
+            Manual
+          </button>
+        </div>
+      </div>
+
+      {/* The Form adapts based on the isManual state */}
+      <DayBookForm
+        isManual={isManual} // Pass this prop to your form
+        onSuccess={() => {
+          setActiveTab("dashboard");
+          refreshData();
+        }}
+      />
+    </div>
+  </motion.div>
           )}
         </AnimatePresence>
       </main>

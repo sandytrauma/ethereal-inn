@@ -14,9 +14,11 @@ import {
   Utensils,
   BedDouble,
   Building2,
-  ChevronDown
+  ChevronDown,
+  Calendar,
+  History
 } from 'lucide-react';
-import { closeDayBook } from '@/lib/actions/finance';
+import { closeDayBook, manualAdjustment } from '@/lib/actions/finance';
 import { getRoomsList } from '@/lib/actions/room-actions';
 import { 
   Card, 
@@ -30,8 +32,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface DayBookFormProps {
   onSuccess?: () => void;
-  // Recommended: Pass the active propertyId if known from the URL/context
   initialPropertyId?: string; 
+  isManual?: boolean;
 }
 
 interface InputFieldProps {
@@ -67,10 +69,12 @@ const InputField = ({ label, value, onChange, icon: Icon, placeholder = "0", cla
 export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) {
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isManual, setIsManual] = useState(false); // Mode Toggle State
   const [availableProperties, setAvailableProperties] = useState<{id: string, name: string}[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>(initialPropertyId || "");
   
   const [values, setValues] = useState({
+    selectedDate: '', // For manual mode
     cashRevenue: '',
     upiRevenue: '',
     otaPayouts: '',
@@ -81,22 +85,18 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
   });
 
   // Fetch properties to populate the selector
-useEffect(() => {
+  useEffect(() => {
     async function fetchProperties() {
       try {
-        // Since we updated the server action with 'propertyId?', 
-        // we can now call it without any arguments for a global fetch.
         const rooms = await getRoomsList(); 
         
         if (rooms && rooms.length > 0) {
           const propsMap = new Map();
           
           rooms.forEach(room => {
-            // Only add unique properties to our map
             if (room.propertyId && !propsMap.has(room.propertyId)) {
               propsMap.set(room.propertyId, {
                 id: room.propertyId,
-                // Using the propertyName from our server-side LEFT JOIN
                 name: room.propertyName || `Property ${room.propertyId.slice(0, 4)}`
               });
             }
@@ -105,7 +105,6 @@ useEffect(() => {
           const uniqueProps = Array.from(propsMap.values());
           setAvailableProperties(uniqueProps);
           
-          // Auto-select the first property if none is selected
           if (uniqueProps.length > 0 && !selectedPropertyId) {
             setSelectedPropertyId(uniqueProps[0].id);
           }
@@ -129,6 +128,11 @@ useEffect(() => {
       return;
     }
 
+    if (isManual && !values.selectedDate) {
+      alert("Please select a date for manual adjustment.");
+      return;
+    }
+
     if (totalCollection <= 0 && !values.notes) {
       alert("Please enter revenue details.");
       return;
@@ -136,24 +140,33 @@ useEffect(() => {
 
     setLoading(true);
     try {
-      const result = await closeDayBook(
+      // Dynamic Action Selection based on Mode
+      const actionToRun = isManual ? manualAdjustment : closeDayBook;
+      
+      const result = await actionToRun(
         { 
           ...values, 
           totalCollection: totalCollection.toString(), 
           netCash: netCash.toString() 
         }, 
-        selectedPropertyId // Linked property context
+        selectedPropertyId 
       );
       
       if (result.success) {
         setIsSuccess(true);
         setTimeout(() => {
           setValues({ 
-            cashRevenue: '', upiRevenue: '', otaPayouts: '', 
-            roomRevenue: '', serviceRevenue: '', 
-            pettyExpenses: '', notes: '' 
+            selectedDate: '',
+            cashRevenue: '', 
+            upiRevenue: '', 
+            otaPayouts: '', 
+            roomRevenue: '', 
+            serviceRevenue: '', 
+            pettyExpenses: '', 
+            notes: '' 
           });
           setIsSuccess(false);
+          setIsManual(false); // Reset mode after success
           if (onSuccess) onSuccess();
         }, 1500);
       } else {
@@ -170,18 +183,20 @@ useEffect(() => {
     <main className="w-full max-w-2xl mx-auto py-4">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <Card className="bg-slate-900/40 backdrop-blur-xl border-white/5 rounded-[3rem] overflow-hidden shadow-2xl relative">
+          
           <AnimatePresence>
             {isSuccess && (
               <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center space-y-4"
               >
                 <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.4)]">
                   <CheckCircle className="text-slate-950" size={40} />
                 </div>
-                <h3 className="text-xl font-black text-white uppercase tracking-tighter">Vault Updated</h3>
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">Shift records archived</p>
+                <h3 className="text-xl font-black text-white uppercase tracking-tighter">
+                  {isManual ? "Adjustment Archived" : "Vault Updated"}
+                </h3>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">Records securely synced</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -189,14 +204,31 @@ useEffect(() => {
           <CardHeader className="p-8 pb-4">
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-white text-2xl font-black tracking-tight">Closing Entry</CardTitle>
+                <CardTitle className="text-white text-2xl font-black tracking-tight">
+                  {isManual ? "Manual Adjustment" : "Closing Entry"}
+                </CardTitle>
                 <CardDescription className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-                  {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  {isManual 
+                    ? "Back-dated correction" 
+                    : new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </CardDescription>
               </div>
-              <div className="bg-amber-400/10 p-2 rounded-xl">
-                 <IndianRupee className="text-amber-400" size={20} />
-              </div>
+
+              {/* MODE TOGGLE BUTTON */}
+              <button 
+                type="button"
+                onClick={() => setIsManual(!isManual)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
+                  isManual 
+                    ? 'bg-amber-400 text-slate-950 border-amber-400' 
+                    : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                }`}
+              >
+                {isManual ? <Calendar size={14} /> : <History size={14} />}
+                <span className="text-[9px] font-black uppercase tracking-widest">
+                  {isManual ? "Switch to Daily" : "Manual Mode"}
+                </span>
+              </button>
             </div>
 
             {/* PROPERTY SELECTOR SECTION */}
@@ -219,6 +251,29 @@ useEffect(() => {
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={18} />
               </div>
             </div>
+
+            {/* DATE SELECTOR (Only in Manual Mode) */}
+            <AnimatePresence>
+              {isManual && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }} 
+                  animate={{ opacity: 1, height: 'auto' }} 
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 space-y-2 overflow-hidden"
+                >
+                  <label className="text-[9px] font-black text-rose-400 uppercase tracking-[0.3em] px-1 flex items-center gap-2">
+                    <Calendar size={12} />
+                    Entry Date
+                  </label>
+                  <input 
+                    type="date"
+                    value={values.selectedDate}
+                    onChange={(e) => setValues({...values, selectedDate: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white font-bold focus:border-rose-500 outline-none transition-all shadow-inner"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </CardHeader>
 
           <CardContent className="px-8 space-y-6">
@@ -305,7 +360,7 @@ useEffect(() => {
                 rows={2}
                 value={values.notes}
                 onChange={(e) => setValues({...values, notes: e.target.value})}
-                placeholder="Important shift highlights..."
+                placeholder="Important highlights or reason for manual adjustment..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-5 focus:border-amber-500 outline-none text-sm text-white resize-none transition-all placeholder:text-slate-800"
               />
             </section>
@@ -315,22 +370,34 @@ useEffect(() => {
             <button 
               disabled={loading || isSuccess || !selectedPropertyId}
               onClick={handleSubmit}
-              className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-[2rem] shadow-2xl shadow-amber-400/20 hover:bg-amber-300 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              className={`w-full font-black py-6 rounded-[2rem] shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 ${
+                isManual 
+                  ? 'bg-rose-500 text-white shadow-rose-500/20 hover:bg-rose-600' 
+                  : 'bg-amber-400 text-slate-950 shadow-amber-400/20 hover:bg-amber-300'
+              }`}
             >
               {loading ? (
                 <Loader2 className="animate-spin h-6 w-6" />
               ) : (
                 <>
                   <Save size={18} strokeWidth={3} />
-                  <span className="uppercase tracking-[0.2em] text-[11px]">Finalize Day Book</span>
+                  <span className="uppercase tracking-[0.2em] text-[11px]">
+                    {isManual ? "Save Manual Record" : "Finalize Day Book"}
+                  </span>
                 </>
               )}
             </button>
 
-            <div className="flex items-start gap-4 p-5 bg-rose-500/5 rounded-[1.8rem] border border-rose-500/10">
-              <AlertCircle className="text-rose-500 w-5 h-5 mt-0.5 flex-shrink-0" />
-              <p className="text-[9px] text-rose-500/70 font-black leading-relaxed uppercase tracking-wider">
-                Note: Ensure the property context above matches the current physical location to avoid auditing errors. 
+            <div className={`flex items-start gap-4 p-5 rounded-[1.8rem] border ${
+              isManual ? 'bg-amber-500/5 border-amber-500/10' : 'bg-rose-500/5 border-rose-500/10'
+            }`}>
+              <AlertCircle className={`${isManual ? 'text-amber-500' : 'text-rose-500'} w-5 h-5 mt-0.5 flex-shrink-0`} />
+              <p className={`text-[9px] font-black leading-relaxed uppercase tracking-wider ${
+                isManual ? 'text-amber-500/70' : 'text-rose-500/70'
+              }`}>
+                {isManual 
+                  ? "Audit Note: You are editing historical data. This will trigger a re-calculation of current opening balances."
+                  : "Note: Ensure the property context above matches the current physical location to avoid auditing errors."}
               </p>
             </div>
           </CardFooter>
