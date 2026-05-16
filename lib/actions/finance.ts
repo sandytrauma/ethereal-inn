@@ -313,15 +313,26 @@ export async function manualAdjustment(formData: any, propertyId: string) {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
     const session = token ? await decrypt(token) : null;
-    const userId = session?.id || (session as any)?.userId;
-
-    if (!userId) return { success: false, error: "Unauthorized." };
     
-    // 1. Get the date from the form (e.g., "2026-05-14")
+    // 1. EXTRACT USER ID AND ROLE
+    const userId = session?.id || (session as any)?.userId;
+    const userRole = (session as any)?.role; // Adjust based on your session schema
+
+    // 2. CHECK AUTHORIZATION & ADMIN STATUS
+    if (!userId) return { success: false, error: "Unauthorized. Please re-login." };
+    
+    if (userRole !== 'admin') {
+      return { 
+        success: false, 
+        error: "Access Denied. Only administrators can perform manual adjustments." 
+      };
+    }
+    
+    // 3. Get the date from the form (e.g., "2026-05-14")
     const entryDate = formData.selectedDate; 
     if (!entryDate) return { success: false, error: "Please select a date for the adjustment." };
 
-    // 2. Check if a record already exists for that specific back-date
+    // 4. Check if a record already exists for that specific back-date
     const existingRecord = await db.select()
       .from(financialRecords)
       .where(and(eq(financialRecords.date, entryDate), eq(financialRecords.propertyId, propertyId)))
@@ -357,8 +368,13 @@ export async function manualAdjustment(formData: any, propertyId: string) {
       });
     }
 
+    // Since you don't use a dashboard path, ensure these paths match your actual routes
+    revalidatePath("/");
     revalidatePath("/dashboard");
     revalidatePath("/reports");
+    revalidatePath("/pms");
+    revalidatePath("/history");
+    
     return { success: true };
   } catch (error) {
     console.error("Adjustment Error:", error);

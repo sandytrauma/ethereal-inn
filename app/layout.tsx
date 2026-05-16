@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  // SET METADATABASE: This resolves the warning and social image paths
+  // SET METADATABASE: Successfully resolves relative asset paths for SEO
   metadataBase: new URL(
     process.env.NODE_ENV === "production"
       ? "https://www.etherealinn.com"
@@ -25,16 +25,16 @@ export const metadata: Metadata = {
   keywords: ["Luxury Hotel Delhi", "Boutique Stay Delhi", "Hotels near Metro", "Ethereal Inn New Delhi"],
   authors: [{ name: "Ethereal Inn Hospitality LLP" }],
   icons: {
-    icon: "https://cdn-icons-png.flaticon.com/512/3030/3030336.png", 
-    apple: "https://cdn-icons-png.flaticon.com/512/3030/3030336.png",
+    icon: "/logo-bg.jpeg", 
+    apple: "/logo-bg.jpeg",
   },
   openGraph: {
     title: "Ethereal Inn | Delhi's Most Refined Experience",
     description: "Boutique luxury, minutes from the Metro.",
-    url: "/ethereal-inn",
+    url: "https://www.etherealinn.com",
     siteName: "Ethereal Inn",
     images: [{ 
-      url: "https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", // Corrected to relative path (resolved by metadataBase)
+      url: "/logo-bg.jpeg", // Changed to your local asset for consistent branding
       width: 1200, 
       height: 630, 
       alt: "Luxury at Ethereal Inn" 
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Ethereal Inn | Boutique Luxury",
     description: "Experience refined luxury in Delhi.",
-    images: ["/bridal-bg.jpg"],
+    images: ["/logo-bg.jpeg"], // Matched with OG image so Twitter cards render identically
   },
   alternates: {
     canonical: "https://www.etherealinn.com/",

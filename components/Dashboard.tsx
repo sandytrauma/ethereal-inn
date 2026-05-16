@@ -44,6 +44,8 @@ import MarketIntelView from "./dashboard/RevenueChart";
 import { ExportRecordsButton } from "./dashboard/ExportButton";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import EIHLogoBackground from "./dashboard/EIHLogoBackground";
+import Image from "next/image";
 
 interface DashboardProps {
   user: {
@@ -252,7 +254,8 @@ export default function Dashboard({
       <header className="p-4 md:p-6 flex justify-between items-center border-b border-white/5 bg-slate-950/40 sticky top-0 z-[100] backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center text-slate-950 shadow-lg shadow-amber-400/20">
-            <Zap className="w-5 h-5" strokeWidth={3} />
+            
+            <Image src="/logo-bg.jpeg" alt="Ethereal Logo" width={32} height={32} className="rounded"/>
           </div>
 
           <div className="relative">
@@ -782,12 +785,18 @@ export default function Dashboard({
           >
             Daily
           </button>
-          <button 
-            onClick={() => setIsManual(true)}
-            className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${isManual ? 'bg-amber-500 text-black' : 'text-slate-500'}`}
-          >
-            Manual
-          </button>
+         {isAdmin && (
+    <button 
+      onClick={() => setIsManual(true)}
+      className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
+        isManual 
+          ? 'bg-rose-500 text-white' 
+          : 'text-slate-500'
+      }`}
+    >
+      Manual
+    </button>
+  )}
         </div>
       </div>
 

@@ -39,6 +39,7 @@ import { getGoogleReviews } from "@/lib/actions/reviews";
 import Link from "next/link";
 import DashboardBackground from "./dashboard/DashboardBackground";
 import MultiPropertyMap from "./MultiPropertyMap";
+import Image from "next/image";
 
 // --- CONFIGURATION ---
 const GA_MEASUREMENT_ID = "G-XXXXXXXXXX";
@@ -228,7 +229,9 @@ export default function LandingLoginPage() {
       {/* --- NAVIGATION --- */}
       <nav className="fixed top-0 w-full z-[100] flex justify-between items-center px-6 md:px-12 py-6 backdrop-blur-md border-b border-white/5 bg-black/20">
         <div className="flex flex-col">
+          
           <span className="text-[10px] tracking-[0.4em] uppercase text-gray-500 font-bold">
+            
             The Collective
           </span>
           <span className="text-xl md:text-2xl font-serif font-bold italic text-[#c5a059]">
@@ -283,13 +286,24 @@ export default function LandingLoginPage() {
           />
         </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-[#0a0a0a]/80 z-[1]" />
+        
 
-        <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
+        <div className="relative z-10 max-w-5xl mx-auto  text-center space-y-8">
+         <div className="flex items-center justify-center w-full">
+  <Image 
+    src="/logo-bg.jpeg" 
+    alt="Ethereal Logo" 
+    width={160} 
+    height={160} 
+    className="rounded-4xl mt-8" // Optional: adds that high-end circular sanctuary look
+  />
+</div>
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl sm:text-7xl md:text-8xl lg:text-[10rem] font-serif font-bold tracking-tighter text-white leading-[0.85] uppercase italic"
           >
+            
             Ethereal <br className="hidden md:block" />
             <span
               style={{
@@ -301,6 +315,7 @@ export default function LandingLoginPage() {
               INN
             </span>
           </motion.h1>
+           
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6 px-4">
             <button
