@@ -21,7 +21,7 @@ export default function SuitesPage() {
     "@context": "https://schema.org",
     "@type": "Hotel",
     "name": "Ethereal Inn",
-    "description": "Luxury boutique hotel in Gurugram featuring high-end suites and artisanal dining.",
+    "description": "Luxury boutique hotel in Pan INDIA featuring high-end suites and artisanal dining.",
     "containsPlace": Object.values(ROOM_COLLECTION).flat().map(room => ({
       "@type": "HotelRoom",
       "name": room.name,

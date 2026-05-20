@@ -42,7 +42,7 @@ import MultiPropertyMap from "./MultiPropertyMap";
 import Image from "next/image";
 
 // --- CONFIGURATION ---
-const GA_MEASUREMENT_ID = "G-XXXXXXXXXX";
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID!;
 
 interface Review {
   author_name: string;

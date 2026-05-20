@@ -39,7 +39,7 @@ export default function GuestCheckoutHistory({ checkoutData }: GuestCheckoutHist
     <div className="space-y-6">
       <HistoryNavigation />
       <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl">
-        <table className="w-full text-left">
+        <table className="w-full text-left h-[400px] overflow-scroll">
           <thead className="bg-white/10 text-amber-500 uppercase text-[11px] tracking-widest font-black">
             <tr>
               <th className="p-5">Guest Name</th>

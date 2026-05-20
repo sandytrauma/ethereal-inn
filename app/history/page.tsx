@@ -25,7 +25,7 @@ export default async function HistoryPage() {
           {data && data.length > 0 ? (
             <CheckoutTable checkoutData={data} />
           ) : (
-            <div className="bg-white/5 border border-dashed border-white/20 rounded-3xl p-20 text-center">
+            <div className="bg-white/5 h-screen border border-dashed border-white/20 rounded-3xl p-20 text-center overflow-scroll">
               <p className="text-gray-500 font-medium">No checkout records found in the database.</p>
               <p className="text-gray-600 text-sm mt-1">Once a guest completes their stay, their invoice will appear here.</p>
             </div>
