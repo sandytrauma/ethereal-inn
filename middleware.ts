@@ -13,7 +13,7 @@ export async function middleware(req: NextRequest) {
     '/suites', 
     '/culinary', 
     '/contact',
-    '/invoices'
+    '/invoices/:id*'
   ];
 
   const isPublicPage = PUBLIC_ROUTES.includes(path);

@@ -39,46 +39,49 @@ export default function GuestCheckoutHistory({ checkoutData }: GuestCheckoutHist
     <div className="space-y-6">
       <HistoryNavigation />
       <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl">
-        <table className="w-full text-left h-[400px] overflow-scroll">
-          <thead className="bg-white/10 text-amber-500 uppercase text-[11px] tracking-widest font-black">
-            <tr>
-              <th className="p-5">Guest Name</th>
-              <th className="p-5">Room</th>
-              <th className="p-5">Date</th>
-              <th className="p-5">Amount</th>
-              <th className="p-5 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="text-white/80">
-            {checkoutData.map((item) => (
-              <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-all">
-                <td className="p-5 font-bold text-white">{item.guestName}</td>
-                <td className="p-5">Room {item.roomNumber}</td>
-                
-                {/* FIX: Use 'mounted' to gate the date rendering */}
-                <td className="p-5 text-sm">
-                  {mounted && item.checkoutDate 
-                    ? new Date(item.checkoutDate).toLocaleDateString('en-IN') 
-                    : "---"
-                  }
-                </td>
+        {/* Wrap the table in a scrollable container */}
+<div className="w-full overflow-y-auto max-h-[400px] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent rounded-2xl">
+  <table className="w-full text-left table-auto">
+    {/* Make the header sticky so it stays at the top when scrolling */}
+    <thead className="bg-slate-900 text-amber-500 uppercase text-[11px] tracking-widest font-black sticky top-0 z-10 backdrop-blur-md">
+      <tr>
+        <th className="p-5">Guest Name</th>
+        <th className="p-5">Room</th>
+        <th className="p-5">Date</th>
+        <th className="p-5">Amount</th>
+        <th className="p-5 text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody className="text-white/80">
+      {checkoutData.map((item) => (
+        <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-all">
+          <td className="p-5 font-bold text-white">{item.guestName}</td>
+          <td className="p-5">Room {item.roomNumber}</td>
+          
+          <td className="p-5 text-sm">
+            {mounted && item.checkoutDate 
+              ? new Date(item.checkoutDate).toLocaleDateString('en-IN') 
+              : "---"
+            }
+          </td>
 
-                <td className="p-5 font-mono text-amber-400">
-                   ₹{mounted ? item.totalAmount?.toLocaleString() : "---"}
-                </td>
+          <td className="p-5 font-mono text-amber-400">
+             ₹{mounted ? item.totalAmount?.toLocaleString() : "---"}
+          </td>
 
-                <td className="p-5 flex justify-end gap-4">
-                  <button onClick={() => onPrintAction(item)} className="hover:text-amber-500 transition-colors">
-                    <Printer size={18} />
-                  </button>
-                  <button onClick={() => onWhatsAppAction(item)} className="hover:text-emerald-500 transition-colors">
-                    <Share2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          <td className="p-5 flex justify-end gap-4">
+            <button onClick={() => onPrintAction(item)} className="hover:text-amber-500 transition-colors">
+              <Printer size={18} />
+            </button>
+            <button onClick={() => onWhatsAppAction(item)} className="hover:text-emerald-500 transition-colors">
+              <Share2 size={18} />
+            </button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
       </div>
 
       {/* HIDDEN PRINT AREA: Only render when mounted to prevent hydration errors */}

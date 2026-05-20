@@ -2,8 +2,9 @@ import { db } from "@/db";
 import { invoices } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import InvoiceTemplate from "@/components/dashboard/InvoiceTemplate";
-import PrintButton from "@/components/invoice/PrintButton"; // Import the client button
+import PrintButton from "@/components/invoice/PrintButton"; 
 import { notFound } from "next/navigation";
+import { unscrambleId } from "@/lib/cryptoId";
 
 export default async function PublicInvoicePage({ 
   params 
@@ -12,13 +13,23 @@ export default async function PublicInvoicePage({
 }) {
   const { id } = await params;
 
+  // Decode the scrambled parameter string into the real database integer
+  const realDbId = unscrambleId(id);
+
+  // If the hash is corrupt or invalid, fail fast with a 404
+  if (isNaN(realDbId)) {
+    notFound();
+  }
+
   const invoiceData = await db
     .select()
     .from(invoices)
-    .where(eq(invoices.id, parseInt(id)))
+    .where(eq(invoices.id, realDbId))
     .then(res => res[0]);
 
-  if (!invoiceData) notFound();
+  if (!invoiceData) {
+    notFound();
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-10 flex flex-col items-center">
@@ -26,7 +37,6 @@ export default async function PublicInvoicePage({
          <InvoiceTemplate invoice={invoiceData} />
       </div>
       
-      {/* This button is now a Client Component, so onClick works! */}
       <div className="mt-8 no-print">
         <PrintButton />
       </div>
