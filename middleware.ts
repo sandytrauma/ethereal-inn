@@ -1,24 +1,27 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server'; // Correct path
+import type { NextRequest } from 'next/server'; 
 import { decrypt } from '@/lib/auth';
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const token = req.cookies.get('auth-token')?.value;
 
-  // 1. Define Public Routes (Landing pages anyone can see)
-  const PUBLIC_ROUTES = [
+  // 1. Static Public Routes (Exact string matching)
+  const STATIC_PUBLIC_ROUTES = [
     '/ethereal-inn', // Login Page
     '/glam', 
     '/suites', 
     '/culinary', 
     '/contact',
-    '/invoices/:id*'
+    '/sanctuary'
   ];
 
-  const isPublicPage = PUBLIC_ROUTES.includes(path);
-  
-  // 2. Identify the PMS Route
+  // 2. Check if path is a static public route or matches our dynamic invoice system
+  const isPublicPage = 
+    STATIC_PUBLIC_ROUTES.includes(path) || 
+    path.startsWith('/invoices/'); // Explicitly matches /invoices/any-obfuscated-hex-id
+
+  // 3. Identify the PMS Route
   // This ensures /pms and everything under it (e.g., /pms/123) is flagged
   const isPmsRoute = path.startsWith('/pms');
 
@@ -26,7 +29,7 @@ export async function middleware(req: NextRequest) {
   const isInternalAsset = path.startsWith('/_next') || path.startsWith('/api') || path.includes('.');
   if (isInternalAsset) return NextResponse.next();
 
-  // 3. Decrypt the session
+  // 4. Decrypt the session
   const session = token ? await decrypt(token).catch(() => null) : null;
 
   // --- REDIRECT LOGIC ---

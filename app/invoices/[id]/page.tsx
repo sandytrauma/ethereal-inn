@@ -13,11 +13,18 @@ export default async function PublicInvoicePage({
 }) {
   const { id } = await params;
 
+  // 1. Log what the URL parameter actually is
+  console.log("=== INVOICE DEBUG START ===");
+  console.log("1. Raw URL Param ID Received:", id);
+
   // Decode the scrambled parameter string into the real database integer
   const realDbId = unscrambleId(id);
+  console.log("2. Decoded Database ID Integer:", realDbId);
 
   // If the hash is corrupt or invalid, fail fast with a 404
   if (isNaN(realDbId)) {
+    console.error("❌ CRITICAL: Decoding resulted in NaN!");
+    console.log("=== INVOICE DEBUG END ===");
     notFound();
   }
 
@@ -26,6 +33,9 @@ export default async function PublicInvoicePage({
     .from(invoices)
     .where(eq(invoices.id, realDbId))
     .then(res => res[0]);
+
+  console.log("3. Database Query Result Found:", invoiceData ? "YES" : "NO");
+  console.log("=== INVOICE DEBUG END ===");
 
   if (!invoiceData) {
     notFound();

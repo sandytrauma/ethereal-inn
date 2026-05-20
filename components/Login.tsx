@@ -566,6 +566,14 @@ export default function LandingLoginPage() {
                     Contact & Inquiry
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    href="/sanctuary"
+                    className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+                  >
+                    Ethereal Inn Collective
+                  </Link>
+                </li>
               </ul>
             </div>
 

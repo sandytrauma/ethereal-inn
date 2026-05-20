@@ -62,7 +62,6 @@ export default function SuitesPage() {
           </p>
         </header>
 
-        {/* ... Rest of your Gallery UI (Standard Rooms & Grand Suites sections) ... */}
         
         {/* SECTION: Standard Rooms */}
         <section className="mb-40">
