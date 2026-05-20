@@ -5,6 +5,7 @@ import { useReactToPrint } from "react-to-print";
 import { Printer, Share2 } from "lucide-react";
 import InvoiceTemplate, { SingleInvoice } from "./InvoiceTemplate";
 import HistoryNavigation from "./HistoryNavigation";
+import { scrambleId } from "@/lib/cryptoId"; // Import the obfuscation utility
 
 interface GuestCheckoutHistoryProps {
   checkoutData: SingleInvoice[];
@@ -31,7 +32,10 @@ export default function GuestCheckoutHistory({ checkoutData }: GuestCheckoutHist
   };
 
   const onWhatsAppAction = (item: SingleInvoice) => {
-    const text = `Hello ${item.guestName}, thank you for choosing Ethereal Inn. Your invoice for Room ${item.roomNumber} is ready. View it here: https://www.etherealinn.com/invoices/${item.id}`;
+    // Scramble the continuous database integer ID into an obfuscated string slug
+    const maskedId = scrambleId(item.id);
+    
+    const text = `Hello ${item.guestName}, thank you for choosing Ethereal Inn. Your invoice for Room ${item.roomNumber} is ready. View it here: https://www.etherealinn.com/invoices/${maskedId}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -40,48 +44,48 @@ export default function GuestCheckoutHistory({ checkoutData }: GuestCheckoutHist
       <HistoryNavigation />
       <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl">
         {/* Wrap the table in a scrollable container */}
-<div className="w-full overflow-y-auto max-h-[400px] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent rounded-2xl">
-  <table className="w-full text-left table-auto">
-    {/* Make the header sticky so it stays at the top when scrolling */}
-    <thead className="bg-slate-900 text-amber-500 uppercase text-[11px] tracking-widest font-black sticky top-0 z-10 backdrop-blur-md">
-      <tr>
-        <th className="p-5">Guest Name</th>
-        <th className="p-5">Room</th>
-        <th className="p-5">Date</th>
-        <th className="p-5">Amount</th>
-        <th className="p-5 text-right">Actions</th>
-      </tr>
-    </thead>
-    <tbody className="text-white/80">
-      {checkoutData.map((item) => (
-        <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-all">
-          <td className="p-5 font-bold text-white">{item.guestName}</td>
-          <td className="p-5">Room {item.roomNumber}</td>
-          
-          <td className="p-5 text-sm">
-            {mounted && item.checkoutDate 
-              ? new Date(item.checkoutDate).toLocaleDateString('en-IN') 
-              : "---"
-            }
-          </td>
+        <div className="w-full overflow-y-auto max-h-[400px] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent rounded-2xl">
+          <table className="w-full text-left table-auto">
+            {/* Make the header sticky so it stays at the top when scrolling */}
+            <thead className="bg-slate-900 text-amber-500 uppercase text-[11px] tracking-widest font-black sticky top-0 z-10 backdrop-blur-md">
+              <tr>
+                <th className="p-5">Guest Name</th>
+                <th className="p-5">Room</th>
+                <th className="p-5">Date</th>
+                <th className="p-5">Amount</th>
+                <th className="p-5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="text-white/80">
+              {checkoutData.map((item) => (
+                <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-all">
+                  <td className="p-5 font-bold text-white">{item.guestName}</td>
+                  <td className="p-5">Room {item.roomNumber}</td>
+                  
+                  <td className="p-5 text-sm">
+                    {mounted && item.checkoutDate 
+                      ? new Date(item.checkoutDate).toLocaleDateString('en-IN') 
+                      : "---"
+                    }
+                  </td>
 
-          <td className="p-5 font-mono text-amber-400">
-             ₹{mounted ? item.totalAmount?.toLocaleString() : "---"}
-          </td>
+                  <td className="p-5 font-mono text-amber-400">
+                     ₹{mounted ? item.totalAmount?.toLocaleString() : "---"}
+                  </td>
 
-          <td className="p-5 flex justify-end gap-4">
-            <button onClick={() => onPrintAction(item)} className="hover:text-amber-500 transition-colors">
-              <Printer size={18} />
-            </button>
-            <button onClick={() => onWhatsAppAction(item)} className="hover:text-emerald-500 transition-colors">
-              <Share2 size={18} />
-            </button>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
+                  <td className="p-5 flex justify-end gap-4">
+                    <button onClick={() => onPrintAction(item)} className="hover:text-amber-500 transition-colors">
+                      <Printer size={18} />
+                    </button>
+                    <button onClick={() => onWhatsAppAction(item)} className="hover:text-emerald-500 transition-colors">
+                      <Share2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* HIDDEN PRINT AREA: Only render when mounted to prevent hydration errors */}
