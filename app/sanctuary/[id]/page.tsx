@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ethereal-inn.vercel.app";
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.etherealinn.com";
   const imageUrl = campaign.primaryImage.startsWith("http")
     ? campaign.primaryImage
     : `${siteUrl}${campaign.primaryImage}`;
@@ -128,7 +128,14 @@ export default async function DynamicSanctuaryAdPage({ params }: PageProps) {
               {campaign.badge || "Exclusive Campaign Offer"}
             </Link>
           </span>
+         
         </div>
+
+         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-rose-400 ml-5">
+            <Link href="/">
+              Return to the home of sanctuaries
+            </Link>
+          </span>
         
         <h1 className="text-4xl md:text-7xl font-black tracking-tighter text-white mb-6 leading-none uppercase max-w-4xl mx-auto">
           {campaign.title}
