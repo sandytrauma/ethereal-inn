@@ -19,7 +19,10 @@ export async function middleware(req: NextRequest) {
   // 2. Check if path is a static public route or matches our dynamic invoice system
   const isPublicPage = 
     STATIC_PUBLIC_ROUTES.includes(path) || 
-    path.startsWith('/invoices/'); // Explicitly matches /invoices/any-obfuscated-hex-id
+    path === '/sanctuary' ||               // Catches the main catalog page
+    path.startsWith('/sanctuary/') ||      // FIX: Catches /sanctuary/premium-stay, etc.
+    path.startsWith('/invoices/');         // Catches your obfuscated guest invoices
+    path.startsWith('/invoices'); // Explicitly matches /invoices/any-obfuscated-hex-id
 
   // 3. Identify the PMS Route
   // This ensures /pms and everything under it (e.g., /pms/123) is flagged
