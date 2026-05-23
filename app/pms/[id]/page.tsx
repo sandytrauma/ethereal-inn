@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth"; 
 import PMSDashboard from "@/components/pms/PMSDashboard";
 import { notFound, redirect } from "next/navigation";
-import { AlertCircle, RefreshCcw } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 interface SessionPayload {
   name: string;
@@ -23,7 +23,7 @@ export default async function MultiPropertyPage({ params }: PageProps) {
   const propertyId = decodeURIComponent(resolvedParams.id);
   const isGlobal = propertyId === "global";
 
-  // 1. AUTHENTICATION
+  // 1. AUTHENTICATION & ACCESS VERIFICATION
   const cookieStore = await cookies();
   const token = cookieStore.get("auth-token")?.value;
   let session: SessionPayload | null = null;
@@ -36,60 +36,138 @@ export default async function MultiPropertyPage({ params }: PageProps) {
 
   if (!session) redirect("/ethereal-inn");
 
-  // 2. DATA FETCHING
   try {
-    const [data, fleet] = await Promise.all([
-      isGlobal ? Promise.resolve(null) : getMultiPropertyData(propertyId),
-      getAllProperties() // This must return properties with nested rooms/finance
-    ]);
-
-    const propertyExists = fleet?.some((p: any) => 
+    // 2. MASTER PROPERTY DIRECTORY FETCH
+    const baseFleet = await getAllProperties(); // Retrieves master property records
+    
+    const propertyExists = baseFleet?.some((p: any) => 
         String(p.id) === propertyId || String(p.slug) === propertyId
     );
 
     if (!isGlobal && !propertyExists) return notFound();
 
     const isRestricted = session.role === "staff";
+
+    // 3. RESOLVE OPERATIONAL DATA PER EACH PROPERTY SCRIPT
+    // This loops over each property to pull its linked operational metadata tables
+   // 3. RESOLVE OPERATIONAL DATA PER EACH PROPERTY SCRIPT
+// Guarded to ensure p.id is a valid string before passing it
+const operationalFleetData = await Promise.all(
+  (baseFleet || [])
+    .filter((p: any) => p && p.id) // 1. Filter out any records missing an ID completely
+    .map(async (p: any) => {
+      try {
+        // 2. Fallback or cast String(p.id) to guarantee a strict string parameter
+        const propertyStringId = String(p.id); 
+        const pData = await getMultiPropertyData(propertyStringId);
+        
+        return { propertyId: propertyStringId, data: pData };
+      } catch (e) {
+        console.error(`Failed to fetch data for property execution: ${p.id}`, e);
+        return { propertyId: String(p.id), data: null };
+      }
+    })
+);
+
+    // Create a fast lookup map mapping data by property ID
+    const operationalMap = new Map(operationalFleetData.map(item => [String(item.propertyId), item.data]));
+
     
-    /**
-     * FIX: HYDRATION LOGIC FOR GLOBAL VIEW
-     * If isGlobal is true, we rely on the nested data inside the 'fleet' array.
-     */
-    const hydratedFleet = fleet?.map((p: any) => {
-      const isCurrentProp = String(p.id) === propertyId || String(p.slug) === propertyId;
+ // =========================================================================
+    // 4. HYDRATE PROPERTY STRUCTURES SAFELY WITH REAL DB RECORDS
+    // =========================================================================
+    const hydratedFleet = baseFleet?.map((p: any) => {
+      const pStringId = String(p.id);
+      const targetData = operationalMap.get(pStringId);
+
+      // Extract explicit numbers or fallback to safe metric parsers
+      const totalCol = parseFloat(String(targetData?.finance?.totalCollection || "0")) || 0;
+      const upiRev = parseFloat(String(targetData?.finance?.upiRevenue || "0")) || 0;
+      const cashRev = parseFloat(String(targetData?.finance?.cashRevenue || "0")) || 0;
       
-      // If we are in global mode, 'data' is null, so we use 'p' (the fleet item)
-      const dataSource = isCurrentProp ? data : p;
+      // FIX: Replace undefined property lookup (.expenses) with strict schema column (.pettyExpenses)
+      const exp = parseFloat(String(targetData?.finance?.pettyExpenses || "0")) || 0;
+
+      const totalRoomsCount = Number(targetData?.rooms?.length || p.rooms?.length || 0);
+      
+      const occupiedRoomsCount = targetData?.rooms?.filter((r: any) => 
+        r.status === "occupied" || r.status === "Occupied" || r.status === "CheckedIn"
+      ).length || 0;
+
+      const checkedInArrivalsCount = targetData?.rooms?.filter((r: any) => 
+        r.status === "CheckedIn"
+      ).length || 0;
 
       return {
         ...p,
-        rooms: dataSource?.rooms || [],
-        inquiries: dataSource?.inquiries || [],
-        statutory: isRestricted ? [] : (dataSource?.statutory || []),
+        rooms: targetData?.rooms || [],
+        inquiries: targetData?.inquiries || [],
+        statutory: isRestricted ? [] : (targetData?.statutory || []),
         finance: isRestricted 
           ? { totalCollection: 0, upiRevenue: 0, cashRevenue: 0, expenses: 0 } 
           : {
-              totalCollection: parseFloat(dataSource?.finance?.totalCollection) || 0,
-              upiRevenue: parseFloat(dataSource?.finance?.upiRevenue) || 0,
-              cashRevenue: parseFloat(dataSource?.finance?.cashRevenue) || 0,
-              expenses: parseFloat(dataSource?.finance?.pettyExpenses) || 0,
+              totalCollection: totalCol,
+              upiRevenue: upiRev,
+              cashRevenue: cashRev,
+              expenses: exp, // Maps safely over to frontend layout interfaces
             },
-        stats: dataSource?.stats || { arrivals: 0, occupancy: "0/0", occupancyPercent: "0%" }
+        stats: targetData?.stats || { 
+          arrivals: checkedInArrivalsCount, 
+          occupancy: `${occupiedRoomsCount}/${totalRoomsCount}`, 
+          occupancyPercent: totalRoomsCount ? `${Math.round((occupiedRoomsCount / totalRoomsCount) * 100)}%` : "0%"
+        }
       };
     }) || [];
 
-    // 3. RENDER DASHBOARD
+    // 5. CALCULATE TRUE AGGREGATED PORTFOLIO METRICS
+    let aggregateStats = { arrivals: 0, occupancy: "0/0", occupancyPercent: "0%" };
+    let globalScopedData: any = { rooms: [], inquiries: [], statutory: [], tasks: [] };
+
+    if (isGlobal) {
+      let totalArrivals = 0;
+      let occupiedRoomsCount = 0;
+      let totalPortfolioRooms = 0;
+
+      hydratedFleet.forEach((p: any) => {
+        const [occupied, total] = (p.stats?.occupancy || "0/0").split("/").map(Number);
+        totalArrivals += p.stats?.arrivals || 0;
+        occupiedRoomsCount += occupied || 0;
+        totalPortfolioRooms += total || 0;
+
+        // Flatten database rows across global arrays
+        if (p.rooms) globalScopedData.rooms.push(...p.rooms);
+        if (p.inquiries) globalScopedData.inquiries.push(...p.inquiries);
+        if (p.statutory) globalScopedData.statutory.push(...p.statutory);
+      });
+
+      aggregateStats = {
+        arrivals: totalArrivals,
+        occupancy: `${occupiedRoomsCount}/${totalPortfolioRooms}`,
+        occupancyPercent: totalPortfolioRooms ? `${Math.round((occupiedRoomsCount / totalPortfolioRooms) * 100)}%` : "0%"
+      };
+    } else {
+      // Find current active scope parameter if not global view
+      const activeScopedRecord = operationalMap.get(String(propertyId));
+      globalScopedData = {
+        rooms: activeScopedRecord?.rooms || [],
+        tasks: activeScopedRecord?.tasks || [],
+        inquiries: activeScopedRecord?.inquiries || [],
+        statutory: isRestricted ? [] : (activeScopedRecord?.statutory || []),
+        stats: activeScopedRecord?.stats || { arrivals: 0, occupancy: "0/0", occupancyPercent: "0%" }
+      };
+    }
+
+    // 6. RENDER UPDATED DASHBOARD CONTEXT
     return (
       <main className="min-h-screen bg-[#F8FAFC]">
         <PMSDashboard 
           properties={hydratedFleet} 
           user={{ name: session.name, role: session.role }}
-          // In global view, these top-level props should be the aggregate of all rooms/tasks
-          rooms={isGlobal ? hydratedFleet.flatMap(p => p.rooms) : (data?.rooms || [])}
-          tasks={isGlobal ? [] : (data?.tasks || [])} 
-          inquiries={isGlobal ? hydratedFleet.flatMap(p => p.inquiries) : (data?.inquiries || [])}
-          statutory={isRestricted ? [] : (isGlobal ? hydratedFleet.flatMap(p => p.statutory) : (data?.statutory || []))}
-          stats={data?.stats || { arrivals: 0, occupancy: "0/0", occupancyPercent: "0%" }}
+          rooms={globalScopedData.rooms}
+          tasks={isGlobal ? [] : globalScopedData.tasks} 
+          inquiries={globalScopedData.inquiries}
+          statutory={globalScopedData.statutory}
+          stats={isGlobal ? aggregateStats : globalScopedData.stats}
         />
       </main>
     );
@@ -105,7 +183,7 @@ function ErrorFallback() {
     <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-50 p-6">
       <AlertCircle size={40} className="text-red-600 mb-4" />
       <h2 className="text-xl font-black uppercase tracking-tighter">Sync Error</h2>
-      <a href="/pms/global" className="mt-6 rounded-xl bg-slate-900 px-6 py-3 text-white text-[10px] font-black uppercase tracking-widest">Retry</a>
+      <a href="/pms/global" className="mt-6 rounded-xl bg-slate-900 px-6 py-3 text-white text-[10px] font-black uppercase tracking-widest">Retry Operations</a>
     </div>
   );
 }
