@@ -4,6 +4,7 @@ import React, { useState, useTransition } from "react";
 import { registerNewTenant } from "@/lib/actions/saas-actions";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, CheckCircle2, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function TenantCreationForm() {
   const router = useRouter();
