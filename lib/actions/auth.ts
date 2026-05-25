@@ -48,8 +48,7 @@ export async function loginUser(prevState: any, formData: FormData) {
       userId: user.id, 
       role: user.role,
       name: user.name,
-      propertyId: user.propertyId 
-    });
+propertyId: user.propertyId ? String(user.propertyId) : "global"    });
 
     // 4. Set Secure Cookie
     const cookieStore = await cookies();

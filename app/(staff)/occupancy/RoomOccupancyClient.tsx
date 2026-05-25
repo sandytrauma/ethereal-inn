@@ -59,7 +59,6 @@ export default function RoomOccupancyClient({
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  // Use the propertyId from URL as the primary source of truth
   const urlPropertyId = searchParams.get("propertyId") || currentPropertyId || "";
   const rawPrefill = propPrefill || searchParams.get("prefillGuest");
   const prefillName = (rawPrefill && rawPrefill !== "undefined") ? rawPrefill : null;
@@ -79,8 +78,6 @@ export default function RoomOccupancyClient({
   const [roomRent, setRoomRent] = useState(0);
   const [serviceFoodTotal, setServiceFoodTotal] = useState(0);
 
-   
-
   // Sync rooms when server data changes
   useEffect(() => {
     setRooms(initialRooms);
@@ -94,17 +91,16 @@ export default function RoomOccupancyClient({
   }, [initialRooms, prefillName]);
 
   const handleCleanup = async () => {
-  if (!confirm("This will delete the extra 6 rooms per floor. Proceed?")) return;
-  
-  startTransition(async () => {
-    // Assuming 4 floors, trimming each to 6 rooms
-    for (let f = 1; f <= 4; f++) {
-      await trimExcessRooms(urlPropertyId, f, 6);
-    }
-    router.refresh();
-    alert("Cleanup complete. 6 rooms per floor remaining.");
-  });
-};
+    if (!confirm("This will delete the extra 6 rooms per floor. Proceed?")) return;
+    
+    startTransition(async () => {
+      for (let f = 1; f <= 4; f++) {
+        await trimExcessRooms(urlPropertyId, f, 6);
+      }
+      router.refresh();
+      alert("Cleanup complete. 6 rooms per floor remaining.");
+    });
+  };
 
   const occupancyStats = useMemo(() => {
     const occupied = rooms.filter(r => r.status === 'occupied').length;
@@ -164,104 +160,101 @@ export default function RoomOccupancyClient({
     });
   };
 
- const handleStatusChange = (s: RoomStatus) => {
-  if (!selectedRoom) return;
+  const handleStatusChange = (s: RoomStatus) => {
+    if (!selectedRoom) return;
 
-  if (selectedRoom.status === "occupied" && s === "cleaning") {
-    setShowBill(true);
-  } else {
+    if (selectedRoom.status === "occupied" && s === "cleaning") {
+      setShowBill(true);
+    } else {
+      startTransition(async () => {
+        const res = await updateRoomStatus(
+          urlPropertyId, 
+          selectedRoom.number, 
+          s
+        );
+
+        if (res.success) {
+          updateLocal(selectedRoom.id, { status: s, guestName: null });
+        }
+      });
+    }
+  };
+
+  const handleCheckIn = () => {
+    if (!guestNameInput || !selectedRoom) return;
+
     startTransition(async () => {
-      // Use 'urlPropertyId' here instead of 'propertyId'
       const res = await updateRoomStatus(
         urlPropertyId, 
         selectedRoom.number, 
-        s
+        "occupied", 
+        guestNameInput, 
+        { 
+          pax: paxInput, 
+          idNumber: idNumberInput, 
+          origin: stateOriginInput 
+        } 
       );
 
       if (res.success) {
-        updateLocal(selectedRoom.id, { status: s, guestName: null });
+        updateLocal(selectedRoom.id, { 
+          status: "occupied", 
+          guestName: guestNameInput 
+        });
+        
+        setGuestNameInput("");
+        setPaxInput(1);
+        setIdNumberInput("");
+        setStateOriginInput("");
+        setSelectedRoom(null);
+        
+        if (prefillName) {
+          router.replace('/occupancy', { scroll: false });
+        }
+      } else {
+        console.error("Check-in failed to record securely on server.");
       }
     });
-  }
-};
+  };
 
-  const handleCheckIn = () => {
-  if (!guestNameInput || !selectedRoom) return;
+  const finalizeCheckout = () => {
+    if (!selectedRoom?.guestName || !urlPropertyId) return;
 
-  startTransition(async () => {
-    // 1. Pass 'urlPropertyId' as the first argument to match the server action signature
-    const res = await updateRoomStatus(
-      urlPropertyId, // Argument 1: The Property UUID
-      selectedRoom.number, // Argument 2: Room Number
-      "occupied", // Argument 3: Status
-      guestNameInput, // Argument 4: Guest Name
-      { 
-        pax: paxInput, 
-        idNumber: idNumberInput, 
-        origin: stateOriginInput 
-      } // Argument 5: Metadata
-    );
-
-    if (res.success) {
-      updateLocal(selectedRoom.id, { 
-        status: "occupied", 
-        guestName: guestNameInput 
-      });
+    startTransition(async () => {
+      const totalAmountCalculated = Number(roomRent) + Number(serviceFoodTotal);
       
-      // Reset form states
-      setGuestNameInput("");
-      setPaxInput(1);
-      setIdNumberInput("");
-      setStateOriginInput("");
-      setSelectedRoom(null);
-      
-      if (prefillName) {
-        router.replace('/occupancy', { scroll: false });
+      // 🌟 FIXED: Unified the total parameter name to prevent runtime script crashes
+      const res = await processCheckout(
+        urlPropertyId!,          
+        selectedRoom.number, 
+        selectedRoom.guestName!, 
+        totalAmountCalculated
+      );
+
+      if (res.success) {
+        updateLocal(selectedRoom.id, { status: "cleaning", guestName: null });
+        setShowBill(false);
+        setSelectedRoom(null);
+        setRoomRent(0);
+        setServiceFoodTotal(0);
+      } else {
+        // 🌟 FIXED: Clean error resolution parameter path strings
+        console.error("Checkout failed to finalize:", res.error);
+        alert("Server encountered an issue documenting the checkout ledger entries.");
       }
-    } else {
-      // Handle potential server-side errors
-      console.error("Check-in failed:");
-    }
-  });
-};
-
- const finalizeCheckout = () => {
-  // Ensure selectedRoom and guestName exist before proceeding
-  if (!selectedRoom?.guestName || !urlPropertyId) return;
-
-  startTransition(async () => {
-    const total = Number(roomRent) + Number(serviceFoodTotal);
-    
-    const res = await processCheckout(
-      urlPropertyId!,          // Use ! to tell TS this won't be null/undefined
-      selectedRoom.number, 
-      selectedRoom.guestName!, // Use ! as we already checked it above
-      total
-    );
-
-    if (res.success) {
-      updateLocal(selectedRoom.id, { status: "cleaning", guestName: null });
-      setShowBill(false);
-      setSelectedRoom(null);
-      setRoomRent(0);
-      setServiceFoodTotal(0);
-    } else {
-      // Accessing 'res.error' is safe if you updated the return type
-      console.error("Checkout failed:", res.error);
-    }
-  });
-};
+    });
+  };
 
   const activeProperty = properties.find(p => p.id === urlPropertyId);
-const activePropertyName = activeProperty?.name || "Select Property";
+  const activePropertyName = activeProperty?.name || "Select Property";
 
   if (onlySwitcher) {
     return (
-      <div className="relative group">
+      <div className="relative group font-sans">
         <button className="px-5 py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2">
           {activePropertyName} <ChevronDown size={14} />
         </button>
-        <div className="absolute right-0 mt-2 w-64 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:block z-50 shadow-2xl overflow-hidden">
+        <div className="absolute right-0 mt-2 w-64 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:block z-50 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
           {properties.map((p) => (
             <button key={p.id} onClick={() => router.push(`/occupancy?propertyId=${p.id}`)} className="flex flex-col items-start w-full px-5 py-3 border-b border-white/5 last:border-0 hover:bg-amber-400 hover:text-slate-950 transition-colors text-left font-black uppercase tracking-tight text-[11px]">
               {p.name}
@@ -274,14 +267,14 @@ const activePropertyName = activeProperty?.name || "Select Property";
   }
 
   return (
-    <div className="flex min-h-screen bg-transparent text-slate-100 font-sans">
+    <div className="flex min-h-screen bg-transparent text-slate-100 font-sans selection:bg-amber-400 selection:text-black overflow-x-hidden">
       <div className="flex-1 p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar relative z-10">
         <DashboardBackground />
         
         {/* PROPERTY SWITCHER HEADER */}
-        <div className="max-w-[1700px] mx-auto mb-10 flex items-center justify-between bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-xl">
+        <div className="max-w-[1700px] mx-auto mb-10 flex items-center justify-between bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-xl shadow-2xl">
             <div className="flex items-center gap-4">
-              <div className="p-2.5 bg-amber-400 rounded-xl text-slate-950">
+              <div className="p-2.5 bg-amber-400 rounded-xl text-slate-950 shadow-md">
                 <Building2 size={20} />
               </div>
               <div>
@@ -297,7 +290,7 @@ const activePropertyName = activeProperty?.name || "Select Property";
               <button className="px-5 py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2">
                 Switch Property <ChevronDown size={14} />
               </button>
-              <div className="absolute right-0 mt-2 w-64 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:block z-50 shadow-2xl overflow-hidden">
+              <div className="absolute right-0 mt-2 w-64 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:block z-50 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="flex flex-col">
                   {properties.map((property) => (
                     <button
@@ -309,15 +302,13 @@ const activePropertyName = activeProperty?.name || "Select Property";
                       <span className="text-[8px] opacity-60 font-mono mt-0.5 truncate w-full">{property.id}</span>
                     </button>
                   ))}
-                  <button onClick={() => router.push('/management')} className="w-full px-5 py-3 text-[10px] font-bold text-amber-400 hover:bg-white/5 text-center border-t border-white/10">
+                  <button onClick={() => router.push('/management')} className="w-full px-5 py-3 text-[10px] font-black text-amber-400 hover:bg-white/5 text-center border-t border-white/10 tracking-widest uppercase">
                     + MANAGE PROPERTIES
                   </button>
                 </div>
               </div>
             </div>
         </div>
-
-
 
         <header className="max-w-[1700px] mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
           <div>
@@ -335,17 +326,17 @@ const activePropertyName = activeProperty?.name || "Select Property";
                  disabled={isPending}
                  className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:border-amber-400/30 transition-all"
                 >
-                 {isPending ? <Loader2 size={12} className="animate-spin" /> : <Database size={12} />}
+                 {isPending ? <Loader2 size={12} className="animate-spin text-amber-400" /> : <Database size={12} />}
                  Reset Registry
                 </button>
-                <Link href={`/`} className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500'>Return</Link>
+                <Link href={`/`} className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500 transition-colors' scroll={false}>Return</Link>
             </div>
             
             <div className="relative w-full max-w-md">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
               <input 
                 type="text" placeholder="Search Unit / Guest Name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl" 
+                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl placeholder:text-slate-700" 
               />
             </div>
           </div>
@@ -353,17 +344,18 @@ const activePropertyName = activeProperty?.name || "Select Property";
 
         <div className="max-w-[1700px] mx-auto mb-16">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatBox label="Live Occupancy" value={occupancyStats.current} icon={BedDouble} color="text-amber-400" />
-            <StatBox label="Daily Bookings" value={occupancyStats.totalToday} icon={CalendarCheck} color="text-emerald-500" />
-            <StatBox label="In Cleaning" value={occupancyStats.reconciled} icon={CheckCircle2} color="text-blue-500" />
-            <StatBox label="Ready Units" value={occupancyStats.available} icon={DoorOpen} color="text-slate-400" />
+            {/* 🌟 FIXED: Passed numeric fields wrapped inside String casts to satisfy layout contracts */}
+            <StatBox label="Live Occupancy" value={String(occupancyStats.current)} icon={BedDouble} color="text-amber-400" />
+            <StatBox label="Daily Bookings" value={String(occupancyStats.totalToday)} icon={CalendarCheck} color="text-emerald-500" />
+            <StatBox label="In Cleaning" value={String(occupancyStats.reconciled)} icon={CheckCircle2} color="text-blue-500" />
+            <StatBox label="Ready Units" value={String(occupancyStats.available)} icon={DoorOpen} color="text-slate-400" />
           </div>
         </div>
 
         <div className="max-w-[1700px] mx-auto space-y-24 pb-20">
           {roomsByFloor.map(({ floor, rooms: floorRooms }) => (
-            <div key={`${floor}-${urlPropertyId}`} className="relative">
-              <div className="flex items-center gap-6 mb-10 sticky top-4 z-20 px-6 py-4 rounded-3xl glass-morphism border border-white/5 shadow-2xl backdrop-blur-md">
+            <div key={`floor-${floor}-ctx-${urlPropertyId}`} className="relative">
+              <div className="flex items-center gap-6 mb-10 sticky top-4 z-20 px-6 py-4 rounded-3xl border border-white/5 shadow-2xl backdrop-blur-md bg-slate-950/40">
                 <span className="text-white/20 font-black text-6xl uppercase tracking-tighter italic leading-none">P0{floor}</span>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Property Floor</span>
@@ -376,15 +368,20 @@ const activePropertyName = activeProperty?.name || "Select Property";
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-3">
-                {floorRooms.map(room => (
-                  <RoomTile 
-                    key={room.id} 
-                    room={room} 
-                    isSelected={selectedRoom?.id === room.id}
-                    isLeadActive={prefillName && room.status === 'available'}
-                    onClick={() => { setSelectedRoom(room); setShowBill(false); }} 
-                  />
-                ))}
+                {floorRooms.map(room => {
+                  // 🌟 FIXED: Unified deterministic key arrays to shield DOM states
+                  const safeTileKey = `room-tile-id-${room.id}-prop-${urlPropertyId}`;
+                  
+                  return (
+                    <RoomTile 
+                      key={safeTileKey} 
+                      room={room} 
+                      isSelected={selectedRoom?.id === room.id}
+                      isLeadActive={!!prefillName && room.status === 'available'}
+                      onClick={() => { setSelectedRoom(room); setShowBill(false); }} 
+                    />
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -398,10 +395,10 @@ const activePropertyName = activeProperty?.name || "Select Property";
             <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#02040a]/90 backdrop-blur-[50px] border-l border-white/10 z-[100] p-10 flex flex-col shadow-[-20px_0_100px_rgba(0,0,0,0.9)] overflow-y-auto no-scrollbar">
               
               <div className="flex justify-between items-center mb-16">
-                <div className="px-6 py-3 bg-white/5 rounded-3xl border border-white/10">
+                <div className="px-6 py-3 bg-white/5 rounded-3xl border border-white/10 bg-white/[0.02]">
                   <span className="text-amber-400 font-black text-2xl tracking-tighter italic uppercase">Room {selectedRoom.number}</span>
                 </div>
-                <button onClick={() => setSelectedRoom(null)} className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 hover:text-rose-500 rounded-2xl transition-all text-slate-500"><X size={20}/></button>
+                <button onClick={() => setSelectedRoom(null)} className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 hover:text-rose-500 rounded-2xl transition-all text-slate-500 border border-white/5"><X size={20}/></button>
               </div>
 
               <div className="flex-1">
@@ -438,7 +435,7 @@ const activePropertyName = activeProperty?.name || "Select Property";
                         <div className="space-y-4">
                             <div className="relative">
                               <UserPlus className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-sm text-white outline-none focus:border-amber-400 transition-all font-black uppercase italic" placeholder="Guest Full Name" value={guestNameInput} onChange={(e) => setGuestNameInput(e.target.value)} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-sm text-white outline-none focus:border-amber-400 transition-all font-black uppercase italic placeholder:text-slate-700" placeholder="Guest Full Name" value={guestNameInput} onChange={(e) => setGuestNameInput(e.target.value)} />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -448,33 +445,33 @@ const activePropertyName = activeProperty?.name || "Select Property";
                               </div>
                               <div className="relative">
                                   <Users className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                                  <input type="number" placeholder="Pax" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-[10px] text-white outline-none focus:border-amber-400 font-black uppercase" value={paxInput} onChange={(e) => setPaxInput(Number(e.target.value))} />
+                                  <input type="number" placeholder="Pax" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 p-4 pl-14 text-[10px] text-white outline-none focus:border-amber-400 font-black uppercase placeholder:text-slate-700" value={paxInput} onChange={(e) => setPaxInput(Number(e.target.value))} />
                               </div>
                             </div>
 
                             <div className="relative">
                               <Fingerprint className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase" placeholder="ID Number" value={idNumberInput} onChange={(e) => setIdNumberInput(e.target.value)} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase placeholder:text-slate-700" placeholder="ID Number" value={idNumberInput} onChange={(e) => setIdNumberInput(e.target.value)} />
                             </div>
 
                             <div className="relative">
                               <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase" placeholder="State / Origin" value={stateOriginInput} onChange={(e) => setStateOriginInput(e.target.value)} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase placeholder:text-slate-700" placeholder="State / Origin" value={stateOriginInput} onChange={(e) => setStateOriginInput(e.target.value)} />
                             </div>
 
-                            <button onClick={handleCheckIn} disabled={isPending || !guestNameInput} className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-3xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-2xl shadow-amber-400/30 active:scale-95 transition-all">
-                                {isPending ? <Loader2 size={20} className="animate-spin" /> : <> <Check size={20} /> Finalize Entry</>}
+                            <button onClick={handleCheckIn} disabled={isPending || !guestNameInput} className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-3xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-2xl shadow-amber-400/30 active:scale-95 transition-all cursor-pointer">
+                                {isPending ? <Loader2 size={20} className="animate-spin text-slate-950" /> : <> <Check size={20} strokeWidth={3} /> Finalize Entry</>}
                             </button>
                         </div>
                       </motion.div>
                     )}
 
                     {selectedRoom.guestName && selectedRoom.status === 'occupied' && (
-                      <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 relative overflow-hidden">
+                      <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 relative overflow-hidden bg-white/[0.01]">
                         <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={40} /></div>
                         <label className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-3 block italic">Occupant</label>
                         <p className="text-3xl font-black text-white italic tracking-tighter mb-10 leading-tight uppercase truncate">{selectedRoom.guestName}</p>
-                        <button onClick={() => setShowBill(true)} className="w-full bg-white text-slate-950 py-6 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-amber-400 transition-all active:scale-95 flex items-center justify-center gap-3">
+                        <button onClick={() => setShowBill(true)} className="w-full bg-white text-slate-950 py-6 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-amber-400 transition-all active:scale-95 flex items-center justify-center gap-3 cursor-pointer">
                             <TrendingUp size={18} /> Checkout & Settle
                         </button>
                       </div>
@@ -482,7 +479,7 @@ const activePropertyName = activeProperty?.name || "Select Property";
                   </div>
                 ) : (
                   <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
-                    <div className="bg-white/5 p-10 rounded-[3.5rem] border border-white/10 space-y-10">
+                    <div className="bg-white/5 p-10 rounded-[3.5rem] border border-white/10 space-y-10 bg-white/[0.01]">
                       <div className="flex items-center gap-3 text-amber-400">
                           <Receipt size={18}/> 
                           <h4 className="font-black uppercase tracking-[0.3em] text-[10px]">Financial Summary</h4>
@@ -496,10 +493,10 @@ const activePropertyName = activeProperty?.name || "Select Property";
                         </div>
                       </div>
                     </div>
-                    <button onClick={finalizeCheckout} disabled={isPending} className="w-full bg-amber-400 text-slate-950 font-black py-7 rounded-[2.5rem] uppercase text-xs tracking-[0.3em] shadow-2xl shadow-amber-400/30 active:scale-95 transition-all">
+                    <button onClick={finalizeCheckout} disabled={isPending} className="w-full bg-amber-400 text-slate-950 font-black py-7 rounded-[2.5rem] uppercase text-xs tracking-[0.3em] shadow-2xl shadow-amber-400/30 active:scale-95 transition-all cursor-pointer">
                       {isPending ? "Updating Database..." : "Authorize Settle"}
                     </button>
-                    <button onClick={() => setShowBill(false)} className="w-full text-slate-600 font-black text-[10px] uppercase flex items-center justify-center gap-3 hover:text-white transition-colors"><ArrowLeft size={14} /> Back to Room</button>
+                    <button onClick={() => setShowBill(false)} className="w-full text-slate-600 font-black text-[10px] uppercase flex items-center justify-center gap-3 hover:text-white transition-colors cursor-pointer"><ArrowLeft size={14} /> Back to Room</button>
                   </motion.div>
                 )}
               </div>
@@ -566,7 +563,7 @@ function RoomTile({ room, onClick, isLeadActive, isSelected }: any) {
 function SideInput({ label, value, onChange }: any) {
   return (
     <div className="relative">
-      <input type="number" value={value || ""} onChange={(e) => onChange(Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded-2xl py-6 px-6 text-lg font-black text-white outline-none focus:border-amber-400 transition-all italic" />
+      <input type="number" min="0" value={value || ""} onChange={(e) => onChange(Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded-2xl py-6 px-6 text-lg font-black text-white outline-none focus:border-amber-400 transition-all italic" />
       <label className="absolute -top-3 left-6 bg-[#01040f] px-3 text-[9px] font-black uppercase text-slate-600 tracking-[0.2em]">{label}</label>
     </div>
   );

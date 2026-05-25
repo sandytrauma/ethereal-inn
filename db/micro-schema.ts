@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, uuid, text, doublePrecision, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, doublePrecision, timestamp, numeric, integer } from "drizzle-orm/pg-core";
 import { financialRecords, rooms } from "./schema";
 
 // 1. New Table: The Master Directory of all your properties
@@ -9,6 +9,9 @@ export const properties = pgTable("properties", {
   slug: text("slug").unique().notNull(),
   city: text("city").notNull(),
   managerEmail: text("manager_email").notNull(),
+  ownerId: integer("owner_id")
+    .default(1)
+    .notNull(),
   lat: doublePrecision("lat"),
   lng: doublePrecision("lng"),
   createdAt: timestamp("created_at").defaultNow(),

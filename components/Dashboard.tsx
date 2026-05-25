@@ -83,29 +83,42 @@ export default function Dashboard({
   }>({ logs: [], inquiries: [], guests: [], tasks: [] });
 
   const [loadingReports, setLoadingReports] = useState(false);
-
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isManual, setIsManual] = useState(false);
 
   // --- PERMISSION LOGIC ---
+  const isMasterSuperAdmin = useMemo(() => {
+    return Number(user?.id) === 1;
+  }, [user]);
+
   const isAdmin = useMemo(() => {
     if (!user?.role) return false;
     const r = user.role.toLowerCase().trim();
     return ["admin", "manager", "owner"].includes(r);
   }, [user]);
 
-  // --- PROPERTY SELECTION ---
-  // FIXED: Improved normalization to ensure UI updates when user.propertyId changes
+  // --- SAFE PORTFOLIO SCOPING ---
+  const safeProperties = useMemo(() => {
+    if (isMasterSuperAdmin) return properties;
+    // Cross-verify that standard staff/admins can only see property nodes belonging to their authenticated session link
+    if (user?.propertyId && user?.propertyId !== "global") {
+      return properties.filter((p) => String(p.id) === String(user.propertyId));
+    }
+    return properties;
+  }, [properties, user?.propertyId, isMasterSuperAdmin]);
+
   const activePropertyName = useMemo(() => {
     const currentId = user?.propertyId;
 
     if (!currentId || currentId === "global" || currentId === "") {
-      return "EIH Global Portfolio";
+      return isMasterSuperAdmin
+        ? "EIH Global Portfolio"
+        : safeProperties[0]?.name || "Isolated Cluster";
     }
 
-    const found = properties.find((p) => p.id === currentId);
+    const found = safeProperties.find((p) => p.id === currentId);
     return found ? found.name : "Loading Unit...";
-  }, [user?.propertyId, properties]);
+  }, [user?.propertyId, safeProperties, isMasterSuperAdmin]);
 
   const router = useRouter();
 
@@ -114,14 +127,9 @@ export default function Dashboard({
     setLoading(true);
 
     try {
-      // 1. Update the session/cookie via Server Action
       const result = await switchProperty(propertyId);
-
       if (result?.success) {
-        // 2. Force Next.js to re-fetch server components/session
         router.refresh();
-
-        // 3. Data will be refreshed by the useEffect watching user.propertyId
       }
     } catch (error) {
       console.error("Property Switch Failed:", error);
@@ -146,14 +154,22 @@ export default function Dashboard({
 
   // --- REFRESH LOGIC ---
   const refreshRooms = useCallback(async () => {
-    const pid = user?.propertyId || "global";
+    let pid = user?.propertyId || "global";
+    if (pid === "global" && !isMasterSuperAdmin) {
+      pid = safeProperties[0]?.id || "none";
+    }
+
     const rooms = await getRoomsList(pid);
     setRoomsFromState(rooms || []);
     setLastUpdated(new Date());
-  }, [user?.propertyId]);
+  }, [user?.propertyId, safeProperties, isMasterSuperAdmin]);
 
   const syncReception = useCallback(async () => {
-    const pid = user?.propertyId || "global";
+    let pid = user?.propertyId || "global";
+    if (pid === "global" && !isMasterSuperAdmin) {
+      pid = safeProperties[0]?.id || "none";
+    }
+
     try {
       const res = await getLiveReceptionData(pid);
       if (res.success && res.data) {
@@ -168,19 +184,25 @@ export default function Dashboard({
     } catch (err) {
       console.error("Sync reception error:", err);
     }
-  }, [user?.propertyId]);
+  }, [user?.propertyId, safeProperties, isMasterSuperAdmin]);
 
   const refreshData = useCallback(async () => {
-    // Normalize the ID: If it's "global", set to undefined so the DB doesn't try to filter by a non-UUID string
-    const pid = user?.propertyId === "global" ? undefined : user?.propertyId;
+    let targetId: string | undefined = undefined;
+
+    if (user?.propertyId && user.propertyId !== "global") {
+      targetId = user.propertyId;
+    } else if (!isMasterSuperAdmin) {
+      targetId =
+        safeProperties[0]?.id || "00000000-0000-0000-0000-000000000000";
+    }
 
     setLoading(true);
     try {
       const [summary, history, staff, rooms] = await Promise.all([
-        getFinancialSummary(pid!, period), // pid is now either a valid UUID or undefined
-        getFullHistory(pid!),
+        getFinancialSummary(targetId!, period),
+        getFullHistory(targetId!),
         isAdmin ? getStaffMembers() : Promise.resolve([]),
-        getRoomsList(pid),
+        getRoomsList(targetId),
       ]);
 
       if (summary.success) setDbData(summary.data);
@@ -192,7 +214,14 @@ export default function Dashboard({
     } finally {
       setLoading(false);
     }
-  }, [period, isAdmin, normalizeData, user?.propertyId]); // Dependency on user.propertyId ensures refresh on switch
+  }, [
+    period,
+    isAdmin,
+    normalizeData,
+    user?.propertyId,
+    safeProperties,
+    isMasterSuperAdmin,
+  ]);
 
   // --- SIDE EFFECTS ---
   useEffect(() => {
@@ -200,7 +229,10 @@ export default function Dashboard({
   }, [refreshData]);
 
   useEffect(() => {
-    const pid = user?.propertyId || "global";
+    let pid = user?.propertyId || "global";
+    if (pid === "global" && !isMasterSuperAdmin) {
+      pid = safeProperties[0]?.id || "none";
+    }
 
     if (activeTab === "reception" || activeTab === "occupancy") {
       syncReception();
@@ -229,7 +261,15 @@ export default function Dashboard({
       };
       fetchReports();
     }
-  }, [activeTab, period, user?.propertyId, syncReception, normalizeData]);
+  }, [
+    activeTab,
+    period,
+    user?.propertyId,
+    safeProperties,
+    isMasterSuperAdmin,
+    syncReception,
+    normalizeData,
+  ]);
 
   const liveInsights = useMemo(() => {
     if (!logs.length) return { total: 0, avgEntry: 0, todayPerformance: "0" };
@@ -254,8 +294,13 @@ export default function Dashboard({
       <header className="p-4 md:p-6 flex justify-between items-center border-b border-white/5 bg-slate-950/40 sticky top-0 z-[100] backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center text-slate-950 shadow-lg shadow-amber-400/20">
-            
-            <Image src="/logo-bg.jpeg" alt="Ethereal Logo" width={32} height={32} className="rounded"/>
+            <Image
+              src="/logo-bg.jpeg"
+              alt="Ethereal Logo"
+              width={32}
+              height={32}
+              className="rounded"
+            />
           </div>
 
           <div className="relative">
@@ -274,7 +319,7 @@ export default function Dashboard({
               </h1>
               <p className="text-[7px] md:text-[8px] text-emerald-500 font-bold tracking-[0.2em] uppercase mt-1 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                {isAdmin ? "Global Drizzle Sync" : "Unit PMS Active"}
+                {isMasterSuperAdmin ? "Global Drizzle Sync" : "Unit PMS Active"}
               </p>
             </button>
 
@@ -287,17 +332,22 @@ export default function Dashboard({
                   className="absolute top-full left-0 mt-4 w-64 bg-slate-950 border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-2xl z-[110]"
                 >
                   <div className="p-2 space-y-1">
-                    <button
-                      onClick={() => handlePropertyChange("global")}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl text-left transition-all"
-                    >
-                      <Globe className="w-4 h-4 text-blue-400" />
-                      <span className="text-xs font-bold text-white uppercase tracking-tight">
-                        All Properties
-                      </span>
-                    </button>
-                    <div className="h-px bg-white/5 my-1" />
-                    {properties.map((prop) => (
+                    {isMasterSuperAdmin && (
+                      <>
+                        <button
+                          onClick={() => handlePropertyChange("global")}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl text-left transition-all"
+                        >
+                          <Globe className="w-4 h-4 text-blue-400" />
+                          <span className="text-xs font-bold text-white uppercase tracking-tight">
+                            All Properties
+                          </span>
+                        </button>
+                        <div className="h-px bg-white/5 my-1" />
+                      </>
+                    )}
+
+                    {safeProperties.map((prop) => (
                       <button
                         key={prop.id}
                         onClick={() => handlePropertyChange(prop.id)}
@@ -319,7 +369,6 @@ export default function Dashboard({
         </div>
 
         <div className="flex items-center gap-3 md:gap-6">
-          {/* 1. DESKTOP VIEW: Persistent Horizontal Icons */}
           <nav className="hidden lg:flex items-center gap-3 pr-4 border-r border-white/10">
             <Link
               href="/occupancy"
@@ -346,7 +395,6 @@ export default function Dashboard({
             </Link>
           </nav>
 
-          {/* 2. CONSOLIDATED ADAPTIVE DROPDOWN (Primary for Mobile/Tablet) */}
           <div className="relative">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -368,14 +416,12 @@ export default function Dashboard({
 
                 <div className="absolute right-0 mt-3 w-64 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="p-2 flex flex-col gap-1">
-                    {/* Section Title */}
                     <div className="px-4 py-2 mb-1 border-b border-white/5">
                       <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 italic">
                         Sanctuary Control
                       </p>
                     </div>
 
-                    {/* Navigation Links */}
                     <Link
                       href="/occupancy"
                       onClick={() => setIsMenuOpen(false)}
@@ -403,12 +449,7 @@ export default function Dashboard({
                       Guest History
                     </Link>
 
-                    {/* Actions Section */}
                     <div className="mt-1 border-t border-white/5 pt-1">
-                      {/* 1. EXPORT SECTION 
-      We use 'relative' and a high 'z-index' here. 
-      Removed 'justify-between' to allow the button to sit closer to the label if needed.
-  */}
                       <div className="relative z-[70] px-4 py-1 flex items-center hover:bg-white/5 rounded-xl transition-all group">
                         <div className="flex items-center gap-3 flex-1 text-[10px] font-bold uppercase tracking-widest text-slate-300 group-hover:text-amber-400">
                           <FileDown className="w-4 h-4" />
@@ -419,20 +460,19 @@ export default function Dashboard({
                           </span>
                         </div>
 
-                        {/* FIX: Wrap the component in a relative container 
-       to ensure its internal dropdown anchors correctly.
-    */}
                         <div className="relative">
                           <ExportRecordsButton
-                            propertyId={user?.propertyId}
+                            propertyId={
+                              user?.propertyId === "global" &&
+                              !isMasterSuperAdmin
+                                ? safeProperties[0]?.id
+                                : user?.propertyId
+                            }
                             label=""
                           />
                         </div>
                       </div>
 
-                      {/* 2. LOGOUT SECTION 
-      We give this a lower z-index so the Export dropdown floats OVER it.
-  */}
                       <button
                         onClick={() => {
                           setIsMenuOpen(false);
@@ -450,7 +490,6 @@ export default function Dashboard({
             )}
           </div>
 
-          {/* 3. PERSISTENT DESKTOP LOGOUT (Optional: Keep for quick access) */}
           <button
             onClick={() => logout()}
             className="hidden lg:flex p-2.5 bg-rose-500/10 text-rose-500 rounded-xl border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all group"
@@ -461,7 +500,6 @@ export default function Dashboard({
         </div>
       </header>
 
-      {/* RENDER CHILDREN IF PROVIDED */}
       <section className="px-4 mt-2 md:px-0">{children}</section>
 
       <main className="px-4 md:px-6 w-full max-w-2xl mx-auto mt-6 md:mt-8">
@@ -474,7 +512,7 @@ export default function Dashboard({
               exit={{ opacity: 0, y: -10 }}
               className="space-y-4 md:space-y-6"
             >
-              {isAdmin && (
+              {isAdmin && isMasterSuperAdmin && (
                 <div className="flex bg-slate-950/20 backdrop-blur-md p-1 rounded-xl md:rounded-2xl border border-white/5 gap-1">
                   {["month", "quarter", "year"].map((p) => (
                     <button
@@ -493,9 +531,11 @@ export default function Dashboard({
                 <div className="flex justify-between items-start relative z-10">
                   <div>
                     <p className="text-slate-500 text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em]">
-                      {isAdmin ? `${period}ly Net Profit` : "Shift Overview"}
+                      {isMasterSuperAdmin
+                        ? `${period}ly Net Profit`
+                        : "Shift Overview"}
                     </p>
-                    {isAdmin ? (
+                    {isMasterSuperAdmin ? (
                       <h2 className="text-3xl md:text-5xl font-black text-white mt-2 md:mt-3 tracking-tighter">
                         ₹
                         {Number(dbData?.netProfit || 0).toLocaleString("en-IN")}
@@ -509,13 +549,13 @@ export default function Dashboard({
                       </div>
                     )}
                   </div>
-                  {isAdmin && (
+                  {isMasterSuperAdmin && (
                     <div className="bg-emerald-500/10 border border-emerald-500/20 p-2 md:p-3 rounded-xl md:rounded-2xl text-emerald-400">
                       <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                   )}
                 </div>
-                {isAdmin && (
+                {isMasterSuperAdmin && (
                   <div className="mt-6 md:mt-8 grid grid-cols-2 gap-4 border-t border-white/5 pt-4 md:pt-6 relative z-10">
                     <div>
                       <p className="text-[8px] md:text-[9px] text-slate-500 uppercase font-black tracking-widest">
@@ -537,7 +577,7 @@ export default function Dashboard({
                 )}
               </div>
 
-              {isAdmin && (
+              {isMasterSuperAdmin && (
                 <div className="grid grid-cols-2 gap-3 md:gap-4">
                   <StatCard
                     title="Revenue"
@@ -579,17 +619,12 @@ export default function Dashboard({
                 <RoomOccupancyClient
                   initialRooms={roomsFromState}
                   onRoomUpdate={refreshRooms}
-                  properties={
-                    properties.length > 0
-                      ? properties
-                      : [
-                          {
-                            id: user?.propertyId || "def",
-                            name: "Current Unit",
-                          },
-                        ]
+                  properties={safeProperties}
+                  currentPropertyId={
+                    user?.propertyId === "global" && !isMasterSuperAdmin
+                      ? safeProperties[0]?.id
+                      : user?.propertyId || "global"
                   }
-                  currentPropertyId={user?.propertyId || "global"}
                   prefillName={null}
                   onlySwitcher={false}
                 />
@@ -667,7 +702,7 @@ export default function Dashboard({
             </motion.div>
           )}
 
-          {activeTab === "intel" && (
+          {activeTab === "intel" && isMasterSuperAdmin && (
             <motion.div
               key="intel"
               initial={{ opacity: 0, y: 10 }}
@@ -762,54 +797,53 @@ export default function Dashboard({
 
           {activeTab === "add" && (
             <motion.div
-    key="add-form"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-  >
-    <div className="bg-slate-950/40 backdrop-blur-3xl rounded-[2rem] border border-white/10 p-5 md:p-6 shadow-2xl">
-      <div className="mb-6 flex justify-between items-start">
-        <div>
-          <h2 className="text-xl font-black text-white italic">
-            Financial <span className="text-amber-400">Entry</span>
-          </h2>
-          <p className="text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">
-            Recording to {activePropertyName}
-          </p>
-        </div>
+              key="add-form"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="bg-slate-950/40 backdrop-blur-3xl rounded-[2rem] border border-white/10 p-5 md:p-6 shadow-2xl">
+                <div className="mb-6 flex justify-between items-start">
+                  <div>
+                    <h2 className="text-xl font-black text-white italic">
+                      Financial <span className="text-amber-400">Entry</span>
+                    </h2>
+                    <p className="text-[8px] text-slate-500 uppercase font-bold tracking-widest mt-1">
+                      Recording to {activePropertyName}
+                    </p>
+                  </div>
 
-        {/* TOGGLE SWITCH: Daily vs Manual */}
-        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
-          <button 
-            onClick={() => setIsManual(false)}
-            className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${!isManual ? 'bg-amber-500 text-black' : 'text-slate-500'}`}
-          >
-            Daily
-          </button>
-         {isAdmin && (
-    <button 
-      onClick={() => setIsManual(true)}
-      className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
-        isManual 
-          ? 'bg-rose-500 text-white' 
-          : 'text-slate-500'
-      }`}
-    >
-      Manual
-    </button>
-  )}
-        </div>
-      </div>
+                  <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                    <button
+                      onClick={() => setIsManual(false)}
+                      className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${!isManual ? "bg-amber-500 text-black" : "text-slate-500"}`}
+                    >
+                      Daily
+                    </button>
+                    {isMasterSuperAdmin && (
+                      <button
+                        onClick={() => setIsManual(true)}
+                        className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${isManual ? "bg-rose-500 text-white" : "text-slate-500"}`}
+                      >
+                        Manual
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-      {/* The Form adapts based on the isManual state */}
-      <DayBookForm
-        isManual={isManual} // Pass this prop to your form
-        onSuccess={() => {
-          setActiveTab("dashboard");
-          refreshData();
-        }}
-      />
-    </div>
-  </motion.div>
+                <DayBookForm
+                  properties={safeProperties}
+                  initialPropertyId={
+                    user?.propertyId === "global"
+                      ? safeProperties[0]?.id
+                      : user?.propertyId
+                  }
+                  onSuccess={() => {
+                    setActiveTab("dashboard");
+                    refreshData();
+                  }}
+                />
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </main>
@@ -854,12 +888,16 @@ export default function Dashboard({
             icon={ConciergeBell}
             label="PMS"
           />
-          <NavIcon
-            active={activeTab === "intel"}
-            onClick={() => setActiveTab("intel")}
-            icon={LineChart}
-            label="Intel"
-          />
+          {isMasterSuperAdmin ? (
+            <NavIcon
+              active={activeTab === "intel"}
+              onClick={() => setActiveTab("intel")}
+              icon={LineChart}
+              label="Intel"
+            />
+          ) : (
+            <div className="w-[44px]" />
+          )}
           <NavIcon
             active={activeTab === "settings"}
             onClick={() => setActiveTab("settings")}

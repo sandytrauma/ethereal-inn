@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 // Ensure this path matches where you saved the server action
 import { initializeNewProperty } from "@/lib/actions/property-actions"; 
 
-export default function PropertyLauncher() {
+// 1. UPDATED INTERFACE: Forces parent server page to inject both user identity parameters
+interface PropertyLauncherProps {
+  userId: number;
+  userEmail: string; // 🌟 ADDED: Dynamic email field payload
+}
+
+export default function PropertyLauncher({ userId, userEmail }: PropertyLauncherProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -21,15 +27,34 @@ export default function PropertyLauncher() {
   const handleLaunch = () => {
     if (!formData.name) return alert("Please enter a Property Name");
 
+    // Helper: Turn property name into a URL-friendly unique slug string
+    // e.g., "Matiala Dwarka" -> "matiala-dwarka"
+    const generateSlug = (text: string) => {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    };
+
     startTransition(async () => {
       // 1. We map 'location' to 'city' here to match the server action type
-      // 2. We include your managerEmail as required by the schema
+      // 2. We dynamically bind userEmail to fulfill the database requirements
       const res = await initializeNewProperty({
         name: formData.name,
+        slug: generateSlug(formData.name), // Dynamically inject required slug string
         city: formData.location, 
-        managerEmail: "sksandeep443@gmail.com", 
+        managerEmail: userEmail.toLowerCase().trim(), // 🌟 FIXED: Dynamically bound email channel anchor
         floors: formData.floors,
         roomsPerFloor: formData.roomsPerFloor,
+        
+        // =========================================================================
+        // CRITICAL SAAS PARAMETER INJECTION
+        // Forces Drizzle to tie this entire property network cluster to the 
+        // tenant user account ID executing the transaction.
+        // =========================================================================
+        userId: userId, 
       });
 
       if (res.success) {

@@ -1,9 +1,12 @@
+// app/pms/page.tsx
 import { db } from "@/db";
 import { properties } from "@/db/micro-schema"; 
+import { users } from "@/db/schema";
 import { redirect } from "next/navigation";
 import { Building2, Plus, Lock, AlertCircle } from "lucide-react";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
+import { eq } from "drizzle-orm";
 
 /**
  * PMSPage - Root entry point for the Property Management System.
@@ -28,13 +31,55 @@ export default async function PMSPage() {
     redirect("/ethereal-inn");
   }
 
-  // 2. DATA FETCHING WITH ERROR BOUNDARY
+  // Normalize active user metrics
+  const safeUserId = String(session.id || session.userId || session.sub || "");
+  const safeUserRole = String(session.role || "staff").toLowerCase().trim();
+  const isMasterSuperAdmin = Number(session.userId || session.id) === 1;
+
+  // 2. DATA FETCHING WITH STRICT MULTI-TENANT BOUNDARY
   let hasProperties = false;
   try {
-    // Check if any properties exist in the portfolio
-    const countResult = await db.select({ 
-      id: properties.id 
-    }).from(properties).limit(1);
+    let countResult: Array<{ id: string | number }> = [];
+
+    if (isMasterSuperAdmin) {
+      // Master Admin scans across the entire system infrastructure
+      countResult = await db.select({ id: properties.id }).from(properties).limit(1);
+    } else {
+      // =========================================================================
+      // 🌟 THE STRUCTURAL ACCESS MATRIX FIX:
+      // Prioritize explicit property linkage over creator ownership restrictions!
+      // =========================================================================
+      const assignedPropertyId = session.propertyId;
+
+      if (assignedPropertyId && assignedPropertyId !== "global" && assignedPropertyId !== "undefined" && assignedPropertyId !== "null") {
+        countResult = await db
+          .select({ id: properties.id })
+          .from(properties)
+          .where(eq(properties.id, assignedPropertyId))
+          .limit(1);
+      } else if (safeUserRole === "admin" || safeUserRole === "owner") {
+        // Creator Fallback rule: Isolate directly by their ownership registration field
+        countResult = await db
+          .select({ id: properties.id })
+          .from(properties)
+          .where(eq(properties.ownerId, Number(safeUserId)))
+          .limit(1);
+      } else {
+        // Deep DB fallback lookups against users directory table data configurations
+        const [userRecord] = await db
+          .select({ propertyId: users.propertyId })
+          .from(users)
+          .where(eq(users.id, Number(safeUserId)));
+
+        if (userRecord?.propertyId) {
+          countResult = await db
+            .select({ id: properties.id })
+            .from(properties)
+            .where(eq(properties.id, userRecord.propertyId))
+            .limit(1);
+        }
+      }
+    }
     
     hasProperties = countResult.length > 0;
   } catch (dbError) {
@@ -42,18 +87,16 @@ export default async function PMSPage() {
     return <ErrorState message="Database connection interrupted. Please check your Neon PostgreSQL connection." />;
   }
 
-  // 3. AUTO-REDIRECT LOGIC
-  // If assets exist, redirect to the Global view to see the aggregated fleet data.
+  // 3. AUTO-REDIRECT LOGIC (Now completely safe and scoped for multi-role admins)
   if (hasProperties) {
     redirect(`/pms/global`);
   }
 
-  // 4. PERMISSION LOGIC
-  // Admin check includes explicit check for Sandeep kumar
-  const isAdmin = session.role === "admin" || session.name === "Sandeep kumar";
+  // 4. PERMISSION LOGIC FOR EMPTY STATE VISIBILITY
+  const isAdmin = safeUserRole === "admin" || safeUserRole === "owner" || session.name === "Sandeep kumar";
 
   return (
-    <div className="relative flex h-screen flex-col items-center justify-center bg-[#F8FAFC] p-8 text-center overflow-hidden">
+    <div className="relative flex h-screen flex-col items-center justify-center bg-[#F8FAFC] p-8 text-center overflow-hidden font-sans selection:bg-blue-500 selection:text-white">
       
       {/* Visual Depth Elements */}
       <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-50 rounded-full blur-[120px] opacity-60" />
@@ -89,12 +132,22 @@ export default async function PMSPage() {
               Register New Asset
             </a>
           ) : (
-            <a 
-              href="/ethereal-inn"
-              className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 transition-all hover:bg-slate-50 shadow-sm"
-            >
-              Re-authenticate
-            </a>
+            // Form action layout to allow immediate secure breakout exit clears
+            <form action={async () => {
+              'use server';
+              const { cookies } = await import("next/headers");
+              const cookieStore = await cookies();
+              cookieStore.set("auth-token", "", { expires: new Date(0), path: '/' });
+              const { redirect } = await import("next/navigation");
+              redirect("/");
+            }}>
+              <button 
+                type="submit"
+                className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 transition-all hover:bg-rose-600 hover:text-white hover:border-rose-600 shadow-sm duration-200"
+              >
+                Exit Terminal
+              </button>
+            </form>
           )}
         </div>
       </div>
@@ -116,7 +169,7 @@ export default async function PMSPage() {
  */
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-10">
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-10 font-sans">
       <AlertCircle size={48} className="text-red-500 mb-4" />
       <h2 className="text-lg font-black uppercase italic tracking-widest text-slate-900">System Offline</h2>
       <p className="text-[10px] font-bold text-slate-400 uppercase mt-2 max-w-xs text-center">{message}</p>

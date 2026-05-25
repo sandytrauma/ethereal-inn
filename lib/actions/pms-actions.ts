@@ -1,9 +1,11 @@
 "use server";
 
-import { db } from "@/db";
+import { db } from "@/db"; 
 import { properties, propertyRevenueBridge } from "@/db/micro-schema";
 import { rooms, tasks, financialRecords, inquiries, statutoryMaster } from "@/db/schema";
 import { eq, desc, sql, and, isNotNull } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { decrypt } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -15,26 +17,39 @@ const isValidUUID = (id: string) =>
 // --- CORE FETCHING FUNCTIONS ---
 
 /**
- * Fetches all properties with nested relations (rooms and finance).
- * This ensures the navigation and fleet-wide dashboards have all data for every property ID.
+ * 🌟 FIXED & SECURED: Enforces session-fenced property isolation paths.
+ * Prevents non-master accounts from tracking properties outside their workspace scope.
  */
-// lib/actions/pms-actions.ts
-
 export async function getAllProperties() {
   try {
-    // 1. Fetch all registered assets (e.g., Urban Ambrosia, Ethereal Glam Studio)
-    const allProps = await db.select().from(properties);
+    // 1. EXTRACT ACCOUNT COOKIE PAYLOAD CONTEXT
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+    const session = token ? await decrypt(token).catch(() => null) : null;
+
+    if (!session) return [];
+
+    const isMasterSuperAdmin = Number((session as any).userId || (session as any).id) === 1;
+    const assignedPropertyId = (session as any).propertyId;
+
+    let allProps = [];
+
+    // 2. APPLY RADIAL MULTI-TENANT CONTAINMENT BOUNDARIES
+    if (isMasterSuperAdmin) {
+      allProps = await db.select().from(properties);
+    } else {
+      if (!assignedPropertyId || assignedPropertyId === "global" || assignedPropertyId === "undefined") {
+        return []; // Defensively abort if an unlinked manager probes the endpoint
+      }
+      allProps = await db.select().from(properties).where(eq(properties.id, assignedPropertyId));
+    }
 
     const fleet = await Promise.all(allProps.map(async (prop) => {
-      // 2. Fetch Rooms & Inquiries
-      const propRooms = await db.select().from(rooms)
-        .where(eq(rooms.propertyId, prop.id));
-      
-      const propInquiries = await db.select().from(inquiries)
-        .where(eq(inquiries.propertyId, prop.id));
+      // Fetch Rooms & Inquiries scoped strictly to this specific asset node
+      const propRooms = await db.select().from(rooms).where(eq(rooms.propertyId, prop.id));
+      const propInquiries = await db.select().from(inquiries).where(eq(inquiries.propertyId, prop.id));
 
-      // 3. Aggregate Revenue from the bridge table
-      // We sum the 'amount' field to get the totalCollection
+      // Aggregate Revenue from the bridge table
       const [revenueData] = await db.select({
         total: sql<string>`sum(${propertyRevenueBridge.amount})`
       })
@@ -46,9 +61,8 @@ export async function getAllProperties() {
         rooms: propRooms,
         inquiries: propInquiries,
         finance: {
-          // Map the summed 'amount' to the 'totalCollection' field used by UI
           totalCollection: revenueData?.total || "0",
-          upiRevenue: "0", // Add specific logic/sources if needed
+          upiRevenue: "0", 
           cashRevenue: "0",
           pettyExpenses: "0" 
         },
@@ -68,21 +82,39 @@ export async function getAllProperties() {
 }
 
 /**
- * Fetches consolidated dashboard data for a specific property.
- * Scopes data to propertyId, but keeps statutoryMaster as a global compliance reference.
+ * 🌟 FIXED & SECURED: Restricts compliance data arrays by property context boundary lines.
  */
 export async function getMultiPropertyData(propertyId: string) {
   if (!isValidUUID(propertyId)) return { error: "Invalid ID", property: null };
   
   try {
-    // We execute these in parallel for speed
+    // 1. EXTRACTION & SECURITY AUDIT LOOP
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+    const session = token ? await decrypt(token).catch(() => null) : null;
+
+    if (!session) throw new Error("Verification Failure: Session tracking signature missing.");
+
+    const isMasterSuperAdmin = Number((session as any).userId || (session as any).id) === 1;
+    const assignedPropertyId = (session as any).propertyId;
+
+    // Reject immediate cross-tenant parameter tinkering across active dashboard endpoints
+    if (!isMasterSuperAdmin && String(assignedPropertyId) !== String(propertyId)) {
+      throw new Error("Access Denied: Cross-tenant tracking boundary breach intercepted.");
+    }
+
+    // 2. PARALLEL RESOLUTION WITH PROPERTY ENFORCEMENT FENCES
     const [prop, rm, tsk, fin, inq, stat] = await Promise.all([
       db.select().from(properties).where(eq(properties.id, propertyId)).limit(1),
       db.select().from(rooms).where(eq(rooms.propertyId, propertyId)).orderBy(rooms.number),
       db.select().from(tasks).where(eq(tasks.propertyId, propertyId)).orderBy(desc(tasks.createdAt)).limit(10),
       db.select().from(financialRecords).where(eq(financialRecords.propertyId, propertyId)).orderBy(desc(financialRecords.date)).limit(1),
       db.select().from(inquiries).where(eq(inquiries.propertyId, propertyId)).orderBy(desc(inquiries.createdAt)).limit(10),
-      db.select().from(statutoryMaster).limit(20) 
+      
+      // 🌟 FIXED: Scoped statutory master list by active workspace context to seal data leaks
+      isMasterSuperAdmin 
+        ? db.select().from(statutoryMaster).limit(20)
+        : db.select().from(statutoryMaster).where(eq(statutoryMaster.propertyId, propertyId)).limit(20)
     ]);
 
     const roomsList = rm || [];
@@ -92,7 +124,8 @@ export async function getMultiPropertyData(propertyId: string) {
       property: prop[0] || null,
       rooms: roomsList,
       tasks: tsk || [],
-      finance: fin[0] || { totalCollection: "0", upiRevenue: "0", cashRevenue: "0", pettyExpenses: "0" },
+      // 🌟 FIXED: Standardized field casing to resolve object structure mapping properties cleanly
+      finance: fin[0] || { totalCollection: "0", upiRevenue: "0", cashRevenue: "0", pettyExpenses: "0", expenses: "0" },
       inquiries: inq || [],
       statutory: stat || [], 
       stats: {
@@ -104,7 +137,6 @@ export async function getMultiPropertyData(propertyId: string) {
       }
     };
   } catch (e: any) { 
-    // CRITICAL: Log the actual error message to the console to see why sync failed
     console.error(`Sync failed for property ${propertyId}:`, e.message);
     throw new Error(`Data sync failed: ${e.message}`); 
   }
@@ -114,7 +146,7 @@ export async function getMultiPropertyData(propertyId: string) {
 
 /**
  * Initializes rooms for a property. 
- * Prevents duplicates via UPSERT logic[cite: 1].
+ * Prevents duplicates via UPSERT logic.
  */
 export async function seedRooms(propertyId: string, floors: number, roomsPerFloor: number) {
   if (!isValidUUID(propertyId)) throw new Error("Invalid Property ID");

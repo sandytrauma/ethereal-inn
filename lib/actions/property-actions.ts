@@ -9,28 +9,30 @@ export type PropertyActionResponse =
   | { success: true; propertyId: string } 
   | { success: false; error: string };
 
+// 1. EXTENDED SIGNATURE: Accepts slug and userId from components safely
 export async function initializeNewProperty(data: {
   name: string;
   city: string;
   managerEmail: string;
   floors: number;
   roomsPerFloor: number;
+  slug: string;   // Added parameter matching layout requirements
+  userId: number; // Added parameter matching tenant tracking rules
 }): Promise<PropertyActionResponse> {
   try {
     return await db.transaction(async (tx) => {
-      // 1. Generate Slug
-      const baseSlug = data.name.toLowerCase().trim().replace(/\s+/g, '-');
-      const uniqueSuffix = Math.random().toString(36).substring(2, 5);
-      const slug = `${baseSlug}-${uniqueSuffix}`;
-
-      // 2. Insert Property Metadata
-      // Removed createdAt and updatedAt because they are missing from your schema
+      // 2. Insert Property Metadata with Owner Scope Mapping
       const [newProperty] = await tx.insert(properties).values({
         name: data.name,
-        slug: slug,
+        slug: data.slug, // Uses the generated safe slug string passed from UI
         city: data.city,
         managerEmail: data.managerEmail,
-        // lat/lng are optional in your schema, leaving them out for now
+        
+        // =========================================================================
+        // MULTI-TENANT TRACKING INJECTION
+        // Maps the incoming user identifier to your schema column cleanly
+        // =========================================================================
+        ownerId: data.userId, 
       }).returning({ id: properties.id });
 
       if (!newProperty) {
@@ -39,7 +41,7 @@ export async function initializeNewProperty(data: {
 
       const propertyId = newProperty.id;
 
-      // 3. Prepare Room Data
+      // 3. Prepare Room Data (Untouched - exactly as you wrote it)
       const roomData = [];
       for (let f = 1; f <= data.floors; f++) {
         for (let r = 1; r <= data.roomsPerFloor; r++) {
@@ -50,7 +52,6 @@ export async function initializeNewProperty(data: {
             propertyId: propertyId,
             guestName: null,
             checkInTime: null,
-            // Ensure these fields exist in your schema. If not, delete them:
             pax: 0,
             idNumber: null,
             origin: null,
@@ -58,7 +59,7 @@ export async function initializeNewProperty(data: {
         }
       }
 
-      // 4. Bulk Insert Rooms
+      // 4. Bulk Insert Rooms (Untouched)
       if (roomData.length > 0) {
         await tx.insert(rooms).values(roomData);
       }

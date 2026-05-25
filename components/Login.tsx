@@ -11,27 +11,19 @@ import { createInquiryAction } from "@/lib/actions/inquiry";
 import {
   Loader2,
   MessageCircle,
-  MapPin,
   X,
   ShieldCheck,
   Camera,
   Star,
-  ExternalLink,
-  CheckCircle2,
+  ArrowUpRight,
   ChefHat,
   UtensilsCrossed,
-  LayoutDashboard,
-  ArrowRight,
-  Users,
-  Utensils,
-  BedDouble,
-  Target,
-  Sparkles,
+  CheckCircle2,
   BookOpen,
-  Monitor,
   Instagram,
   Facebook,
   PhoneCall,
+  AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Script from "next/script";
@@ -41,8 +33,7 @@ import DashboardBackground from "./dashboard/DashboardBackground";
 import MultiPropertyMap from "./MultiPropertyMap";
 import Image from "next/image";
 
-// --- CONFIGURATION ---
-const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID!;
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
 
 interface Review {
   author_name: string;
@@ -80,7 +71,6 @@ const HERO_IMAGES = [
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=2000",
   "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=2000",
   "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=2000",
-  
 ];
 
 const GALLERY_DATA = {
@@ -148,10 +138,9 @@ export default function LandingLoginPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isPendingInquiry, startTransition] = useTransition();
   const [inquirySuccess, setInquirySuccess] = useState(false);
+
+  // 🌟 Action state hook handles state configurations gracefully
   const [state, formAction, isPending] = useActionState(loginUser, null);
-  const [error, setError] = useState<string | null>(null);
-  // Inside your component
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
 
   useEffect(() => {
     const timer = setInterval(
@@ -184,18 +173,14 @@ export default function LandingLoginPage() {
 
   async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
 
-    // Use the environment variable.
-    // We default to Mohan Garden if you want a single "fresh start" entry point.
-    const PROPERTY_ID = process.env.NEXT_PUBLIC_MOHAN_GARDEN_ID;
+    // 🌟 FIXED: Captured native DOM form reference before execution thread asynchronously steps into transitions
+    const currentFormElement = e.currentTarget;
+    const formData = new FormData(currentFormElement);
 
-    if (!PROPERTY_ID) {
-      console.error(
-        "Configuration Error: Property UUID is not defined in .env",
-      );
-      return;
-    }
+    const PROPERTY_ID =
+      process.env.NEXT_PUBLIC_MOHAN_GARDEN_ID ||
+      "00000000-0000-0000-0000-000000000000";
 
     startTransition(async () => {
       try {
@@ -203,7 +188,7 @@ export default function LandingLoginPage() {
 
         if (res.success) {
           setInquirySuccess(true);
-          (e.target as HTMLFormElement).reset();
+          currentFormElement.reset(); // Safe explicit call
 
           setTimeout(() => {
             setShowInquiry(false);
@@ -219,19 +204,33 @@ export default function LandingLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-slate-100 overflow-x-hidden font-sans selection:bg-[#c5a059] selection:text-black pb-24 md:pb-0">
+    <div className="min-h-screen bg-[#0a0a0a] text-slate-100 overflow-x-hidden font-sans selection:bg-[#c5a059] selection:text-black pb-24 md:pb-0">
       <DashboardBackground />
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-        strategy="afterInteractive"
-      />
+
+      {/* 🌟 FIXED: Google Analytics Global Tracking Snippet Configuration Tag Loader */}
+      {GA_MEASUREMENT_ID && (
+        <>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+            strategy="afterInteractive"
+          />
+          <Script id="google-analytics" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA_MEASUREMENT_ID}', {
+                page_path: window.location.pathname,
+              });
+            `}
+          </Script>
+        </>
+      )}
 
       {/* --- NAVIGATION --- */}
       <nav className="fixed top-0 w-full z-[100] flex justify-between items-center px-6 md:px-12 py-6 backdrop-blur-md border-b border-white/5 bg-black/20">
-        <div className="flex flex-col">
-          
-          <span className="text-[10px] tracking-[0.4em] uppercase text-gray-500 font-bold">
-            
+        <div className="flex flex-col text-left">
+          <span className="text-[10px] tracking-[0.4em] uppercase text-gray-500 font-black">
             The Collective
           </span>
           <span className="text-xl md:text-2xl font-serif font-bold italic text-[#c5a059]">
@@ -239,7 +238,6 @@ export default function LandingLoginPage() {
           </span>
         </div>
         <div className="flex items-center gap-4">
-          {/* Desktop Only Buttons */}
           <button
             onClick={() => setShowAbout(true)}
             className="hidden md:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c5a059] transition-colors mr-4"
@@ -249,7 +247,7 @@ export default function LandingLoginPage() {
 
           <button
             onClick={() => setShowLogin(true)}
-            className="bg-[#c5a059] text-black px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
+            className="bg-[#c5a059] text-black px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform duration-200 cursor-pointer"
           >
             Staff Gate
           </button>
@@ -261,14 +259,13 @@ export default function LandingLoginPage() {
         <div className="bg-zinc-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-2 flex items-center justify-around shadow-2xl">
           <button
             onClick={() => setShowAbout(true)}
-            className="flex flex-col items-center gap-1 p-3 text-gray-400 hover:text-[#c5a059] active:scale-90 transition-all"
+            className="flex flex-col items-center gap-1 p-3 text-gray-400 hover:text-[#c5a059] active:scale-90 transition-all cursor-pointer"
           >
             <BookOpen size={20} />
             <span className="text-[8px] font-black uppercase tracking-tighter">
-              About Story
+              Our Story
             </span>
           </button>
-          <div className="h-8 w-px bg-white/5" />
         </div>
       </div>
 
@@ -282,28 +279,26 @@ export default function LandingLoginPage() {
             animate={{ opacity: 0.4, scale: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 2 }}
-            className="absolute inset-0 w-full h-full object-cover z-0"
+            className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
           />
         </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-[#0a0a0a]/80 z-[1]" />
-        
 
-        <div className="relative z-10 max-w-5xl mx-auto  text-center space-y-8">
-         <div className="flex items-center justify-center w-full">
-  <Image 
-    src="/logo-bg.jpeg" 
-    alt="Ethereal Logo" 
-    width={160} 
-    height={160} 
-    className="rounded-4xl mt-8" // Optional: adds that high-end circular sanctuary look
-  />
-</div>
+        <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
+          <div className="flex items-center justify-center w-full">
+            <Image
+              src="/logo-bg.jpeg"
+              alt="Ethereal Logo"
+              width={140}
+              height={140}
+              className=" mt-8 border border-white/10 shadow-2xl"
+            />
+          </div>
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl sm:text-7xl md:text-8xl lg:text-[10rem] font-serif font-bold tracking-tighter text-white leading-[0.85] uppercase italic"
+            className="text-4xl sm:text-7xl md:text-8xl lg:text-[9rem] font-serif font-bold tracking-tighter text-white leading-[0.85] uppercase italic"
           >
-            
             Ethereal <br className="hidden md:block" />
             <span
               style={{
@@ -315,18 +310,17 @@ export default function LandingLoginPage() {
               INN
             </span>
           </motion.h1>
-           
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6 px-4">
             <button
               onClick={() => setShowInquiry(true)}
-              className="w-full sm:w-auto bg-white/5 backdrop-blur-md border border-white/10 text-white font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-[#c5a059] hover:text-black transition-all uppercase tracking-widest text-[11px]"
+              className="w-full sm:w-auto bg-white/5 backdrop-blur-md border border-white/10 text-white font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-[#c5a059] hover:text-black transition-all uppercase tracking-widest text-[11px] cursor-pointer"
             >
               Direct Inquiry
             </button>
             <button
               onClick={handleBookingRedirect}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-emerald-400 transition-all uppercase tracking-widest text-[11px]"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-emerald-400 transition-all uppercase tracking-widest text-[11px] cursor-pointer shadow-xl shadow-emerald-500/10"
             >
               <MessageCircle size={18} /> Book Instant
             </button>
@@ -341,15 +335,15 @@ export default function LandingLoginPage() {
             <div className="absolute -inset-4 bg-[#c5a059]/10 rounded-[4rem] blur-2xl group-hover:bg-[#c5a059]/20 transition-all"></div>
             <img
               src={GALLERY_DATA.Culinary[0]}
-              className="relative rounded-[3rem] border border-white/10 shadow-2xl grayscale hover:grayscale-0 transition-all duration-1000"
+              className="relative rounded-[3rem] border border-white/10 shadow-2xl grayscale hover:grayscale-0 transition-all duration-1000 w-full object-cover"
               alt="Urban Ambrosia"
             />
-            <div className="absolute bottom-10 right-10 bg-black/80 backdrop-blur-xl p-8 rounded-3xl border border-[#c5a059]/30 max-w-xs hidden md:block">
+            <div className="absolute bottom-10 right-10 bg-black/80 backdrop-blur-xl p-8 rounded-3xl border border-[#c5a059]/30 max-w-xs hidden md:block text-left">
               <UtensilsCrossed className="text-[#c5a059] mb-4" size={32} />
               <h4 className="text-white font-serif text-xl font-bold mb-2">
                 Cloud-First Dining
               </h4>
-              <p className="text-gray-500 text-xs">
+              <p className="text-gray-500 text-xs leading-relaxed">
                 Premium delivery optimized for temperature and celestial
                 presentation.
               </p>
@@ -368,21 +362,15 @@ export default function LandingLoginPage() {
               </span>
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
-              <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
-                <CheckCircle2
-                  className="text-[#c5a059] mb-3 mx-auto lg:mx-0"
-                  size={24}
-                />
-                <p className="text-white text-sm font-bold mt-1">
+              <div className="bg-white/5 p-6 rounded-3xl border border-white/5 flex flex-col items-center lg:items-start">
+                <CheckCircle2 className="text-[#c5a059] mb-3" size={24} />
+                <p className="text-white text-sm font-black uppercase tracking-wider">
                   Sattvic Quality
                 </p>
               </div>
-              <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
-                <ChefHat
-                  className="text-[#c5a059] mb-3 mx-auto lg:mx-0"
-                  size={24}
-                />
-                <p className="text-white text-sm font-bold mt-1">
+              <div className="bg-white/5 p-6 rounded-3xl border border-white/5 flex flex-col items-center lg:items-start">
+                <ChefHat className="text-[#c5a059] mb-3" size={24} />
+                <p className="text-white text-sm font-black uppercase tracking-wider">
                   Urban Fusion
                 </p>
               </div>
@@ -395,7 +383,7 @@ export default function LandingLoginPage() {
       <section className="max-w-6xl mx-auto py-20 px-4">
         <div className="flex flex-col items-center text-center mb-12">
           <h2 className="text-4xl md:text-6xl font-serif font-bold text-white flex items-center gap-4 uppercase italic">
-            <Camera className="text-[#c5a059]" /> Collection
+            <Camera className="text-[#c5a059]" /> Gallery Collection
           </h2>
           <div className="mt-10 w-full max-w-md">
             <div className="flex bg-white/5 backdrop-blur-2xl p-1.5 rounded-full border border-white/10">
@@ -403,7 +391,7 @@ export default function LandingLoginPage() {
                 <button
                   key={tab}
                   onClick={() => setActiveGalleryTab(tab as any)}
-                  className={`flex-1 px-4 py-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-500 ${
+                  className={`flex-1 px-4 py-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-500 cursor-pointer ${
                     activeGalleryTab === tab
                       ? "bg-[#c5a059] text-black shadow-lg"
                       : "text-slate-500 hover:text-white"
@@ -422,57 +410,17 @@ export default function LandingLoginPage() {
               key={img + i}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="aspect-[4/3] rounded-[2.5rem] md:rounded-[4rem] overflow-hidden border border-white/10 group relative"
+              className="aspect-[4/3] rounded-[2.5rem] md:rounded-[4rem] overflow-hidden border border-white/10 group relative shadow-2xl"
             >
               <img
                 src={img}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1.5s]"
-                alt="Space"
+                alt="Ethereal Spaces"
               />
             </motion.div>
           ))}
         </div>
       </section>
-
-      <div className="space-y-4 pt-4 m-4 mb-24">
-        <p className="text-[9px] text-slate-600 font-black uppercase tracking-[0.3em] text-center">
-          Explore Our Ventures
-        </p>
-
-        <Link href="/glam">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="group relative p-1 rounded-[2rem] bg-gradient-to-r from-rose-500/20 to-purple-600/20 border border-white/5 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-white/[0.02] backdrop-blur-xl transition-all group-hover:bg-rose-500/10" />
-            <div className="relative p-5 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-rose-500/20 rounded-2xl flex items-center justify-center text-rose-400 shadow-inner">
-                  <Sparkles size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white tracking-tight">
-                    Ethereal Glam
-                  </h3>
-                  <p className="text-[9px] text-rose-300/60 uppercase font-black tracking-widest mt-0.5">
-                    Boutique & Makeup
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <div className="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-[7px] font-black text-rose-300 uppercase animate-pulse">
-                  Coming Soon
-                </div>
-                <ArrowRight
-                  size={14}
-                  className="text-slate-500 group-hover:translate-x-1 group-hover:text-rose-400 transition-all"
-                />
-              </div>
-            </div>
-          </motion.div>
-        </Link>
-      </div>
 
       {/* --- REVIEWS MARQUEE --- */}
       <section className="py-24 border-t border-white/5 overflow-hidden">
@@ -501,12 +449,9 @@ export default function LandingLoginPage() {
 
       {/* --- MAIN FOOTER --- */}
       <footer className="relative bg-[#050505] pt-24 pb-12 px-6 border-t border-white/5 overflow-hidden">
-        {/* Subtle background glow */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#c5a059]/5 blur-[120px] rounded-full -z-10" />
-
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20 text-left">
-            {/* Brand Column */}
             <div className="md:col-span-2 space-y-8">
               <div className="flex flex-col">
                 <span className="text-[10px] tracking-[0.5em] uppercase text-gray-500 font-black mb-2">
@@ -522,13 +467,13 @@ export default function LandingLoginPage() {
               </p>
               <div className="flex gap-4">
                 {[
-                  { icon: <Instagram size={18} />, label: "Instagram" },
-                  { icon: <Facebook size={18} />, label: "Facebook" },
-                  { icon: <PhoneCall size={18} />, label: "Contact" },
+                  { icon: <Instagram size={18} /> },
+                  { icon: <Facebook size={18} /> },
+                  { icon: <PhoneCall size={18} /> },
                 ].map((social, i) => (
                   <button
                     key={i}
-                    className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all"
+                    className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all cursor-pointer"
                   >
                     {social.icon}
                   </button>
@@ -536,7 +481,6 @@ export default function LandingLoginPage() {
               </div>
             </div>
 
-            {/* Navigation Column */}
             <div className="space-y-6">
               <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
                 Experience
@@ -544,7 +488,7 @@ export default function LandingLoginPage() {
               <ul className="space-y-4">
                 <li>
                   <Link
-                    href="/suites"
+                    href="/"
                     className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
                   >
                     The Suites
@@ -552,7 +496,7 @@ export default function LandingLoginPage() {
                 </li>
                 <li>
                   <Link
-                    href="/culinary"
+                    href="/"
                     className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
                   >
                     Urban Ambrosia
@@ -560,24 +504,23 @@ export default function LandingLoginPage() {
                 </li>
                 <li>
                   <Link
-                    href="/contact"
+                    href="/"
                     className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
                   >
                     Contact & Inquiry
                   </Link>
                 </li>
-                <li>
+                 <li>
                   <Link
                     href="/sanctuary"
                     className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
                   >
-                    Ethereal Inn Collective
+                    Marketing
                   </Link>
                 </li>
               </ul>
             </div>
 
-            {/* Legal Column */}
             <div className="space-y-6">
               <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
                 Legal
@@ -605,7 +548,6 @@ export default function LandingLoginPage() {
             </div>
           </div>
 
-          {/* Bottom Bar */}
           <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
               <p className="text-[9px] text-gray-600 uppercase tracking-[0.2em] font-black">
@@ -616,7 +558,6 @@ export default function LandingLoginPage() {
                 Urban Ambrosia Culinary by Ethereal Inn Hospitality
               </p>
             </div>
-
             <div className="flex items-center gap-2 px-4 py-2 bg-white/[0.02] border border-white/5 rounded-full">
               <ShieldCheck size={12} className="text-emerald-500" />
               <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest">
@@ -627,21 +568,19 @@ export default function LandingLoginPage() {
         </div>
       </footer>
 
-      {/* --- MODALS & OVERLAYS --- */}
+      {/* --- ABOUT STORY SIDE OVERLAY --- */}
       <AnimatePresence>
-        {/* --- ABOUT STORY MODAL --- */}
         {showAbout && (
           <motion.div
             initial={{ x: "100%", opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 30, stiffness: 200 }}
-            className="fixed inset-0 z-[1000] bg-[#0a0a0a] text-white overflow-y-auto overflow-x-hidden selection:bg-[#c5a059] selection:text-black font-sans"
+            className="fixed inset-0 z-[1000] bg-[#0a0a0a] text-white overflow-y-auto overflow-x-hidden selection:bg-[#c5a059] selection:text-black font-sans text-center"
           >
-            {/* Close Button */}
             <button
               onClick={() => setShowAbout(false)}
-              className="fixed top-8 right-8 z-[1010] bg-white/5 hover:bg-[#c5a059] hover:text-black p-5 rounded-full text-white backdrop-blur-xl transition-all border border-white/10 group shadow-2xl"
+              className="fixed top-8 right-8 z-[1010] bg-white/5 hover:bg-[#c5a059] hover:text-black p-5 rounded-full text-white backdrop-blur-xl transition-all border border-white/10 group shadow-2xl cursor-pointer"
             >
               <X
                 size={24}
@@ -650,64 +589,40 @@ export default function LandingLoginPage() {
             </button>
 
             <div className="relative w-full flex flex-col items-center">
-              {/* Hero Section of Story */}
               <section className="relative h-[80dvh] w-full flex items-center justify-center px-6 overflow-hidden">
                 <motion.div
                   initial={{ scale: 1.2 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 20, ease: "linear" }}
-                  className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=2000')] bg-cover bg-center opacity-30 grayscale"
+                  className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=2000')] bg-cover bg-center opacity-30 grayscale pointer-events-none"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-transparent to-[#0a0a0a]" />
-                <div className="relative z-10 text-center max-w-4xl">
-                  <motion.span
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="text-[#c5a059] text-[10px] font-black uppercase tracking-[0.6em] mb-6 block"
-                  >
+                <div className="relative z-10 max-w-4xl">
+                  <span className="text-[#c5a059] text-[10px] font-black uppercase tracking-[0.6em] mb-6 block">
                     The Collective Legacy
-                  </motion.span>
-                  <motion.h1
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7 }}
-                    className="text-6xl md:text-[9rem] font-serif font-bold italic leading-[0.9] text-white uppercase"
-                  >
+                  </span>
+                  <h1 className="text-5xl md:text-[8rem] font-serif font-bold italic leading-[0.9] text-white uppercase">
                     Crafting <span className="text-gray-500">Silence</span>{" "}
                     <br /> & <span className="text-[#c5a059]">Flavor.</span>
-                  </motion.h1>
+                  </h1>
                 </div>
               </section>
 
-              {/* Brand Philosophy */}
-              <section className="max-w-4xl mx-auto py-24 px-6 text-center space-y-12">
-                <div className="flex justify-center gap-4 text-[#c5a059]">
-                  <Sparkles size={24} />
-                  <Target size={24} />
-                  <ShieldCheck size={24} />
-                </div>
+              <section className="max-w-4xl mx-auto py-24 px-6 space-y-12">
                 <p className="text-xl md:text-3xl font-serif text-gray-300 leading-relaxed italic">
                   "Ethereal Inn was born from a simple realization: that modern
-                  luxury isn't about excess, but about the
-                  <span className="text-white">
-                    {" "}
-                    intentionality of space{" "}
-                  </span>{" "}
-                  and the
-                  <span className="text-[#c5a059]">
-                    {" "}
-                    purity of nourishment.
-                  </span>
+                  luxury isn't about excess, but about the{" "}
+                  <span className="text-white">intentionality of space</span>{" "}
+                  and the{" "}
+                  <span className="text-[#c5a059]">purity of nourishment.</span>
                   "
                 </p>
                 <div className="h-20 w-px bg-gradient-to-b from-[#c5a059] to-transparent mx-auto" />
               </section>
 
-              {/* Leadership / Founders Grid */}
-              <section className="max-w-7xl mx-auto py-32 px-6 w-full border-t border-white/5">
-                <div className="flex flex-col items-center mb-20 text-center">
-                  <Users className="text-[#c5a059] mb-4" size={32} />
+              {/* Board Directors Segment */}
+              <section className="max-w-7xl mx-auto py-24 px-6 w-full border-t border-white/5">
+                <div className="flex flex-col items-center mb-20">
                   <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-500 mb-4">
                     Founding Board
                   </h2>
@@ -716,120 +631,45 @@ export default function LandingLoginPage() {
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
                   {[
                     {
                       name: "Sandeep Kumar Chaudhry",
                       role: "Managing Partner",
-                      desc: "Directs the collective vision with a focus on operational precision and strategic excellence.",
+                      desc: "Directs the collective vision with a focus on operational precision and strategic web cloud infrastructure configurations.",
                     },
                     {
                       name: "Shyam Kumar Chaudhry",
                       role: "Founder",
-                      desc: "The architect of our hospitality standards, ensuring every guest feels the 'Ethereal' touch.",
-                    },
-                    {
-                      name: "Deepak Tyagi",
-                      role: "Strategic Partner",
-                      desc: "An investor and board member driving the brand's expansion and financial integrity.",
-                    },
-                    {
-                      name: "Subhash",
-                      role: "Strategic Partner",
-                      desc: "An investor and board member driving the brand's expansion and financial integrity.",
+                      desc: "The architect of our premium hospitality standards, ensuring every guest feels our trademark pristine touch.",
                     },
                     {
                       name: "Tushar Kumar Chaudhry",
                       role: "Operations Lead",
-                      desc: "Master of the daily rhythm, bridging the gap between culinary art and guest satisfaction.",
+                      desc: "Master of daily rhythms, bridging operational assets execution parameters with pristine guest care.",
                     },
                   ].map((leader, i) => (
-                    <motion.div
+                    <div
                       key={i}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      viewport={{ once: true }}
-                      className="bg-white/5 p-10 rounded-[3rem] border border-white/5 hover:border-[#c5a059]/30 transition-all group flex flex-col justify-between h-[350px]"
+                      className="bg-white/5 p-8 rounded-[3rem] border border-white/5 hover:border-[#c5a059]/30 transition-all duration-300 flex flex-col justify-between min-h-[300px] backdrop-blur-sm"
                     >
                       <div>
-                        <div className="w-12 h-12 bg-[#c5a059]/10 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-[#c5a059] group-hover:text-black transition-all">
-                          <Users size={20} />
-                        </div>
-                        <h4 className="text-white font-serif text-2xl font-bold italic mb-2 group-hover:text-[#c5a059] transition-colors">
+                        <h4 className="text-white font-serif text-2xl font-bold italic mb-1">
                           {leader.name}
                         </h4>
                         <p className="text-[#c5a059] text-[9px] font-black uppercase tracking-widest mb-6">
                           {leader.role}
                         </p>
                       </div>
-                      <p className="text-gray-500 text-xs leading-relaxed border-t border-white/5 pt-2">
+                      <p className="text-gray-500 text-xs leading-relaxed border-t border-white/5 pt-4">
                         {leader.desc}
                       </p>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </section>
 
-              {/* Core Values Section */}
-              <section className="w-full bg-white/[0.02] py-32 px-6">
-                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-16">
-                  <div className="space-y-4">
-                    <div className="text-[#c5a059] font-serif text-5xl italic">
-                      01.
-                    </div>
-                    <h5 className="text-white font-black uppercase tracking-widest text-xs">
-                      Sattvic Roots
-                    </h5>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                      Everything we serve through Urban Ambrosia is designed to
-                      energize the body and calm the mind.
-                    </p>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="text-[#c5a059] font-serif text-5xl italic">
-                      02.
-                    </div>
-                    <h5 className="text-white font-black uppercase tracking-widest text-xs">
-                      Minimalist Luxury
-                    </h5>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                      We strip away the noise of the city to provide a sanctuary
-                      of visual and auditory peace.
-                    </p>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="text-[#c5a059] font-serif text-5xl italic">
-                      03.
-                    </div>
-                    <h5 className="text-white font-black uppercase tracking-widest text-xs">
-                      Modern Legacy
-                    </h5>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                      Built on family values but powered by modern technology
-                      for a seamless experience.
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              {/* Closing Call to Action */}
-              <section className="max-w-7xl mx-auto py-40 px-6 w-full text-center">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowAbout(false)}
-                  className="group inline-flex items-center gap-6 text-[#c5a059] font-black uppercase text-[12px] tracking-[0.5em] bg-white/5 px-12 py-6 rounded-full border border-white/10 hover:bg-[#c5a059] hover:text-black transition-all"
-                >
-                  Return to Sanctuary{" "}
-                  <ArrowRight
-                    className="group-hover:translate-x-2 transition-transform"
-                    size={18}
-                  />
-                </motion.button>
-              </section>
-
-              <footer className="py-12 border-t border-white/5 w-full text-center">
+              <footer className="py-12 border-t border-white/5 w-full">
                 <p className="text-[9px] text-gray-700 uppercase tracking-[0.4em]">
                   Designed for the Discerning • 2026
                 </p>
@@ -838,18 +678,19 @@ export default function LandingLoginPage() {
           </motion.div>
         )}
 
-        {/* --- INQUIRY / LOGIN / POLICIES MODALS --- */}
+        {/* --- DYNAMIC INTERACTION MODAL BOX (INQUIRY / STAFF ACCESS) --- */}
         {(showInquiry || showLogin || policyType) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4"
+            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/95 backdrop-blur-md p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-lg bg-zinc-900 rounded-[3rem] p-10 relative border border-white/5"
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-lg bg-zinc-900 rounded-[3rem] p-8 md:p-10 relative border border-white/5 shadow-2xl text-left"
             >
               <button
                 onClick={() => {
@@ -857,7 +698,7 @@ export default function LandingLoginPage() {
                   setShowLogin(false);
                   setPolicyType(null);
                 }}
-                className="absolute top-8 right-8 text-gray-500 hover:text-white transition-colors"
+                className="absolute top-8 right-8 text-gray-500 hover:text-white transition-colors cursor-pointer"
               >
                 <X size={24} />
               </button>
@@ -868,8 +709,8 @@ export default function LandingLoginPage() {
                     Inquiry <span className="text-[#c5a059]">Desk</span>
                   </h3>
                   {inquirySuccess ? (
-                    <div className="text-center py-10 text-emerald-400 font-black uppercase tracking-widest animate-pulse">
-                      Message Sent
+                    <div className="text-center py-10 text-emerald-400 font-black uppercase tracking-widest animate-pulse text-sm">
+                      ✔ Message Routed Successfully
                     </div>
                   ) : (
                     <>
@@ -877,30 +718,27 @@ export default function LandingLoginPage() {
                         required
                         name="name"
                         placeholder="Name"
-                        className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059]"
+                        className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] font-medium text-sm"
                       />
                       <input
                         required
                         name="phone"
                         placeholder="WhatsApp Number"
-                        className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059]"
+                        className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] font-medium text-sm"
                       />
-
-                      {/* New Inquiry Field */}
                       <textarea
                         required
                         name="message"
-                        placeholder="How can we assist you? (e.g. Booking for Mohan Garden)"
+                        placeholder="How can we assist you? (e.g. Booking inquiry details...)"
                         rows={4}
-                        className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] resize-none"
+                        className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] resize-none font-medium text-sm"
                       />
-
                       <button
                         disabled={isPendingInquiry}
-                        className="w-full bg-[#c5a059] text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-widest hover:scale-[1.02] transition-transform disabled:opacity-50"
+                        className="w-full bg-[#c5a059] text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-widest cursor-pointer active:scale-[0.98] transition-all disabled:opacity-40"
                       >
                         {isPendingInquiry ? (
-                          <Loader2 className="animate-spin mx-auto" />
+                          <Loader2 className="animate-spin mx-auto h-4 w-4" />
                         ) : (
                           "Send Request"
                         )}
@@ -913,30 +751,38 @@ export default function LandingLoginPage() {
               {showLogin && (
                 <form action={formAction} className="space-y-4">
                   <h3 className="text-2xl font-serif font-bold text-white uppercase italic mb-6">
-                    Staff Access
+                    Staff <span className="text-[#c5a059]">Access</span>
                   </h3>
+
+                  {/* 🌟 FIXED: Handled action response state logs rendering error alert validations */}
+                  {state?.error && (
+                    <div className="p-4 rounded-xl bg-rose-500/5 border border-rose-500/10 text-rose-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-2">
+                      <AlertCircle size={14} /> {state.error}
+                    </div>
+                  )}
+
                   <input
                     name="email"
                     type="email"
                     placeholder="Email"
                     required
-                    className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059]"
+                    className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] font-medium text-sm"
                   />
                   <input
                     name="password"
                     type="password"
                     placeholder="Passkey"
                     required
-                    className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059]"
+                    className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] font-medium text-sm"
                   />
                   <button
                     disabled={isPending}
-                    className="w-full bg-white text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-widest flex justify-center items-center"
+                    className="w-full bg-white text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-widest flex justify-center items-center cursor-pointer active:scale-[0.98] transition-all disabled:opacity-40"
                   >
                     {isPending ? (
-                      <Loader2 className="animate-spin" />
+                      <Loader2 className="animate-spin text-black h-4 w-4" />
                     ) : (
-                      "Verify"
+                      "Verify Terminal"
                     )}
                   </button>
                 </form>
@@ -949,10 +795,10 @@ export default function LandingLoginPage() {
                   </h3>
                   {POLICY_CONTENT[policyType].sections.map((s, i) => (
                     <div key={i} className="space-y-2">
-                      <p className="text-[10px] text-[#c5a059] uppercase font-black">
+                      <p className="text-[10px] text-[#c5a059] uppercase font-black tracking-wider">
                         {s.h}
                       </p>
-                      <p className="text-gray-400 text-sm leading-relaxed">
+                      <p className="text-gray-400 text-sm leading-relaxed font-medium">
                         {s.p}
                       </p>
                     </div>
@@ -963,13 +809,13 @@ export default function LandingLoginPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </main>
+    </div>
   );
 }
 
 function ReviewCard({ review }: { review: Review }) {
   return (
-    <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] w-[350px] md:w-[450px] whitespace-normal flex flex-col justify-between hover:border-[#c5a059]/30 transition-all duration-500">
+    <div className="bg-white/5 border border-white/10 p-8 md:p-10 rounded-[3rem] w-[350px] md:w-[450px] whitespace-normal flex flex-col justify-between hover:border-[#c5a059]/30 transition-all duration-500 backdrop-blur-sm">
       <div>
         <div className="flex gap-1 mb-6">
           {[...Array(5)].map((_, idx) => (
@@ -984,21 +830,21 @@ function ReviewCard({ review }: { review: Review }) {
             />
           ))}
         </div>
-        <p className="text-slate-300 text-sm italic leading-relaxed">
+        <p className="text-slate-300 text-sm italic leading-relaxed text-left font-medium">
           "{review.text}"
         </p>
       </div>
       <div className="flex items-center gap-4 mt-8 pt-6 border-t border-white/5">
         <img
           src={review.profile_photo_url}
-          className="w-10 h-10 rounded-full grayscale"
+          className="w-10 h-10 rounded-full grayscale border border-white/10"
           alt=""
         />
-        <div>
-          <h4 className="text-white font-black text-[10px] uppercase">
+        <div className="text-left">
+          <h4 className="text-white font-black text-[10px] uppercase tracking-wide">
             {review.author_name}
           </h4>
-          <span className="text-[9px] text-zinc-500 uppercase">
+          <span className="text-[9px] text-zinc-500 uppercase tracking-tighter">
             {review.relative_time_description}
           </span>
         </div>

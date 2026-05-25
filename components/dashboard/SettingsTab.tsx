@@ -9,7 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- ACTIONS ---
-import { updateUserRole, removeStaff, exportFinancialData } from '@/lib/actions/settings';
+import { updateUserRole, removeStaff, exportFinancialData } from '@/lib/actions/settings'; 
 import { createStaffMember, updateStaffProfile } from '@/lib/actions/users';
 import { logout } from '@/lib/actions/auth';
 
@@ -19,6 +19,7 @@ interface User {
   name: string;
   role: string;
   email?: string;
+  propertyId?: string; 
 }
 
 interface StaffMember {
@@ -43,6 +44,11 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
   // Robust Role Check
   const isAdmin = useMemo(() => user.role?.toLowerCase().trim() === 'admin', [user.role]);
 
+  // Determine active anchoring property context safely
+  const currentPropertyContextId = useMemo(() => {
+    return user.propertyId && user.propertyId !== "global" ? user.propertyId : "";
+  }, [user.propertyId]);
+
   // Admins see everyone, Staff see only their own card
   const visibleStaff = useMemo(() => {
     if (isAdmin) return localStaff;
@@ -64,9 +70,11 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+      } else if (res?.error) {
+        alert(`Export Rejection: ${res.error}`);
       }
     } catch (error) {
-      alert("Export failed.");
+      alert("Export compilation step encountered a critical error exception.");
     } finally {
       setIsExporting(false);
     }
@@ -74,10 +82,18 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
 
   const handleRoleUpdate = async (staffId: string | number, currentRole: string) => {
     if (!isAdmin) return;
+    if (!currentPropertyContextId) {
+      alert("Action Aborted: Cannot update user states while outside an explicit Property Context node.");
+      return;
+    }
+
     const newRole = currentRole.trim() === 'admin' ? 'staff' : 'admin';
-    const res = await updateUserRole(Number(staffId), newRole);
+    const res = await updateUserRole(Number(staffId), newRole, currentPropertyContextId);
+    
     if (res.success) {
       setLocalStaff(prev => prev.map(s => s.id === staffId ? { ...s, role: newRole } : s));
+    } else {
+      alert(res.error || "Failed to finalize user transformation operations.");
     }
   };
 
@@ -91,14 +107,14 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
   };
 
   return (
-    <div className="space-y-10 pb-32 font-sans max-w-2xl mx-auto px-4">
+    <div className="space-y-10 pb-32 font-sans max-w-2xl mx-auto px-4 selection:bg-amber-400 selection:text-black">
       {/* SECTION: USER PROFILE CARD */}
       <section className="bg-slate-900/40 p-8 rounded-[3rem] border border-white/5 text-center shadow-2xl backdrop-blur-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-400/20 to-transparent" />
-        <div className="w-24 h-24 bg-gradient-to-tr from-amber-400 to-orange-500 rounded-[2rem] mx-auto flex items-center justify-center text-slate-950 text-4xl font-black mb-6 shadow-2xl shadow-amber-400/20 uppercase">
+        <div className="w-24 h-24 bg-gradient-to-tr from-amber-400 to-orange-500 rounded-[2rem] mx-auto flex items-center justify-center text-slate-950 text-4xl font-black mb-6 shadow-2xl shadow-amber-400/20 uppercase italic">
           {user.name?.[0] || 'U'}
         </div>
-        <h2 className="text-2xl font-black text-white tracking-tight">{user.name}</h2>
+        <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">{user.name}</h2>
         <div className="flex flex-col items-center gap-3 mt-4">
           <span className="text-[10px] text-amber-400 font-black uppercase tracking-[0.3em] bg-amber-400/10 px-4 py-1.5 rounded-full border border-amber-400/20">
             {user.role?.trim()} Identity
@@ -116,7 +132,7 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
       <section className="space-y-6">
         <div className="flex justify-between items-end px-4">
           <div>
-            <h3 className="text-white text-lg font-black tracking-tight">{isAdmin ? "Staff Control" : "Account Identity"}</h3>
+            <h3 className="text-white text-lg font-black tracking-tight uppercase italic">{isAdmin ? "Staff Control" : "Account Identity"}</h3>
             <p className="text-[9px] text-slate-500 uppercase font-black tracking-[0.2em] mt-1">
               {isAdmin ? "Personnel & Access Keys" : "Verified Credentials"}
             </p>
@@ -124,7 +140,7 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
           {isAdmin && (
             <button 
               onClick={() => setIsAddModalOpen(true)} 
-              className="p-4 bg-amber-400 text-slate-950 rounded-2xl hover:bg-amber-300 active:scale-95 transition-all shadow-xl shadow-amber-400/20"
+              className="p-4 bg-amber-400 text-slate-950 rounded-2xl hover:bg-amber-300 active:scale-95 transition-all shadow-xl shadow-amber-400/20 cursor-pointer"
             >
               <UserPlus size={24} strokeWidth={2.5} />
             </button>
@@ -135,12 +151,12 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
           {visibleStaff.map((staff) => (
             <motion.div layout key={staff.id} className="flex items-center justify-between p-5 bg-slate-900/60 rounded-[2.5rem] border border-white/5 backdrop-blur-md">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-sm font-black text-slate-400 uppercase">
+                <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-sm font-black text-slate-400 uppercase italic">
                   {staff.name?.[0]}
                 </div>
                 <div>
                   <p className="text-sm font-black text-white">
-                    {staff.name} {Number(staff.id) === Number(user.id) && <span className="text-amber-400/50 ml-1 text-[10px]">(You)</span>}
+                    {staff.name} {Number(staff.id) === Number(user.id) && <span className="text-amber-400/50 ml-1 text-[10px] lowercase font-bold italic">(you)</span>}
                   </p>
                   <p className="text-[9px] text-amber-400/60 uppercase font-black tracking-widest mt-0.5">{staff.role?.trim()}</p>
                 </div>
@@ -151,14 +167,14 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
                   <button 
                     onClick={() => handleRoleUpdate(staff.id, staff.role)} 
                     title="Toggle Admin/Staff"
-                    className="p-3 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded-xl transition-all"
+                    className="p-3 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded-xl transition-all cursor-pointer"
                   >
                     <UserCog size={18} />
                   </button>
                   {Number(staff.id) !== Number(user.id) && (
                     <button 
                       onClick={() => handleRemoveStaff(staff.id, staff.name)} 
-                      className="p-3 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                      className="p-3 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -184,7 +200,13 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
 
       {/* MODAL OVERLAYS */}
       <AnimatePresence>
-        {isAddModalOpen && <AddStaffModal onClose={() => setIsAddModalOpen(false)} />}
+        {isAddModalOpen && (
+          <AddStaffModal 
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)} 
+            propertyId={user.propertyId && user.propertyId !== "global" ? String(user.propertyId) : currentPropertyContextId}
+          />
+        )}
         
         {isEditModalOpen && (
           <EditProfileModal 
@@ -199,20 +221,37 @@ export function SettingsTab({ user, allStaff: initialStaff }: SettingsTabProps) 
 }
 
 // --- MODAL: ADD STAFF ---
-function AddStaffModal({ onClose }: { onClose: () => void }) {
+// 🌟 FIXED: Unified properties configuration contract signature directly to use propertyId string type fields
+function AddStaffModal({ isOpen, onClose, propertyId }: { isOpen: boolean; onClose: () => void; propertyId: string; }) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'staff' });
 
+  if (!isOpen) return null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    const res = await createStaffMember(form);
-    if (res.success) {
-      window.location.reload();
-    } else {
-      alert(res.error || "Registration failed.");
+    if (!propertyId || propertyId === "global") {
+      alert("Security Violation: Cannot allocate standard personnel files outside an initialized property workspace.");
+      return;
     }
-    setLoading(false);
+
+    setLoading(true);
+    try {
+      const res = await createStaffMember({
+        ...form,
+        propertyId: propertyId 
+      });
+      
+      if (res.success) {
+        window.location.reload();
+      } else {
+        alert(res.error || "Registration failed.");
+      }
+    } catch (err) {
+      console.error("Staff Creation Error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -226,13 +265,13 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Authority Level</label>
           <div className="relative">
             <select 
-              className="w-full bg-slate-900/50 border border-white/5 rounded-[1.5rem] p-5 text-white outline-none appearance-none text-sm font-bold focus:border-amber-400/50 transition-all"
+              className="w-full bg-slate-900/50 border border-white/5 rounded-[1.5rem] p-5 text-white outline-none appearance-none text-sm font-bold focus:border-amber-400/50 transition-all cursor-pointer"
               value={form.role} 
               onChange={e => setForm({...form, role: e.target.value})}
             >
-              <option value="staff">Standard Staff</option>
-              <option value="manager">Manager</option>
-              <option value="admin">System Admin</option>
+              <option value="staff" className="bg-slate-950">Standard Staff</option>
+              <option value="manager" className="bg-slate-950">Manager</option>
+              <option value="admin" className="bg-slate-950">System Admin</option>
             </select>
             <ChevronRight size={16} className="absolute right-5 top-1/2 -translate-y-1/2 rotate-90 text-slate-600 pointer-events-none" />
           </div>
@@ -281,10 +320,10 @@ function ModalWrapper({ children, title, subtitle, onClose }: { children: React.
       <motion.div initial={{ y: 100, scale: 0.95 }} animate={{ y: 0, scale: 1 }} exit={{ y: 100, scale: 0.95 }} className="w-full max-w-md bg-[#020617] border border-white/10 rounded-[3rem] overflow-hidden shadow-2xl">
         <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
           <div>
-            <h3 className="text-white font-black text-xl tracking-tight">{title}</h3>
+            <h3 className="text-white font-black text-xl tracking-tight uppercase italic">{title}</h3>
             <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mt-1">{subtitle}</p>
           </div>
-          <button onClick={onClose} className="p-3 text-slate-500 hover:text-white bg-white/5 rounded-2xl transition-all"><X size={24} /></button>
+          <button onClick={onClose} className="p-3 text-slate-500 hover:text-white bg-white/5 rounded-2xl transition-all cursor-pointer"><X size={24} /></button>
         </div>
         {children}
       </motion.div>
@@ -308,19 +347,16 @@ function Input({ label, type = "text", placeholder, value, onChange }: { label: 
   );
 }
 
-function SubmitButton({ loading, text }: { loading: boolean; text: string; }) {
-  return (
-    <button 
-      disabled={loading} 
-      className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-[2rem] hover:bg-amber-300 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-lg shadow-amber-400/10"
-    >
-      {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck size={20} strokeWidth={3} />}
-      {text}
-    </button>
-  );
+interface SettingsActionProps {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  desc: string;
+  onClick: () => void;
+  danger?: boolean;
+  loading?: boolean;
 }
 
-function SettingsAction({ icon: Icon, title, desc, onClick, danger, loading }: { icon: any; title: string; desc: string; onClick: () => void; danger?: boolean; loading?: boolean; }) {
+function SettingsAction({ icon: Icon, title, desc, onClick, danger, loading }: SettingsActionProps) {
   return (
     <button 
       onClick={onClick} 
@@ -337,6 +373,30 @@ function SettingsAction({ icon: Icon, title, desc, onClick, danger, loading }: {
         </div>
       </div>
       <ChevronRight size={18} className="text-slate-800 group-hover:text-slate-400 transition-colors" />
+    </button>
+  );
+}
+
+interface SubmitButtonProps {
+  loading: boolean;
+  text: string;
+}
+
+function SubmitButton({ loading, text }: SubmitButtonProps) {
+  return (
+    <button 
+      type="submit"
+      disabled={loading} 
+      className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-[2rem] hover:bg-amber-300 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-lg shadow-amber-400/10 cursor-pointer"
+    >
+      {loading ? (
+        <Loader2 className="animate-spin h-5 w-5" />
+      ) : (
+        <ShieldCheck size={20} strokeWidth={3} />
+      )}
+      <span className="uppercase tracking-[0.2em] text-[11px] font-black">
+        {text}
+      </span>
     </button>
   );
 }

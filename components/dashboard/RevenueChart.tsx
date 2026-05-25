@@ -57,7 +57,6 @@ export default function MarketIntelView({ logs = [], inquiries = [], guests = []
       const res = await updateInquiryStatus(id, newStatus);
       if (res?.success) {
         if (newStatus === 'in-house') {
-          // Strict fallback to prevent 'undefined' string in URL
           const safeName = guestName && guestName !== "undefined" ? guestName : "Walk-In";
           
           startTransition(() => {
@@ -94,7 +93,7 @@ export default function MarketIntelView({ logs = [], inquiries = [], guests = []
     }), { upi: 0, cash: 0, ota: 0, total: 0 });
 
     const totalInquiries = inquiries?.length || 0;
-    const pendingInquiries = (inquiries || []).filter(i => i.status === 'pending').length;
+    const pendingInquiries = (inquiries || []).filter(i => i.status === 'pending' || i.status === 'new').length;
     const totalCheckouts = guests?.length || 0;
     
     const conversionRate = totalInquiries > 0 
@@ -134,13 +133,13 @@ export default function MarketIntelView({ logs = [], inquiries = [], guests = []
   };
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-24 font-sans selection:bg-amber-400 selection:text-black">
       
       {/* SECTION 1: CONVERSION FUNNEL */}
       <motion.div 
         whileTap={{ scale: 0.98 }}
         onClick={() => setShowLeadsModal(true)}
-        className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-6 cursor-pointer group transition-all relative overflow-hidden"
+        className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-6 cursor-pointer group transition-all relative overflow-hidden shadow-xl"
       >
         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
             <Zap size={80} className="text-amber-400" />
@@ -201,34 +200,39 @@ export default function MarketIntelView({ logs = [], inquiries = [], guests = []
         </div>
         
         <div className="space-y-3 px-1">
-          {guests && guests.length > 0 ? guests.slice(0, 5).map((guest, idx) => (
-            <motion.div 
-              key={guest.id || idx}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="bg-slate-950/40 backdrop-blur-md border border-white/5 p-4 rounded-[2rem] flex items-center justify-between group hover:bg-white/[0.02] transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-amber-400 border border-white/10 font-black text-sm group-hover:scale-105 transition-transform">
-                  {guest.roomNumber}
+          {guests && guests.length > 0 ? guests.slice(0, 5).map((guest, idx) => {
+            // 🌟 FIXED: Created unique deterministic keys to safeguard list components rendering frames
+            const safeKey = guest.id ? `invoice-${guest.id}` : `guest-idx-${idx}`;
+            
+            return (
+              <motion.div 
+                key={safeKey}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className="bg-slate-950/40 backdrop-blur-md border border-white/5 p-4 rounded-[2rem] flex items-center justify-between group hover:bg-white/[0.02] transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-amber-400 border border-white/10 font-black text-sm group-hover:scale-105 transition-transform">
+                    {guest.roomNumber}
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-white">{guest.guestName || "Guest"}</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5 mt-1">
+                      <Calendar size={10} className="text-amber-500/50" /> 
+                      {new Date(guest.checkoutDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-black text-white">{guest.guestName || "Guest"}</p>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5 mt-1">
-                    <Calendar size={10} className="text-amber-500/50" /> 
-                    {new Date(guest.checkoutDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                  </p>
+                <div className="text-right">
+                  <p className="text-sm font-black text-white">₹{Number(guest.totalAmount || 0).toLocaleString('en-IN')}</p>
+                  <div className="text-[8px] font-black text-emerald-500 uppercase tracking-widest flex items-center justify-end gap-1.5 mt-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Finalized
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-black text-white">₹{Number(guest.totalAmount || 0).toLocaleString('en-IN')}</p>
-                <div className="text-[8px] font-black text-emerald-500 uppercase tracking-widest flex items-center justify-end gap-1.5 mt-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Finalized
-                </div>
-              </div>
-            </motion.div>
-          )) : (
+              </motion.div>
+            );
+          }) : (
             <div className="text-center py-12 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10">
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No Recent Activity</p>
             </div>
@@ -241,11 +245,11 @@ export default function MarketIntelView({ logs = [], inquiries = [], guests = []
         {showLeadsModal && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-3xl flex items-end sm:items-center justify-center"
+            className="fixed inset-0 z-[150] bg-slate-950/95 backdrop-blur-3xl flex items-end sm:items-center justify-center p-4"
           >
             <motion.div 
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              className="w-full max-w-xl bg-[#020617] border-t border-white/10 rounded-t-[3.5rem] sm:rounded-[3.5rem] overflow-hidden max-h-[90vh] flex flex-col shadow-2xl"
+              className="w-full max-w-xl bg-[#020617] border border-white/10 rounded-[3.5rem] overflow-hidden max-h-[90vh] flex flex-col shadow-2xl relative"
             >
               <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
                 <div className="space-y-1">
@@ -261,69 +265,73 @@ export default function MarketIntelView({ logs = [], inquiries = [], guests = []
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
-                {inquiries && inquiries.length > 0 ? inquiries.map((lead, idx) => (
-                  <motion.div 
-                    key={lead.id || idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="bg-white/[0.03] border border-white/5 rounded-[2.5rem] p-6 space-y-5 shadow-xl hover:border-amber-400/20 transition-colors"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-amber-400/10 flex items-center justify-center text-amber-400 border border-amber-400/20">
-                            <MessageSquare size={20} />
+                {inquiries && inquiries.length > 0 ? inquiries.map((lead, idx) => {
+                  const leadKey = lead.id ? `lead-${lead.id}` : `lead-idx-${idx}`;
+                  
+                  return (
+                    <motion.div 
+                      key={leadKey}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="bg-white/[0.03] border border-white/5 rounded-[2.5rem] p-6 space-y-5 shadow-xl hover:border-amber-400/20 transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-400/10 flex items-center justify-center text-amber-400 border border-amber-400/20">
+                              <MessageSquare size={20} />
+                          </div>
+                          <div>
+                              <h4 className="text-white font-black uppercase text-sm tracking-tight">{lead.name || "Anonymous"}</h4>
+                              <div className="flex items-center gap-3 mt-1.5">
+                              <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1.5"><Phone size={10} /> {lead.phone}</span>
+                              <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
+                                  <Clock size={10} /> 
+                                  {lead.createdAt ? new Date(lead.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently"}
+                              </span>
+                              </div>
+                          </div>
                         </div>
-                        <div>
-                            <h4 className="text-white font-black uppercase text-sm tracking-tight">{lead.name || "Anonymous"}</h4>
-                            <div className="flex items-center gap-3 mt-1.5">
-                            <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1.5"><Phone size={10} /> {lead.phone}</span>
-                            <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
-                                <Clock size={10} /> 
-                                {lead.createdAt ? new Date(lead.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently"}
-                            </span>
-                            </div>
+                        <div className="bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20 text-[8px] font-black text-blue-400 uppercase tracking-widest">
+                          {lead.status || 'Pending'}
                         </div>
                       </div>
-                      <div className="bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20 text-[8px] font-black text-blue-400 uppercase tracking-widest">
-                        {lead.status || 'Pending'}
+
+                      <div className="bg-black/40 rounded-3xl p-5 border border-white/5">
+                          <p className="text-[12px] leading-relaxed text-slate-400 italic font-medium">
+                            "{lead.message || "Customer is requesting room rates and availability for a future stay."}"
+                          </p>
                       </div>
-                    </div>
 
-                    <div className="bg-black/40 rounded-3xl p-5 border border-white/5">
-                        <p className="text-[12px] leading-relaxed text-slate-400 italic font-medium">
-                          "{lead.message || "Customer is requesting room rates and availability for a future stay."}"
-                        </p>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <button 
-                        disabled={isUpdating === lead.id}
-                        onClick={() => handleStatusUpdate(lead.id, 'in-house', lead.name || "Guest")}
-                        className="flex-2 grow bg-amber-400 text-slate-950 py-4 rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-amber-400/20 disabled:opacity-50"
-                      >
-                        {isUpdating === lead.id ? (
-                          <Loader2 className="animate-spin" size={16} />
-                        ) : (
-                          <CheckCircle2 size={16} />
-                        )}
-                        Mark as In-House
-                      </button>
-                      <button 
-                        disabled={isUpdating === lead.id}
-                        onClick={() => handleArchive(lead.id)}
-                        className="flex-1 bg-white/5 text-slate-400 py-4 rounded-2xl text-[10px] font-black uppercase hover:bg-rose-500/10 hover:text-rose-500 transition-all border border-white/5 flex items-center justify-center gap-2"
-                      >
-                        {isUpdating === lead.id ? (
-                          <Loader2 className="animate-spin" size={14} />
-                        ) : (
-                          <Archive size={14} />
-                        )}
-                        Archive
-                      </button>
-                    </div>
-                  </motion.div>
-                )) : (
+                      <div className="flex gap-3">
+                        <button 
+                          disabled={isUpdating === lead.id || isPending}
+                          onClick={() => handleStatusUpdate(lead.id, 'in-house', lead.name || "Guest")}
+                          className="flex-2 grow bg-amber-400 text-slate-950 py-4 rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-amber-400/20 disabled:opacity-50"
+                        >
+                          {(isUpdating === lead.id || isPending) ? (
+                            <Loader2 className="animate-spin" size={16} />
+                          ) : (
+                            <CheckCircle2 size={16} />
+                          )}
+                          Mark as In-House
+                        </button>
+                        <button 
+                          disabled={isUpdating === lead.id}
+                          onClick={() => handleArchive(lead.id)}
+                          className="flex-1 bg-white/5 text-slate-400 py-4 rounded-2xl text-[10px] font-black uppercase hover:bg-rose-500/10 hover:text-rose-500 transition-all border border-white/5 flex items-center justify-center gap-2"
+                        >
+                          {isUpdating === lead.id ? (
+                            <Loader2 className="animate-spin" size={14} />
+                          ) : (
+                            <Archive size={14} />
+                          )}
+                          Archive
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                }) : (
                   <div className="py-20 text-center">
                     <div className="w-16 h-16 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-white/5">
                         <MessageSquare size={24} className="text-slate-700" />
@@ -355,13 +363,22 @@ function FunnelStep({ icon: Icon, label, value, color }: any) {
 }
 
 function SourceMini({ icon: Icon, label, value, color, bg }: any) {
+  // 🌟 FIXED: Created dynamic utility scaling framework to display short currencies cleanly based on amount size
+  const formattedValue = useMemo(() => {
+    const rawNum = Number(value || 0);
+    if (rawNum >= 1000) {
+      return `₹${(rawNum / 1000).toFixed(1)}k`;
+    }
+    return `₹${rawNum}`;
+  }, [value]);
+
   return (
     <div className="bg-white/5 p-4 rounded-[2rem] border border-white/5 shadow-xl hover:bg-white/[0.07] transition-colors group">
       <div className={`w-8 h-8 rounded-xl ${bg} ${color} flex items-center justify-center mb-3 group-hover:rotate-12 transition-transform`}>
         <Icon size={16} />
       </div>
       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">{label}</p>
-      <p className="text-sm font-black text-white">₹{(Number(value || 0) / 1000).toFixed(1)}k</p>
+      <p className="text-sm font-black text-white">{formattedValue}</p>
     </div>
   );
 }

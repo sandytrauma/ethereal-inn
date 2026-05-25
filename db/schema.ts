@@ -24,7 +24,7 @@ export const taskStatusEnum = pgEnum("task_status", ["todo", "in_progress", "com
 // 1. Users (Staff & Admin)
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-    propertyId: uuid("property_id").references(() => properties.id),
+propertyId: uuid("property_id").references(() => properties.id, { onDelete: "set null" }),
 
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
@@ -118,6 +118,7 @@ date: date("date").notNull().unique(),
 // 7. Statutory Master
 export const statutoryMaster = pgTable("statutory_master", {
   id: serial("id").primaryKey(),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
   licenseName: text("license_name").notNull(),
   authority: text("authority"),
   expiryDate: timestamp("expiry_date"),
@@ -128,6 +129,7 @@ export const statutoryMaster = pgTable("statutory_master", {
 // 8. Documents
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   url: text("url").notNull(), 
   fileType: text("file_type"),
@@ -157,6 +159,10 @@ export const financialRecordsRelations = relations(financialRecords, ({ one }) =
   author: one(users, {
     fields: [financialRecords.userId],
     references: [users.id],
+  }),
+  property: one(properties, {
+    fields: [financialRecords.propertyId], // The column inside this table
+    references: [properties.id],           // The target column in the parent table
   }),
 }));
 

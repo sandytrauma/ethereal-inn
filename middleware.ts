@@ -5,10 +5,32 @@ import { decrypt } from '@/lib/auth';
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const token = req.cookies.get('auth-token')?.value;
+  const hostname = req.headers.get('host') || '';
 
-  // 1. Static Public Routes (Exact string matching)
+  // Skip middleware execution for internal Next.js engine chunks, build file optimization passes, and images
+  const isInternalAsset = path.startsWith('/_next') || path.startsWith('/api') || path.includes('.');
+  if (isInternalAsset) return NextResponse.next();
+
+  // =========================================================================
+  // 1. DYNAMIC SUBDOMAIN / TENANT EXTRACTION LAYER
+  // =========================================================================
+  const domainParts = hostname.split('.');
+  let currentSubdomain = '';
+
+  // Handle extracting subdomains from your live domain (www.etherealinn.com)
+  if (domainParts.length > 2 && domainParts[0] !== 'www') {
+    currentSubdomain = domainParts[0];
+  } else if (domainParts.length === 2 && hostname.includes('localhost') && domainParts[0] !== 'localhost') {
+    currentSubdomain = domainParts[0];
+  }
+
+  // =========================================================================
+  // 2. ROUTE CLASSIFICATION MATRIX
+  // =========================================================================
+  const isAdminRoute = path.startsWith('/pms-admin');
+
   const STATIC_PUBLIC_ROUTES = [
-    '/ethereal-inn', // Login Page
+    '/ethereal-inn', // Your master system authentication portal login view
     '/glam', 
     '/suites', 
     '/culinary', 
@@ -16,51 +38,59 @@ export async function middleware(req: NextRequest) {
     '/sanctuary'
   ];
 
-  // 2. Check if path is a static public route or matches our dynamic invoice system
   const isPublicPage = 
     STATIC_PUBLIC_ROUTES.includes(path) || 
-    path === '/sanctuary' ||               // Catches the main catalog page
-    path.startsWith('/sanctuary/') ||      // FIX: Catches /sanctuary/premium-stay, etc.
-    path.startsWith('/invoices/');         // Catches your obfuscated guest invoices
-    path.startsWith('/invoices'); // Explicitly matches /invoices/any-obfuscated-hex-id
+    path.startsWith('/sanctuary/') ||      
+    path.startsWith('/invoices');
 
-  // 3. Identify the PMS Route
-  // This ensures /pms and everything under it (e.g., /pms/123) is flagged
-  const isPmsRoute = path.startsWith('/pms');
+  // Strict folder structure checks to isolate active dashboard actions cleanly
+  const isPmsRoute = !isAdminRoute && (path === '/pms' || path.startsWith('/pms/') || path.includes('/occupancy'));
+  const isProtectedSystem = isPmsRoute || path === '/';
 
-  // Skip middleware for internal Next.js assets and API routes
-  const isInternalAsset = path.startsWith('/_next') || path.startsWith('/api') || path.includes('.');
-  if (isInternalAsset) return NextResponse.next();
-
-  // 4. Decrypt the session
+  // 3. Decrypt Active Encrypted Passports
   const session = token ? await decrypt(token).catch(() => null) : null;
 
-  // --- REDIRECT LOGIC ---
+  // =========================================================================
+  // 3. SECURITY GATEWAY SECURITY FIREWALL
+  // =========================================================================
 
-  // A. Guest trying to access protected routes (PMS or Dashboard)
-  if (!session && (isPmsRoute || !isPublicPage)) {
+  // SPECIAL GATE: For internal onboarding routes, handle security independently
+  if (isAdminRoute) {
+    if (!session) {
+      return NextResponse.redirect(new URL('/ethereal-inn', req.url));
+    }
+    return NextResponse.next(); // Hands off control to page.tsx for the admin@ethereal.com email verification check
+  }
+
+  // A. Block unauthenticated requests trying to touch backend workflows
+  if (!session && (isProtectedSystem || !isPublicPage)) {
     return NextResponse.redirect(new URL('/ethereal-inn', req.url));
   }
 
-  // B. Staff already logged in trying to hit the login page
+  // B. Protect active sessions from bouncing backward into the login interface
   if (session && path === '/ethereal-inn') {
-    // Redirect to the first PMS property or main dashboard
-    return NextResponse.redirect(new URL('/pms', req.url));
+    return NextResponse.redirect(new URL('/', req.url)); 
+  }
+
+  // =========================================================================
+  // 4. SAAS SUBDOMAIN VIRTUAL DIRECTORY REWRITE LAYER
+  // =========================================================================
+  if (currentSubdomain && !isPublicPage && !isAdminRoute) {
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-tenant-subdomain', currentSubdomain);
+
+    return NextResponse.rewrite(new URL(path, req.url), {
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
   return NextResponse.next();
 }
 
-// Optimized matcher: Ensure it catches the root and all dynamic paths
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };

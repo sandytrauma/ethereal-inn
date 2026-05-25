@@ -19,7 +19,6 @@ import {
   History
 } from 'lucide-react';
 import { closeDayBook, manualAdjustment } from '@/lib/actions/finance';
-import { getRoomsList } from '@/lib/actions/room-actions';
 import { 
   Card, 
   CardHeader, 
@@ -32,8 +31,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface DayBookFormProps {
   onSuccess?: () => void;
+  // 🌟 Direct pre-filtered multi-tenant parent configuration access
+  properties?: Array<{ id: string; name: string }>; 
   initialPropertyId?: string; 
-  isManual?: boolean;
 }
 
 interface InputFieldProps {
@@ -66,15 +66,14 @@ const InputField = ({ label, value, onChange, icon: Icon, placeholder = "0", cla
   </div>
 );
 
-export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) {
+export function DayBookForm({ onSuccess, properties = [], initialPropertyId }: DayBookFormProps) {
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [isManual, setIsManual] = useState(false); // Mode Toggle State
-  const [availableProperties, setAvailableProperties] = useState<{id: string, name: string}[]>([]);
+  const [isManual, setIsManual] = useState(false); 
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>(initialPropertyId || "");
   
   const [values, setValues] = useState({
-    selectedDate: '', // For manual mode
+    selectedDate: '', 
     cashRevenue: '',
     upiRevenue: '',
     otaPayouts: '',
@@ -84,38 +83,11 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
     notes: ''
   });
 
-  // Fetch properties to populate the selector
   useEffect(() => {
-    async function fetchProperties() {
-      try {
-        const rooms = await getRoomsList(); 
-        
-        if (rooms && rooms.length > 0) {
-          const propsMap = new Map();
-          
-          rooms.forEach(room => {
-            if (room.propertyId && !propsMap.has(room.propertyId)) {
-              propsMap.set(room.propertyId, {
-                id: room.propertyId,
-                name: room.propertyName || `Property ${room.propertyId.slice(0, 4)}`
-              });
-            }
-          });
-
-          const uniqueProps = Array.from(propsMap.values());
-          setAvailableProperties(uniqueProps);
-          
-          if (uniqueProps.length > 0 && !selectedPropertyId) {
-            setSelectedPropertyId(uniqueProps[0].id);
-          }
-        }
-      } catch (error) {
-        console.error("Property fetch failed:", error);
-      }
+    if (properties.length > 0 && !selectedPropertyId) {
+      setSelectedPropertyId(properties[0].id);
     }
-    
-    fetchProperties();
-  }, [selectedPropertyId]);
+  }, [properties, selectedPropertyId]);
 
   const totalCollection = (Number(values.cashRevenue) || 0) + (Number(values.upiRevenue) || 0) + (Number(values.otaPayouts) || 0);
   const totalAllocation = (Number(values.roomRevenue) || 0) + (Number(values.serviceRevenue) || 0);
@@ -140,17 +112,27 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
 
     setLoading(true);
     try {
-      // Dynamic Action Selection based on Mode
       const actionToRun = isManual ? manualAdjustment : closeDayBook;
       
-      const result = await actionToRun(
-        { 
-          ...values, 
-          totalCollection: totalCollection.toString(), 
-          netCash: netCash.toString() 
-        }, 
-        selectedPropertyId 
-      );
+      // =========================================================================
+      // 🌟 THE STRUCTURAL FIX: EXPLICIT CLEAN DATA PAYLOAD OBJECT MAPPING
+      // Formats data explicitly based on mode to prevent DB type parsing crashes.
+      // =========================================================================
+      const cleanPayload = {
+        cashRevenue: values.cashRevenue || "0",
+        upiRevenue: values.upiRevenue || "0",
+        otaPayouts: values.otaPayouts || "0",
+        roomRevenue: values.roomRevenue || "0",
+        serviceRevenue: values.serviceRevenue || "0",
+        pettyExpenses: values.pettyExpenses || "0",
+        notes: values.notes || "",
+        totalCollection: totalCollection.toString(),
+        netCash: netCash.toString(),
+        // Only append selectedDate if we are performing a back-dated correction entry
+        ...(isManual && { selectedDate: values.selectedDate })
+      };
+      
+      const result = await actionToRun(cleanPayload, selectedPropertyId);
       
       if (result.success) {
         setIsSuccess(true);
@@ -166,7 +148,7 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
             notes: '' 
           });
           setIsSuccess(false);
-          setIsManual(false); // Reset mode after success
+          setIsManual(false); 
           if (onSuccess) onSuccess();
         }, 1500);
       } else {
@@ -174,13 +156,14 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
       }
     } catch (err) {
       console.error("Submission error:", err);
+      alert("An internal error occurred during entry tracking processing.");
     } finally {
-      setLoading(false);
+      setLoading(false); 
     }
   };
 
   return (
-    <main className="w-full max-w-2xl mx-auto py-4">
+    <main className="w-full max-w-2xl mx-auto py-4 font-sans selection:bg-amber-400 selection:text-black">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <Card className="bg-slate-900/40 backdrop-blur-xl border-white/5 rounded-[3rem] overflow-hidden shadow-2xl relative">
           
@@ -204,24 +187,23 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
           <CardHeader className="p-8 pb-4">
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-white text-2xl font-black tracking-tight">
+                <CardTitle className="text-white text-2xl font-black tracking-tight uppercase italic">
                   {isManual ? "Manual Adjustment" : "Closing Entry"}
                 </CardTitle>
-                <CardDescription className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                <CardDescription className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1">
                   {isManual 
                     ? "Back-dated correction" 
                     : new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </CardDescription>
               </div>
 
-              {/* MODE TOGGLE BUTTON */}
               <button 
                 type="button"
                 onClick={() => setIsManual(!isManual)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
                   isManual 
-                    ? 'bg-amber-400 text-slate-950 border-amber-400' 
-                    : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                    ? 'bg-amber-400 text-slate-950 border-amber-400 font-black' 
+                    : 'bg-white/5 text-slate-400 border-white/10 font-bold hover:text-white'
                 }`}
               >
                 {isManual ? <Calendar size={14} /> : <History size={14} />}
@@ -241,10 +223,10 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
                 <select
                   value={selectedPropertyId}
                   onChange={(e) => setSelectedPropertyId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 appearance-none text-white font-bold focus:border-amber-500 outline-none transition-all pr-12 cursor-pointer"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 appearance-none text-white font-bold focus:border-amber-500 outline-none transition-all pr-12 cursor-pointer text-sm"
                 >
                   <option value="" disabled>Select a property...</option>
-                  {availableProperties.map(prop => (
+                  {properties.map(prop => (
                     <option key={prop.id} value={prop.id} className="bg-slate-900">{prop.name}</option>
                   ))}
                 </select>
@@ -277,7 +259,8 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
           </CardHeader>
 
           <CardContent className="px-8 space-y-6">
-            {/* Payment Sources */}
+            <div className="h-[1px] w-full bg-white/5" />
+            
             <section className="space-y-4">
               <h4 className="text-[9px] font-black text-amber-400 uppercase tracking-[0.3em]">1. Payment Sources</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -302,7 +285,6 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
               />
             </section>
 
-            {/* Allocation */}
             <section className="space-y-4 p-6 bg-white/5 rounded-[2.5rem] border border-white/5">
               <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">2. Category Allocation</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -321,12 +303,11 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
               </div>
               {allocationGap !== 0 && totalCollection > 0 && (
                 <p className="text-[8px] font-bold text-rose-400 uppercase text-center italic tracking-wider">
-                  Discrepancy: ₹{allocationGap.toLocaleString()}
+                  Discrepancy: ₹{allocationGap.toLocaleString('en-IN')}
                 </p>
               )}
             </section>
 
-            {/* Petty Expenses */}
             <section>
               <InputField 
                 label="Petty Expenses" 
@@ -337,11 +318,10 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
               />
             </section>
 
-            {/* In-Hand Calculation Display */}
             <section className="p-8 bg-slate-950 rounded-[2.5rem] border border-white/10 relative overflow-hidden group">
               <div className="flex justify-between items-center text-[10px] text-slate-500 uppercase font-black tracking-[0.2em]">
                 <span>Gross Collection</span>
-                <span className="text-slate-300">₹{totalCollection.toLocaleString('en-IN')}</span>
+                <span className="text-slate-300 font-bold">₹{totalCollection.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between items-center border-t border-white/5 mt-4 pt-4">
                 <span className="text-slate-400 text-sm font-bold">In-Hand Cash</span>
@@ -361,7 +341,7 @@ export function DayBookForm({ onSuccess, initialPropertyId }: DayBookFormProps) 
                 value={values.notes}
                 onChange={(e) => setValues({...values, notes: e.target.value})}
                 placeholder="Important highlights or reason for manual adjustment..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-5 focus:border-amber-500 outline-none text-sm text-white resize-none transition-all placeholder:text-slate-800"
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-5 focus:border-amber-500 outline-none text-sm text-white resize-none transition-all placeholder:text-slate-800 font-medium"
               />
             </section>
           </CardContent>
