@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { inventoryItems, assetMaintenance, inventoryCategories } from "@/db/schema";
+import { inventoryItems, assetMaintenance, inventoryCategories, inventoryTransactions } from "@/db/schema";
 import { eq, and, sql, asc, inArray } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "../auth";
@@ -112,7 +112,7 @@ export async function addInventoryItem(propertyId: string, payload: any) {
 }
 
 /**
- * Atomically adjusts consumable stock counts (e.g., room allocation, linens usage, or refills).
+ * Atomically adjusts consumable stock counts and dynamically shifts database statuses.
  */
 export async function adjustStockLevel(propertyId: string, itemId: string, delta: number) {
   try {
@@ -122,26 +122,45 @@ export async function adjustStockLevel(propertyId: string, itemId: string, delta
       throw new Error("Access Denied: Structural context manipulation intercepted.");
     }
 
-    await db
-      .update(inventoryItems)
-      .set({
-        currentStock: sql`${inventoryItems.currentStock} + ${delta}`,
-        updatedAt: new Date(),
-        updatedBy: session.userId
-      })
-      .where(
-        and(
+    await db.transaction(async (tx) => {
+      // 1. Pull current count to safely evaluate boundaries
+      const currentItem = await tx.query.inventoryItems.findFirst({
+        where: and(
           eq(inventoryItems.id, itemId),
           eq(inventoryItems.propertyId, propertyId)
         )
-      );
+      });
+
+      if (!currentItem) throw new Error("Target item row not found inside this property context.");
+
+      const computedStock = Math.max(0, currentItem.currentStock + delta);
+      
+      // 2. Determine string flag dynamically based on computed allocation properties
+      let dynamicStatus = "active";
+      if (computedStock === 0) {
+        dynamicStatus = "depleted"; // Mark out of stock explicitly in database records
+      } else if (computedStock <= currentItem.minRequiredStock) {
+        dynamicStatus = "low_stock";
+      }
+
+      // 3. Write back changes in a unified atomic pass
+      await tx
+        .update(inventoryItems)
+        .set({
+          currentStock: computedStock,
+          status: dynamicStatus,
+          updatedAt: new Date(),
+          updatedBy: session.userId
+        })
+        .where(eq(inventoryItems.id, itemId));
+    });
 
     revalidatePath(`/pms/${propertyId}`);
     revalidatePath("/inventory");
     return { success: true };
   } catch (error: any) {
     console.error("Adjust Stock Failure:", error.message);
-    return { success: false, error: error.message || "Failed to modify item balance thresholds." };
+    return { success: false, error: error.message || "Failed to update item balance thresholds." };
   }
 }
 
@@ -266,3 +285,85 @@ export async function getGlobalInventoryCategories() {
     return { success: false, error: "Failed to compile system categorizations dropdown index." };
   }
 }
+
+/**
+ * SECURE ACTION: Issues a specific quantity of an item for property operations use.
+ * Deducts stock atomically and appends a structured transaction ledger trail.
+ */
+export async function issueInventoryItem(propertyId: string, payload: {
+  itemId: string;
+  quantity: number;
+  allocatedTo: string;
+  notes?: string;
+}) {
+  try {
+    const session = await getValidatedSession(); 
+
+    if (!session.isMasterAdmin && !session.accessibleProperties.includes(String(propertyId))) {
+      throw new Error("Access Denied: Inadequate multi-property clearance.");
+    }
+
+    const qtyToDeduct = Number(payload.quantity);
+    if (qtyToDeduct <= 0) throw new Error("Quantity must be greater than zero.");
+
+    // 🌟 THE FIX: Remove the 'return' keyword from here
+    await db.transaction(async (tx) => {
+      const targetItem = await tx.query.inventoryItems.findFirst({
+        where: and(
+          eq(inventoryItems.id, payload.itemId),
+          eq(inventoryItems.propertyId, propertyId)
+        )
+      });
+
+      if (!targetItem) throw new Error("Asset entry node not found.");
+      if (targetItem.currentStock < qtyToDeduct) {
+        throw new Error(`Deficit: Only ${targetItem.currentStock} units available.`);
+      }
+
+      const postTransactionStock = targetItem.currentStock - qtyToDeduct;
+
+      let updatedStatus = "active";
+      if (postTransactionStock === 0) updatedStatus = "depleted";
+      else if (postTransactionStock <= targetItem.minRequiredStock) updatedStatus = "low_stock";
+
+      await tx
+        .update(inventoryItems)
+        .set({
+          currentStock: postTransactionStock,
+          status: updatedStatus,
+          updatedAt: new Date(),
+          updatedBy: session.userId
+        })
+        .where(eq(inventoryItems.id, payload.itemId));
+
+      const truncatedTypeSummary = `issue:${String(payload.allocatedTo || "Use")}`.substring(0, 50);
+
+     
+
+await tx.insert(inventoryTransactions).values({
+  propertyId: String(propertyId),
+  itemId: String(payload.itemId),
+  transactionType: "issue", // Bounces back down to a clean status string constant
+  quantity: Number(payload.quantity),
+  
+  // 🌟 SAFELY BIND BOTH INDEPENDENT TRACKING INPUTS NOW
+  allocatedTo: payload.allocatedTo ? String(payload.allocatedTo) : "General Operations",
+  notes: payload.notes ? String(payload.notes) : null,
+  
+  issuedBy: Number(session.userId || 1),
+});
+    });
+
+    revalidatePath(`/pms/${propertyId}`);
+    revalidatePath("/inventory");
+    
+    // 🌟 THE FIX: Return a clean, predictable signature outside the transaction block
+    return { success: true, error: null };
+
+  } catch (error: any) {
+    console.error("Issue Inventory Fault:", error.message);
+    // 🌟 THE FIX: Match the signature here precisely
+    return { success: false, error: error.message || "Failed to finalize stock issuance." };
+  }
+}
+

@@ -6,7 +6,7 @@ import {
   ChevronRight, Loader2, Minus, Search, ShieldCheck, Home
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { adjustStockLevel, addInventoryItem } from "@/lib/actions/inventory";
+import { adjustStockLevel, addInventoryItem, issueInventoryItem } from "@/lib/actions/inventory";
 import { useRouter } from "next/navigation";
 
 interface PropertyLookup {
@@ -18,7 +18,7 @@ interface InventoryWorkspaceProps {
   initialItems: any[];
   alerts: { lowStock: any[]; overdueService: any[] };
   categories: any[];
-  propertiesList: PropertyLookup[]; // 🌟 Received cleanly from parent server frame context
+  propertiesList: PropertyLookup[]; 
   propertyId: string;
   isMasterAdmin: boolean;
 }
@@ -36,28 +36,41 @@ export function InventoryWorkspace({
   const [activeTab, setActiveTab] = useState<"all" | "consumable" | "fixed_asset">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  
+  // 🌟 Lifecycle Availability Filters and Operational Modal Hooks
+  const [stockFilter, setStockFilter] = useState<"all" | "instock" | "lowstock" | "outstock">("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isIssueOpen, setIsIssueOpen] = useState(false);
+  const [selectedItemToIssue, setSelectedItemToIssue] = useState<any>(null);
+  const [issueForm, setIssueForm] = useState({ quantity: "1", allocatedTo: "", notes: "" });
 
-  // 🌟 THE FIX: Dynamic Target Property Assignment Hook state tracking context
+  // Multi-tenant selection context routing setup
   const [targetPropertyId, setTargetPropertyId] = useState<string>(propertyId || "");
 
-  // Form State Layout
+  // Initial Form Field Allocation State Mapper
   const [newItem, setNewItem] = useState({
     name: "", categoryId: "", itemType: "consumable", sku: "",
     currentStock: "0", minRequiredStock: "5", unitOfMeasurement: "pcs",
     serialNumber: "", locationInProperty: "", nextServiceDate: ""
   });
 
-  // Client-side quick-filtering
+  // Reactive multi-property matrix sorting engine
   const filteredItems = useMemo(() => {
     return initialItems.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             (item.sku && item.sku.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesTab = activeTab === "all" || item.itemType === activeTab;
       const matchesCategory = selectedCategory === "all" || Number(item.categoryId) === Number(selectedCategory);
-      return matchesSearch && matchesTab && matchesCategory;
+      
+      const matchesStockState = 
+        stockFilter === "all" ||
+        (stockFilter === "outstock" && (item.currentStock === 0 || (item.itemType === "fixed_asset" && item.nextServiceDate && new Date(item.nextServiceDate) <= new Date()))) ||
+        (stockFilter === "lowstock" && item.itemType === "consumable" && item.currentStock > 0 && item.currentStock <= item.minRequiredStock) ||
+        (stockFilter === "instock" && (item.itemType === "consumable" ? item.currentStock > item.minRequiredStock : item.status === "active"));
+
+      return matchesSearch && matchesTab && matchesCategory && matchesStockState;
     });
-  }, [initialItems, searchQuery, activeTab, selectedCategory]);
+  }, [initialItems, searchQuery, activeTab, selectedCategory, stockFilter]);
 
   const handleStockDelta = (itemId: string, currentAmount: number, delta: number) => {
     if (currentAmount + delta < 0) return;
@@ -71,14 +84,12 @@ export function InventoryWorkspace({
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Structural constraint lookup validation pass
     if (!targetPropertyId || targetPropertyId === "global" || targetPropertyId.trim() === "") {
       alert("Validation Rejection: An explicit Property Context anchor must be chosen before asset deployment.");
       return;
     }
 
     startTransition(async () => {
-      // 🌟 THE FIX: Route deployment payload directly using selected target property context bounds
       const res = await addInventoryItem(targetPropertyId, newItem);
       if (res.success) {
         setIsAddOpen(false);
@@ -94,17 +105,35 @@ export function InventoryWorkspace({
     });
   };
 
+  const handleIssueSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    startTransition(async () => {
+      const res = await issueInventoryItem(selectedItemToIssue.propertyId, {
+        itemId: selectedItemToIssue.id,
+        quantity: Number(issueForm.quantity),
+        allocatedTo: issueForm.allocatedTo,
+        notes: issueForm.notes
+      });
+      if (res.success) {
+        setIsIssueOpen(false);
+        setSelectedItemToIssue(null);
+        router.refresh();
+      } else {
+        alert(res.error);
+      }
+    });
+  };
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/5 pb-6 text-left">
         <div>
           <span className="text-[10px] tracking-[0.5em] uppercase text-[#c5a059] font-black block mb-1">Ethereal Vault</span>
-          <h1 className="text-3xl md:text-4xl font-serif font-bold italic text-white">Inventory Framework</h1>
+          <h1 className="text-3xl md:text-4xl font-serif font-bold italic text-white">Inventory Management</h1>
         </div>
         <button
           onClick={() => {
-            // Re-initialize tracking target properties scope dynamically upon modal state trigger opens
             setTargetPropertyId(propertyId || "");
             setIsAddOpen(true);
           }}
@@ -146,21 +175,21 @@ export function InventoryWorkspace({
       </div>
 
       {/* FILTER SEARCH WORKSPACE TOOLBAR */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-zinc-900/20 p-4 border border-white/5 rounded-2xl">
-        <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 w-full md:w-auto">
+      <div className="flex flex-col xl:flex-row gap-4 justify-between items-center bg-zinc-900/20 p-4 border border-white/5 rounded-2xl">
+        <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 w-full xl:w-auto overflow-x-auto scrollbar-none">
           {(["all", "consumable", "fixed_asset"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${activeTab === tab ? 'bg-[#c5a059] text-black shadow-md' : 'text-slate-400 hover:text-white'}`}
+              className={`px-4 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer whitespace-nowrap ${activeTab === tab ? 'bg-[#c5a059] text-black shadow-md' : 'text-slate-400 hover:text-white'}`}
             >
               {tab.replace("_", " ")}
             </button>
           ))}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
-          <div className="relative w-full sm:w-64">
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
+          <div className="relative w-full sm:flex-1 md:w-64">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
             <input 
               type="text" 
@@ -169,6 +198,20 @@ export function InventoryWorkspace({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-black/40 border border-white/10 focus:border-[#c5a059] text-white rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold outline-none transition-all font-sans"
             />
+          </div>
+
+          <div className="relative w-full sm:w-44">
+            <select
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value as "all" | "instock" | "lowstock" | "outstock")}
+              className="w-full bg-black/40 border border-white/10 focus:border-[#c5a059] text-white rounded-xl pl-4 pr-10 py-2.5 text-xs font-bold outline-none transition-all cursor-pointer appearance-none font-sans"
+            >
+              <option value="all">All Availability States</option>
+              <option value="instock" className="bg-zinc-950">In Stock Nodes</option>
+              <option value="lowstock" className="bg-zinc-950">Low Stock Indicators</option>
+              <option value="outstock" className="bg-zinc-950">Out of Stock / Overdue</option>
+            </select>
+            <ChevronRight size={14} className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-slate-500 pointer-events-none" />
           </div>
 
           <div className="relative w-full sm:w-48">
@@ -208,7 +251,9 @@ export function InventoryWorkspace({
                 </tr>
               ) : (
                 filteredItems.map((item) => {
-                  const isLow = item.itemType === "consumable" && item.currentStock <= item.minRequiredStock;
+                  const isOut = item.currentStock === 0;
+                  const isLow = item.itemType === "consumable" && item.currentStock > 0 && item.currentStock <= item.minRequiredStock;
+                  
                   return (
                     <motion.tr layout key={item.id} className="hover:bg-white/[0.01] transition-all">
                       <td className="p-6 text-left">
@@ -222,42 +267,82 @@ export function InventoryWorkspace({
                           {item.category?.name || "Uncategorized"}
                         </span>
                       </td>
+                      
                       <td className="p-6 text-left">
                         {item.itemType === "consumable" ? (
-                          <div className="flex items-center gap-2">
-                            <span className={`text-sm font-black ${isLow ? 'text-amber-400' : 'text-emerald-400'}`}>
-                              {item.currentStock} / {item.minRequiredStock}
-                            </span>
-                            <span className="text-[10px] text-slate-500 uppercase font-black">{item.unitOfMeasurement}</span>
-                          </div>
-                        ) : (
-                          <div className="text-[10px] font-black uppercase">
-                            {item.nextServiceDate ? (
-                              <span className={new Date(item.nextServiceDate) <= new Date() ? 'text-red-400 animate-pulse' : 'text-slate-400'}>
-                                Next Inspection: {item.nextServiceDate}
+                          <div className="space-y-1.5">
+                            {isOut ? (
+                              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-md">
+                                <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" /> Out of Stock
+                              </span>
+                            ) : isLow ? (
+                              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md">
+                                <span className="w-1 h-1 rounded-full bg-amber-500" /> Low Stock
                               </span>
                             ) : (
-                              <span className="text-slate-600">No Service Deadline Logged</span>
+                              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
+                                <span className="w-1 h-1 rounded-full bg-emerald-500" /> In Stock
+                              </span>
                             )}
+                            <div className="text-[11px] text-slate-400 font-bold pl-0.5">
+                              <span className="text-white font-black">{item.currentStock}</span>
+                              <span className="text-slate-600 font-medium mx-1">/</span>
+                              <span className="text-slate-500">{item.minRequiredStock} {item.unitOfMeasurement}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {item.nextServiceDate && new Date(item.nextServiceDate) <= new Date() ? (
+                              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-md">
+                                <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" /> Compliance Overdue
+                              </span>
+                            ) : item.status === "needs_service" ? (
+                              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md">
+                                <span className="w-1 h-1 rounded-full bg-amber-500" /> Maintenance Needed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-md">
+                                <span className="w-1 h-1 rounded-full bg-sky-500" /> Operational
+                              </span>
+                            )}
+                            <div className="text-[10px] text-slate-500 font-mono tracking-wide pl-0.5 uppercase">
+                              {item.nextServiceDate ? `Inspection: ${item.nextServiceDate}` : "No Service Date Logged"}
+                            </div>
                           </div>
                         )}
                       </td>
+
+                      {/* 🌟 INCORPORATED: DYNAMIC ACTION DESK MATRIX */}
                       <td className="p-6">
                         {item.itemType === "consumable" ? (
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="flex items-center justify-center gap-3">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleStockDelta(item.id, item.currentStock, -1)}
+                                disabled={isPending || item.currentStock <= 0}
+                                className="p-2 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-white/5 rounded-lg transition-colors cursor-pointer disabled:opacity-30"
+                              >
+                                <Minus size={12} strokeWidth={3} />
+                              </button>
+                              <button
+                                onClick={() => handleStockDelta(item.id, item.currentStock, 1)}
+                                disabled={isPending}
+                                className="p-2 bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-white/5 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Plus size={12} strokeWidth={3} />
+                              </button>
+                            </div>
+
                             <button
-                              onClick={() => handleStockDelta(item.id, item.currentStock, -1)}
-                              disabled={isPending || item.currentStock <= 0}
-                              className="p-2 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-white/5 rounded-lg transition-colors cursor-pointer disabled:opacity-30"
+                              onClick={() => {
+                                setSelectedItemToIssue(item);
+                                setIssueForm({ quantity: "1", allocatedTo: "", notes: "" });
+                                setIsIssueOpen(true);
+                              }}
+                              disabled={isPending || item.currentStock === 0}
+                              className="px-3 py-1.5 bg-[#c5a059]/10 hover:bg-[#c5a059] text-[#c5a059] hover:text-black border border-[#c5a059]/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer whitespace-nowrap"
                             >
-                              <Minus size={12} strokeWidth={3} />
-                            </button>
-                            <button
-                              onClick={() => handleStockDelta(item.id, item.currentStock, 1)}
-                              disabled={isPending}
-                              className="p-2 bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-white/5 rounded-lg transition-colors cursor-pointer"
-                            >
-                              <Plus size={12} strokeWidth={3} />
+                              Issue Unit
                             </button>
                           </div>
                         ) : (
@@ -296,11 +381,6 @@ export function InventoryWorkspace({
                 </div>
 
                 <form onSubmit={handleAddItem} className="space-y-4 font-sans">
-                  
-                  {/* =========================================================================
-                      🌟 THE FIX: MULTI-PROPERTY SELECTOR COMPONENT SWITCH
-                      Reveals choice menu dynamically IF Master Admin OR Tenant has portfolio access layers.
-                     ========================================================================= */}
                   <div className="bg-white/[0.02] border border-white/5 p-5 rounded-2xl space-y-3">
                     <div className="flex items-center gap-2 text-[#c5a059]">
                       <Home size={13} />
@@ -402,6 +482,85 @@ export function InventoryWorkspace({
                   </button>
                 </form>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- 🌟 DETACHED TRANSACTIONAL DISPATCH OVERLAY MODAL --- */}
+      <AnimatePresence>
+        {isIssueOpen && selectedItemToIssue && (
+          <div className="fixed inset-0 z-[1050] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-[#0c0c0e] border border-white/5 p-6 rounded-3xl space-y-6 text-left"
+            >
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-[#c5a059]">Stock Dispatch Logging Terminal</span>
+                <h3 className="text-xl font-serif text-white italic font-bold mt-1">Issue: {selectedItemToIssue.name}</h3>
+                <p className="text-[11px] text-slate-500 mt-1">Available in storage: <span className="text-white font-black">{selectedItemToIssue.currentStock} {selectedItemToIssue.unitOfMeasurement}</span></p>
+              </div>
+
+              <form onSubmit={handleIssueSubmit} className="space-y-4 font-sans">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-1">
+                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">Quantity</label>
+                    <input 
+                      required 
+                      type="number" 
+                      min="1" 
+                      max={selectedItemToIssue.currentStock} 
+                      value={issueForm.quantity} 
+                      onChange={e => setIssueForm({...issueForm, quantity: e.target.value})} 
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#c5a059]" 
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">Allocation Destination / Staff</label>
+                    <input 
+                      required 
+                      type="text" 
+                      placeholder="e.g. Room 404, Housekeeping Cart A" 
+                      value={issueForm.allocatedTo} 
+                      onChange={e => setIssueForm({...issueForm, allocatedTo: e.target.value})} 
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#c5a059]" 
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">Internal Notes</label>
+                  <textarea 
+                    placeholder="Reason for issuance..." 
+                    value={issueForm.notes} 
+                    onChange={e => setIssueForm({...issueForm, notes: e.target.value})} 
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[#c5a059] resize-none" 
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsIssueOpen(false);
+                      setSelectedItemToIssue(null);
+                    }} 
+                    className="flex-1 border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 text-[10px] uppercase font-black tracking-widest py-3.5 rounded-xl transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isPending}
+                    className="flex-1 bg-[#c5a059] text-black text-[10px] uppercase font-black tracking-widest py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#c5a059]/10"
+                  >
+                    {isPending ? <Loader2 className="animate-spin" size={14} /> : <><ShieldCheck size={14} /> Authorize Dispatch</>}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

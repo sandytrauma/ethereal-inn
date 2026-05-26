@@ -320,7 +320,7 @@ export default function Dashboard({
               </h1>
               <p className="text-[7px] md:text-[8px] text-emerald-500 font-bold tracking-[0.2em] uppercase mt-1 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                {isMasterSuperAdmin ? "Global Drizzle Sync" : "Unit PMS Active"}
+                {isMasterSuperAdmin ? "Global Sync Active" : "Unit PMS Active"}
               </p>
             </button>
 

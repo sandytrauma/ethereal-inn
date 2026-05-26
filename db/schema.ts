@@ -195,6 +195,18 @@ export const inventoryItems = pgTable("inventory_items", {
   updatedBy: integer("updated_by").references(() => users.id),
 });
 
+export const inventoryTransactions = pgTable("inventory_transactions", {
+  id: serial("id").primaryKey(),
+  propertyId: varchar("property_id", { length: 100 }).notNull(),
+  itemId: varchar("item_id", { length: 100 }).notNull(),
+  transactionType: varchar("transaction_type", { length: 50 }).notNull(), // "issue" (usage) or "restock"
+  quantity: integer("quantity").notNull(),
+  allocatedTo: varchar("allocated_to", { length: 255 }), // e.g., "Room 302", "Housekeeping Cart B"
+  notes: text("notes"),
+  issuedBy: integer("issued_by").notNull(), // User ID who performed the action
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // 3. ASSET MAINTENANCE LOGS
 // Tracks service history for fixed assets (e.g., electrical overhauls, extinguisher refilling)
 export const assetMaintenance = pgTable("asset_maintenance", {
@@ -265,6 +277,8 @@ export const inventoryItemsRelations = relations(inventoryItems, ({ one, many })
     fields: [inventoryItems.propertyId],
     references: [properties.id],
   }),
+      transactions: many(inventoryTransactions),
+
   // Every item maps to a master categorization category hook
   category: one(inventoryCategories, {
     fields: [inventoryItems.categoryId],
@@ -290,5 +304,12 @@ export const assetMaintenanceRelations = relations(assetMaintenance, ({ one }) =
   item: one(inventoryItems, {
     fields: [assetMaintenance.itemId],
     references: [inventoryItems.id],
+  }),
+}));
+
+export const inventoryTransactionsRelations = relations(inventoryTransactions, ({ one }) => ({
+  item: one(inventoryItems, {
+    fields: [inventoryTransactions.itemId],
+    references: [inventoryItems.id], // Force structural join alignment inside memory frameworks
   }),
 }));
