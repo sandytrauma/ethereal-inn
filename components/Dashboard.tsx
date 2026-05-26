@@ -25,6 +25,7 @@ import {
   CalendarDays,
   LayoutGrid,
   FileDown,
+  Box,
 } from "lucide-react";
 
 // SERVER ACTIONS & COMPONENTS
@@ -370,6 +371,13 @@ export default function Dashboard({
 
         <div className="flex items-center gap-3 md:gap-6">
           <nav className="hidden lg:flex items-center gap-3 pr-4 border-r border-white/10">
+           <Link
+              href="/inventory"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:bg-amber-400/5 transition-all"
+            >
+              <Box className="w-3.5 h-3.5" />
+              Inventory
+            </Link>
             <Link
               href="/occupancy"
               className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:bg-amber-400/5 transition-all"
@@ -421,6 +429,15 @@ export default function Dashboard({
                         Sanctuary Control
                       </p>
                     </div>
+
+                    <Link
+                      href="/inventory"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-amber-400 transition-all"
+                    >
+                      <Box className="w-4 h-4" />
+                      Inventory
+                    </Link>
 
                     <Link
                       href="/occupancy"

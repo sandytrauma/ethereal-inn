@@ -10,7 +10,8 @@ import {
   decimal,
   date,
   uuid,
-  uniqueIndex
+  uniqueIndex,
+  varchar
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { properties } from "./micro-schema";
@@ -148,6 +149,71 @@ export const invoices = pgTable("invoices", {
   checkoutDate: timestamp("checkout_date").defaultNow(),
 });
 
+
+// 1. INVENTORY CATEGORIES
+// Groups items logically (e.g., "Toiletries", "Safety Equipment", "Electrical Tools")
+export const inventoryCategories = pgTable("inventory_categories", {
+  id: serial("id").primaryKey(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(), // 🌟 CRITICAL: Added for robust application indexing
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// 2. MASTER INVENTORY ITEMS
+// Airtight tenant isolation via strict propertyId mapping fences
+export const inventoryItems = pgTable("inventory_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  propertyId: uuid("property_id")
+    .notNull()
+    .references(() => properties.id, { onDelete: "cascade" }),
+  categoryId: integer("category_id")
+    .notNull()
+    .references(() => inventoryCategories.id),
+  
+  name: varchar("name", { length: 255 }).notNull(),
+  sku: varchar("sku", { length: 100 }), // Stock Keeping Unit for scannability
+  description: text("description"),
+  
+  // Inventory Nature Flag
+  // 'consumable' (Toiletries, Linens) vs 'fixed_asset' (Fire Extinguishers, Tools)
+  itemType: varchar("item_type", { length: 30 }).default("consumable").notNull(),
+  
+  // Stock Levels (Mainly for Consumables)
+  currentStock: integer("current_stock").default(0).notNull(),
+  minRequiredStock: integer("min_required_stock").default(5).notNull(), // Automated Reorder Point
+  unitOfMeasurement: varchar("unit_of_measurement", { length: 50 }).default("pcs").notNull(), // e.g., "bottles", "pcs", "liters"
+  
+  // Fixed Asset Specific Metadata (Nullable for Consumables)
+  serialNumber: varchar("serial_number", { length: 100 }),
+  locationInProperty: varchar("location_in_property", { length: 255 }), // e.g., "Floor 2 Corridor", "Main Kitchen"
+  lastAuditDate: date("last_audit_date"),
+  nextServiceDate: date("next_service_date"), // Critical for Fire Extinguisher pressure checks
+  
+  status: varchar("status", { length: 50 }).default("active").notNull(), // "active", "damaged", "depleted", "needs_service"
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedBy: integer("updated_by").references(() => users.id),
+});
+
+// 3. ASSET MAINTENANCE LOGS
+// Tracks service history for fixed assets (e.g., electrical overhauls, extinguisher refilling)
+export const assetMaintenance = pgTable("asset_maintenance", {
+  id: serial("id").primaryKey(),
+  propertyId: uuid("property_id")
+    .notNull()
+    .references(() => properties.id, { onDelete: "cascade" }),
+  itemId: uuid("item_id")
+    .notNull()
+    .references(() => inventoryItems.id, { onDelete: "cascade" }),
+  
+  serviceType: varchar("service_type", { length: 100 }).notNull(), // "refill", "repair", "inspection"
+  description: text("description").notNull(),
+  cost: integer("cost").default(0),
+  serviceDate: date("service_date").notNull(),
+  performedBy: varchar("performed_by", { length: 255 }), // External vendor or internal staff name
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // --- RELATIONSHIPS ---
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -184,5 +250,45 @@ export const roomsRelations = relations(rooms, ({ one }) => ({
   property: one(properties, {
     fields: [rooms.propertyId],
     references: [properties.id],
+  }),
+}));
+
+// 1. INVENTORY CATEGORY RELATIONS
+export const inventoryCategoriesRelations = relations(inventoryCategories, ({ many }) => ({
+  items: many(inventoryItems),
+}));
+
+// 2. MASTER INVENTORY ITEM RELATIONS
+export const inventoryItemsRelations = relations(inventoryItems, ({ one, many }) => ({
+  // Every item belongs to a specific property (Tenant boundary)
+  property: one(properties, {
+    fields: [inventoryItems.propertyId],
+    references: [properties.id],
+  }),
+  // Every item maps to a master categorization category hook
+  category: one(inventoryCategories, {
+    fields: [inventoryItems.categoryId],
+    references: [inventoryCategories.id],
+  }),
+  // Every item tracked can have multiple historical service audits logged
+  maintenanceLogs: many(assetMaintenance),
+  // Optional: Tracks the last staff profile identity that modified this row cell
+  modifier: one(users, {
+    fields: [inventoryItems.updatedBy],
+    references: [users.id],
+  }),
+}));
+
+// 3. ASSET MAINTENANCE LOG RELATIONS
+export const assetMaintenanceRelations = relations(assetMaintenance, ({ one }) => ({
+  // Logs belong to the overarching property context container boundary
+  property: one(properties, {
+    fields: [assetMaintenance.propertyId],
+    references: [properties.id],
+  }),
+  // Logs point back directly to the targeted physical capital asset piece row
+  item: one(inventoryItems, {
+    fields: [assetMaintenance.itemId],
+    references: [inventoryItems.id],
   }),
 }));
