@@ -20,7 +20,8 @@ export default async function SalonDashboardLayout({
   async function handleLogoutAction() {
     "use server";
     await logoutSalonUser();
-    redirect("/glam/login");
+    // 🚀 FIXED: Swapped "/glam/" to "/glam" to match your exact middleware STATIC_PUBLIC_ROUTES whitelist definitions
+    redirect("/glam");
   }
 
   return (
@@ -36,6 +37,7 @@ export default async function SalonDashboardLayout({
           </p>
         </div>
         <nav className="space-y-1">
+          {/* Note: In a future polish layer, you can use Next.js 'usePathname()' inside a client nav subcomponent to switch active/inactive styles dynamically! */}
           <a href="/glam/dashboard" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg bg-slate-800 text-pink-400 border border-slate-700/50 transition">
             Dashboard Overview
           </a>
