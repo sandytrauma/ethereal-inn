@@ -1,11 +1,20 @@
 // app/glam/(auth)/login/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginSalonUser } from "@/lib/actions/salon-auth";
 
-export default function SalonLoginPage() {
+// =========================================================================
+// 🚀 DYNAMIC COMPILER DIRECTIVE: FORCE DYNAMIC ENVIRONMENT PARSING
+// =========================================================================
+// This instructs the compiler not to prerender static fragments during "npm run build"
+export const dynamic = "force-dynamic";
+
+/**
+ * 🔒 SECTION A: The Core Inner Form Interface (Unwrapped client block)
+ */
+function SalonLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -47,7 +56,7 @@ export default function SalonLoginPage() {
         return;
       }
 
-      // 🚀 SUCCESS: Router pre-fetches and pushes safely to the secure layout container
+      // SUCCESS: Router pre-fetches and pushes safely to the secure layout container
       router.push("/glam/dashboard");
       router.refresh();
     } catch (err) {
@@ -57,88 +66,104 @@ export default function SalonLoginPage() {
   };
 
   return (
+    <div className="w-full max-w-md z-10">
+      {/* Branding header block */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-400">
+          ETHEREAL GLAM
+        </h1>
+        <p className="text-xs uppercase tracking-widest text-slate-500 font-bold mt-2">
+          Enterprise Salon SaaS Gateway
+        </p>
+      </div>
+
+      {/* Login Card Core UI */}
+      <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl">
+        <h2 className="text-xl font-bold text-slate-200 mb-6">Sign In to Your Workspace</h2>
+
+        {/* Dynamic Error Status Box */}
+        {errorMsg && (
+          <div className="mb-5 p-3 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs font-medium animate-shake">
+            ⚠️ {errorMsg}
+          </div>
+        )}
+
+        <form onSubmit={handleFormSubmit} className="space-y-5">
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Salon Business Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="manager@etherealglam.com"
+              disabled={isLoading}
+              className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-600 focus:outline-none focus:border-pink-500/80 focus:ring-1 focus:ring-pink-500/30 transition text-sm disabled:opacity-50"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Secure Token Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••••"
+              disabled={isLoading}
+              className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-600 focus:outline-none focus:border-pink-500/80 focus:ring-1 focus:ring-pink-500/30 transition text-sm disabled:opacity-50"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-3 mt-2 px-4 rounded-xl bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-500 hover:to-rose-400 text-white font-bold text-sm tracking-wide shadow-lg shadow-pink-950/20 transition transform active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Verifying Credentials Namespace...
+              </>
+            ) : (
+              "Verify Secure Identity"
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Tenant Footer Notice */}
+      <div className="text-center mt-6 text-[11px] text-slate-600 font-medium tracking-wide leading-relaxed">
+        Authorized Salon Staff Access Only.<br />
+        Cross-domain login monitoring is active.
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 👑 SECTION B: MASTER EXPORT GATE (Armed with structural Suspense perimeters)
+ */
+export default function SalonLoginPage() {
+  return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4 relative overflow-hidden selection:bg-pink-500 selection:text-white">
       {/* Abstract Luxury Background Glow Orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md z-10">
-        {/* Branding header block */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-400">
-            ETHEREAL GLAM
-          </h1>
-          <p className="text-xs uppercase tracking-widest text-slate-500 font-bold mt-2">
-            Enterprise Salon SaaS Gateway
-          </p>
+      {/* 🌟 THE STRUCTURAL BUILD FIX: Wraps the hook-reliant logic inside a clean fallback perimeter */}
+      <Suspense fallback={
+        <div className="text-center font-mono text-xs text-slate-500 animate-pulse">
+          Mounting Encrypted Form Perimeters...
         </div>
-
-        {/* Login Card Core UI */}
-        <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl">
-          <h2 className="text-xl font-bold text-slate-200 mb-6">Sign In to Your Workspace</h2>
-
-          {/* Dynamic Error Status Box */}
-          {errorMsg && (
-            <div className="mb-5 p-3 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs font-medium animate-shake">
-              ⚠️ {errorMsg}
-            </div>
-          )}
-
-          <form onSubmit={handleFormSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Salon Business Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="manager@etherealglam.com"
-                disabled={isLoading}
-                className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-600 focus:outline-none focus:border-pink-500/80 focus:ring-1 focus:ring-pink-500/30 transition text-sm disabled:opacity-50"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Secure Token Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                disabled={isLoading}
-                className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-600 focus:outline-none focus:border-pink-500/80 focus:ring-1 focus:ring-pink-500/30 transition text-sm disabled:opacity-50"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 mt-2 px-4 rounded-xl bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-500 hover:to-rose-400 text-white font-bold text-sm tracking-wide shadow-lg shadow-pink-950/20 transition transform active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-2"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Verifying Credentials Namespace...
-                </>
-              ) : (
-                "Verify Secure Identity"
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Tenant Footer Notice */}
-        <div className="text-center mt-6 text-[11px] text-slate-600 font-medium tracking-wide leading-relaxed">
-          Authorized Salon Staff Access Only.<br />
-          Cross-domain login monitoring is active.
-        </div>
-      </div>
+      }>
+        <SalonLoginForm />
+      </Suspense>
     </div>
   );
 }
