@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { salonAppointments, salonClients } from "@/db/glam-schema";
 import { eq, and, gte, lte } from "drizzle-orm";
+import ReserveSlotModal from "@/components/ReserveSlotModal"; 
 
 export const dynamic = "force-dynamic";
 
@@ -19,21 +20,22 @@ export default async function AppointmentsManagementPage() {
     redirect("/glam/login?error=Invalid physical branch anchor assignment.");
   }
 
-  // Track today's full window boundary definitions
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date();
-  endOfDay.setHours(23, 59, 59, 999);
+  // =========================================================================
+  // 📅 TIMEZONE PERIMETER ALIGNMENT (ISO STRING PERMUTATION LOGIC)
+  // =========================================================================
+  // Establishes clear, consistent timezone tracking loops across all workspace panels
+  const todayLocalDateStr = new Date().toISOString().split("T")[0]; // Generates local "YYYY-MM-DD" securely
+  const startOfDay = new Date(`${todayLocalDateStr}T00:00:00.000Z`);
+  const endOfDay = new Date(`${todayLocalDateStr}T23:59:59.999Z`);
 
-  // 🌟 THE PRODUCTION FIX: Perform a flat join query to fetch appointment telemetry
-  // This avoids invoking complex relation trees that break runtime execution compilation lines.
+  // Fetch true database values for today's operating timeline slots via flat join queries
   const dailyAppointments = await db
     .select({
       id: salonAppointments.id,
       tokenNumber: salonAppointments.tokenNumber,
       startTime: salonAppointments.startTime,
       status: salonAppointments.status,
-      clientName: salonClients.name, // Safely pulls structural profile attributes from database records
+      clientName: salonClients.name, 
     })
     .from(salonAppointments)
     .leftJoin(salonClients, eq(salonAppointments.clientId, salonClients.id))
@@ -47,6 +49,13 @@ export default async function AppointmentsManagementPage() {
     )
     .orderBy(salonAppointments.startTime);
 
+  // 🌟 SEED DIRECTORY DATA: Query database clients list registered to this SaaS tenant
+  const accessibleClients = await db
+    .select({ id: salonClients.id, name: salonClients.name })
+    .from(salonClients)
+    .where(eq(salonClients.tenantId, tenantIdStr))
+    .orderBy(salonClients.name);
+
   // Generate business shifts hours for timeline slot mapping (9 AM to 8 PM)
   const operationalHours = Array.from({ length: 12 }, (_, i) => i + 9);
 
@@ -57,15 +66,19 @@ export default async function AppointmentsManagementPage() {
           <h1 className="text-xl font-bold tracking-tight">Appointments Matrix</h1>
           <p className="text-xs text-slate-400 mt-0.5">Manage real-time digital booking lanes and chair distributions.</p>
         </div>
-        <button className="px-4 py-2 bg-gradient-to-r from-pink-600 to-rose-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition hover:opacity-90 cursor-pointer">
-          + Reserve Time Slot
-        </button>
+        
+        {/* 🌟 THE PRODUCTION FIX: Inject your structural target date parameter string securely */}
+        <ReserveSlotModal 
+          clientsList={accessibleClients} 
+          operationalHours={operationalHours} 
+          targetDate={todayLocalDateStr} 
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Real-time Hours Runway Log Grid */}
         <div className="xl:col-span-3 bg-slate-900/40 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-          <div className="text-xs font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800/60 pb-3">
+          <div className="text-xs font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800/60 pb-3 select-none">
             Today's Timeline Grid ({startOfDay.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })})
           </div>
 
@@ -73,7 +86,6 @@ export default async function AppointmentsManagementPage() {
             {operationalHours.map((hour) => {
               const displayTime = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? "PM" : "AM"}`;
               
-              // Filter database rows that fall inside this specific hour bucket layer safely
               const slotsInHour = dailyAppointments.filter((app) => {
                 const appHour = new Date(app.startTime).getHours();
                 return appHour === hour;
@@ -81,12 +93,12 @@ export default async function AppointmentsManagementPage() {
 
               return (
                 <div key={hour} className="py-4 flex flex-col sm:flex-row sm:items-center gap-4 group">
-                  <div className="w-24 text-xs font-bold text-slate-500 group-hover:text-pink-400 transition">
+                  <div className="w-24 text-xs font-bold text-slate-500 group-hover:text-pink-400 transition select-none">
                     {displayTime}
                   </div>
                   <div className="flex-1 min-h-[44px] flex items-center">
                     {slotsInHour.length === 0 ? (
-                      <div className="text-[11px] text-slate-600 font-sans italic border border-dashed border-slate-800/40 w-full p-2.5 rounded-xl">
+                      <div className="text-[11px] text-slate-600 font-sans italic border border-dashed border-slate-800/40 w-full p-2.5 rounded-xl select-none">
                         No active bookings recorded for this window.
                       </div>
                     ) : (
@@ -97,7 +109,11 @@ export default async function AppointmentsManagementPage() {
                               <p className="font-bold text-slate-200">{slot.clientName || "Walk-In Customer"}</p>
                               <p className="text-[10px] font-mono text-slate-400 mt-0.5">{slot.tokenNumber}</p>
                             </div>
-                            <span className="px-2 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold bg-pink-950/40 border border-pink-800/40 text-pink-400">
+                            <span className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold select-none ${
+                              slot.status === "completed" 
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                : "bg-pink-950/40 border border-pink-800/40 text-pink-400"
+                            }`}>
                               {slot.status}
                             </span>
                           </div>
@@ -111,9 +127,9 @@ export default async function AppointmentsManagementPage() {
           </div>
         </div>
 
-        {/* Dynamic Summary Panel */}
+        {/* Dynamic Capacity Telemetry Summary Panel */}
         <div className="space-y-4">
-          <div className="p-5 bg-slate-900/40 border border-slate-800 rounded-2xl shadow-xl space-y-4">
+          <div className="p-5 bg-slate-900/40 border border-slate-800 rounded-2xl shadow-xl space-y-4 select-none">
             <h3 className="text-xs uppercase font-bold tracking-widest text-slate-400">Capacity Telemetry</h3>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between p-2.5 bg-slate-950 border border-slate-800/60 rounded-xl">

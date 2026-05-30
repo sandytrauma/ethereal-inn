@@ -218,7 +218,7 @@ export const salonAuthUsersRelations = relations(salonAuthUsers, ({ one }) => ({
 // =========================================================================
 export const salonTenantsRelations = relations(salonTenants, ({ many }) => ({
   outlets: many(salonOutlets),
-  services: many(salonServices),
+ services: many(salonServices, { relationName: "tenant_to_services_bridge" }),
   staff: many(salonStaff),
   clients: many(salonClients),
   appointments: many(salonAppointments),
@@ -235,8 +235,13 @@ export const salonOutletsRelations = relations(salonOutlets, ({ one, many }) => 
   queueTokens: many(salonQueueTokens),
 }));
 
-export const salonServicesRelations = relations(salonServices, ({ many }) => ({
+export const salonServicesRelations = relations(salonServices, ({ one, many }) => ({
   appointments: many(appointmentServicesBridge),
+ tenant: one(salonTenants, {
+    fields: [salonServices.tenantId],
+    references: [salonTenants.id],
+    relationName: "tenant_to_services_bridge",
+  }),
 }));
 
 export const salonStaffRelations = relations(salonStaff, ({ one, many }) => ({

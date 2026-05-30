@@ -4,6 +4,7 @@
 import { db } from "@/db";
 import { salonTenants, salonOutlets, salonAuthUsers } from "@/db/glam-schema";
 import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
 
 interface ProvisionTenantInput {
   secretKey: string;
@@ -22,9 +23,18 @@ interface ProvisionTenantInput {
  * Provisions a completely isolated tenant ecosystem inside the 'glam' schema namespace.
  */
 export async function masterProvisionTenant(input: ProvisionTenantInput) {
-  // 🛡️ UN-BYPASSABLE SERVER SIDE SECRET VALIDATION
-const trueSecret: string = process.env.MASTER_ADMIN_SECRET ?? "";  
-  if (!trueSecret || input.secretKey !== trueSecret) {
+  // =========================================================================
+  // 🛡️ UN-BYPASSABLE SERVER SIDE SECRET ENFORCEMENT
+  // =========================================================================
+  // Prevents empty string fallback attacks if environment configurations leak or slip
+  if (!process.env.MASTER_ADMIN_SECRET) {
+    throw new Error(
+      "🚨 CRITICAL RUNTIME EXCEPTION: 'MASTER_ADMIN_SECRET' configuration is missing inside active variables block."
+    );
+  }
+
+  const trueSecret: string = process.env.MASTER_ADMIN_SECRET;  
+  if (input.secretKey !== trueSecret) {
     return { 
       success: false, 
       error: "Critical Authorization Breach. Request Terminated Natively." 
@@ -73,7 +83,7 @@ const trueSecret: string = process.env.MASTER_ADMIN_SECRET ?? "";
       // Step C: Initialize their primary isolated login identity
       const [tenantAdminUser] = await tx.insert(salonAuthUsers).values({
         tenantId: newTenant.id,
-        outletId: firstOutlet.id, // Primary anchoring outlet
+        outletId: firstOutlet.id, // Primary anchoring outlet branch
         name: input.ownerName,
         email: input.ownerEmail.toLowerCase().trim(),
         passwordHash: hashedPassword,
@@ -88,9 +98,12 @@ const trueSecret: string = process.env.MASTER_ADMIN_SECRET ?? "";
       };
     });
 
+    // 🌟 THE PRODUCTION FIX: Force cache validation pass across admin portals cleanly
+    revalidatePath("/glam/master-admin");
+
     return { 
       success: true, 
-      message: `Tenant '${input.businessName}' provisioned successfully inside glam schema.`,
+      message: `Tenant '${input.businessName}' provisioned successfully inside glam schema space.`,
       data: result 
     };
 
@@ -98,8 +111,8 @@ const trueSecret: string = process.env.MASTER_ADMIN_SECRET ?? "";
     console.error("Master Tenant Provisioning Error:", error.message);
     
     // Catch common PostgreSQL unique constraint violations gracefully
-    if (error.message?.includes("unique constraint")) {
-      return { success: false, error: "A salon account with this owner email already exists." };
+    if (error.message?.includes("unique constraint") || error.message?.includes("already exists")) {
+      return { success: false, error: "A salon account with this owner email is already registered." };
     }
     
     return { success: false, error: "Internal core cluster provisioning initialization failure." };

@@ -2,11 +2,16 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const SALON_SECRET = new TextEncoder().encode(
-  process.env.SALON_JWT_SECRET || "fallback_super_secure_glam_secret_key_2026_prod"
-);
+// =========================================================================
+// 🛡️ CRITICAL ENCRYPTION SECURITY SHIELD
+// =========================================================================
+if (!process.env.SALON_JWT_SECRET) {
+  throw new Error(
+    "🚨 CRITICAL SECURITY EXCEPTION: 'SALON_JWT_SECRET' is not defined inside the active environment variables. Core auth runtime aborted."
+  );
+}
 
-// 🌟 Make sure this matches the exact key name checked inside your middleware.ts file!
+const SALON_SECRET = new TextEncoder().encode(process.env.SALON_JWT_SECRET);
 export const COOKIE_NAME = "salon_session_token";
 
 export interface SalonSessionPayload {
@@ -27,13 +32,14 @@ export async function createSalonSession(payload: SalonSessionPayload) {
     .setExpirationTime("12h") 
     .sign(SALON_SECRET);
 
+  // 🌟 Ensure clean promise unwrapping for Next.js 15+ configurations
   const cookieStore = await cookies();
 
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/", // 🌟 CHANGED: Scoped globally so global middleware can intercept it instantly
+    path: "/", 
     maxAge: 60 * 60 * 12, // 12 hours
   });
 }
@@ -42,6 +48,7 @@ export async function createSalonSession(payload: SalonSessionPayload) {
  * Decrypts and verifies the active salon cookie token
  */
 export async function getSalonSession(): Promise<SalonSessionPayload | null> {
+  // 🌟 THE PRODUCTION FIX: Explicitly await the cookies promise context before pulling values
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   
@@ -53,6 +60,7 @@ export async function getSalonSession(): Promise<SalonSessionPayload | null> {
     });
     return payload as unknown as SalonSessionPayload;
   } catch (error) {
+    // Fail silently for corrupted/tampered tokens to trigger your middleware redirect
     return null;
   }
 }
@@ -63,8 +71,9 @@ export async function getSalonSession(): Promise<SalonSessionPayload | null> {
 export async function destroySalonSession() {
   const cookieStore = await cookies();
   
+  // 🌟 Enforce explicit cookie deletion pass natively
   cookieStore.set(COOKIE_NAME, "", {
-    path: "/", // 🌟 CHANGED: Explicitly match root scope path to ensure deletion
+    path: "/", 
     maxAge: 0,
   });
 }

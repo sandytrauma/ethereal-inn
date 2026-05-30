@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { masterProvisionTenant } from "@/lib/actions/salon-master-admin";
 
-// 🌟 FIX 1: Explicitly define the structural interface contract for the form state object
+// Explicitly define the structural interface contract for the form state object
 interface SalonFormState {
   ownerName: string;
   ownerEmail: string;
@@ -21,7 +21,7 @@ export default function MasterAdminHub() {
   const [isAuthorized, setIsAuthorized] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // 🌟 FIX 2: Bind the interface schema strictly to the useState hook definition row
+  // Bind the interface schema strictly to the useState hook definition row
   const [form, setForm] = useState<SalonFormState>({
     ownerName: "",
     ownerEmail: "",
@@ -54,14 +54,14 @@ export default function MasterAdminHub() {
     setLoading(true);
     setStatus(null);
 
-    // 🌟 FIX 3: Construct a strictly mapped, completely isolated payload structure
+    // Construct a strictly mapped, completely isolated payload structure
     const cleanPayload = {
       secretKey: adminSecret.trim(),
       ownerName: form.ownerName.trim(),
       ownerEmail: form.ownerEmail.trim(),
       passwordRaw: form.passwordRaw,
       businessName: form.businessName.trim(),
-      tier: form.tier, // TypeScript now guarantees this aligns 100% with the required server action enum enum types
+      tier: form.tier, // Aligns 100% with the required server action enum types
       firstOutletName: form.firstOutletName.trim(),
       firstOutletAddress: form.firstOutletAddress.trim(),
       firstOutletPhone: form.firstOutletPhone.trim(),
@@ -71,10 +71,10 @@ export default function MasterAdminHub() {
     
     setLoading(false);
     
-   if (res.success) {
-      // 🌟 FIX: Use a nullish coalescing fallback string here
+    if (res.success) {
       setStatus({ success: true, msg: res.message ?? "Tenant workspace initialized successfully." });
       
+      // Reset form fields cleanly on successful creation
       setForm({
         ownerName: "",
         ownerEmail: "",
@@ -86,13 +86,13 @@ export default function MasterAdminHub() {
         firstOutletPhone: "",
       });
     } else {
-      // 🌟 FIX: Use a nullish coalescing fallback string here as well
       setStatus({ success: false, msg: res.error ?? "An unexpected provisioning execution error occurred." });
       
-      if (res.error?.includes("Authorization Breach")) {
+      // If the server returns a structural breach rejection, eject user context out immediately
+      if (res.error?.includes("Authorization Breach") || res.error?.includes("Terminated Natively")) {
         setIsAuthorized(false);
         setAdminSecret(""); 
-        setAuthError("Invalid Server Secret Token Provided. Access Revoked.");
+        setAuthError("Invalid Server Secret Token Provided. Access Revoked Natively.");
       }
     }
   };
@@ -101,13 +101,13 @@ export default function MasterAdminHub() {
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 selection:bg-red-500 selection:text-white">
-        <div className="w-full max-w-md bg-slate-900 border border-red-950/60 p-8 rounded-2xl shadow-2xl text-center">
-          <div className="text-3xl mb-3">🔒</div>
-          <h1 className="text-lg font-black tracking-wider text-red-400 uppercase">Master Admin Protection Boundary</h1>
-          <p className="text-xs text-slate-400 mt-1 mb-6">Provide the server environment configuration secret key to unlock provisioning tables.</p>
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800/60 p-8 rounded-2xl shadow-2xl text-center">
+          <div className="text-3xl mb-3 select-none">🔒</div>
+          <h1 className="text-lg font-black tracking-wider text-red-400 uppercase select-none">Master Admin Protection Boundary</h1>
+          <p className="text-xs text-slate-400 mt-1 mb-6 select-none">Provide the server environment configuration secret key to unlock provisioning tables.</p>
           
           {authError && (
-            <div className="mb-4 p-3 bg-red-950/40 border border-red-800/40 rounded-xl text-xs text-red-300 font-semibold animate-shake">
+            <div className="mb-4 p-3 bg-red-950/40 border border-red-800/40 rounded-xl text-xs text-red-300 font-semibold max-w-full break-words">
               ⚠️ {authError}
             </div>
           )}
@@ -123,7 +123,7 @@ export default function MasterAdminHub() {
             />
             <button 
               type="submit" 
-              className="w-full py-3 bg-red-950/30 hover:bg-red-900/40 border border-red-800/50 rounded-xl text-xs font-bold uppercase tracking-widest text-red-200 transition cursor-pointer"
+              className="w-full py-3 bg-red-950/30 hover:bg-red-900/40 border border-red-800/50 rounded-xl text-xs font-bold uppercase tracking-widest text-red-200 transition cursor-pointer select-none"
             >
               Initialize Authority Validation
             </button>
@@ -137,7 +137,7 @@ export default function MasterAdminHub() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-8 flex flex-col items-center selection:bg-amber-500 selection:text-slate-950">
       <div className="w-full max-w-2xl bg-slate-900 border border-slate-800/80 rounded-2xl p-8 shadow-2xl">
-        <div className="mb-6 border-b border-slate-800/60 pb-4 flex justify-between items-center">
+        <div className="mb-6 border-b border-slate-800/60 pb-4 flex justify-between items-center select-none">
           <div>
             <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500">
               👑 GLOBAL SUPER-ADMIN HUB
@@ -164,29 +164,28 @@ export default function MasterAdminHub() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider">Owner / Tenant Name</label>
-              <input type="text" required value={form.ownerName} onChange={e => setForm({...form, ownerName: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition" placeholder="Tenant Administrator" />
+              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider select-none">Owner / Tenant Name</label>
+              <input type="text" required value={form.ownerName} onChange={e => setForm({...form, ownerName: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition text-slate-200" placeholder="Tenant Administrator" />
             </div>
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider">Owner Core Email</label>
-              <input type="email" required value={form.ownerEmail} onChange={e => setForm({...form, ownerEmail: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition" placeholder="partner@glamdomain.com" />
+              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider select-none">Owner Core Email</label>
+              <input type="email" required value={form.ownerEmail} onChange={e => setForm({...form, ownerEmail: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition text-slate-200" placeholder="partner@glamdomain.com" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider">Default Access Password</label>
-              <input type="password" required value={form.passwordRaw} onChange={e => setForm({...form, passwordRaw: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition" placeholder="••••••••" />
+              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider select-none">Default Access Password</label>
+              <input type="password" required value={form.passwordRaw} onChange={e => setForm({...form, passwordRaw: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition text-slate-200" placeholder="••••••••" />
             </div>
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider">Business / Brand Name</label>
-              <input type="text" required value={form.businessName} onChange={e => setForm({...form, businessName: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition" placeholder="Ethereal Glam Studio" />
+              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider select-none">Business / Brand Name</label>
+              <input type="text" required value={form.businessName} onChange={e => setForm({...form, businessName: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition text-slate-200" placeholder="Ethereal Glam Studio" />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider">Software Rental Tier License</label>
-            {/* 🌟 FIX 4: Explicitly cast the value to your matching string literal union mapping contract */}
+            <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider select-none">Software Rental Tier License</label>
             <select 
               value={form.tier} 
               onChange={e => setForm({...form, tier: e.target.value as SalonFormState["tier"]})} 
@@ -200,19 +199,19 @@ export default function MasterAdminHub() {
           </div>
 
           <div className="pt-4 border-t border-slate-800/60 space-y-4">
-            <h3 className="text-xs uppercase font-bold text-slate-400 tracking-widest">Base Physical Outlet Configuration</h3>
+            <h3 className="text-xs uppercase font-bold text-slate-400 tracking-widest select-none">Base Physical Outlet Configuration</h3>
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider">First Location Branch Name</label>
-              <input type="text" required value={form.firstOutletName} onChange={e => setForm({...form, firstOutletName: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition" placeholder="Ethereal Glam - GK2 Main Branch" />
+              <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider select-none">First Location Branch Name</label>
+              <input type="text" required value={form.firstOutletName} onChange={e => setForm({...form, firstOutletName: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition text-slate-200" placeholder="Ethereal Glam - GK2 Main Branch" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider">Branch Full Address</label>
-                <input type="text" required value={form.firstOutletAddress} onChange={e => setForm({...form, firstOutletAddress: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition" placeholder="Greater Kailash Part 2, New Delhi" />
+                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider select-none">Branch Full Address</label>
+                <input type="text" required value={form.firstOutletAddress} onChange={e => setForm({...form, firstOutletAddress: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition text-slate-200" placeholder="Greater Kailash Part 2, New Delhi" />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider">Branch Contact Phone</label>
-                <input type="text" required value={form.firstOutletPhone} onChange={e => setForm({...form, firstOutletPhone: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition" placeholder="+91 98765 43210" />
+                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-2 tracking-wider select-none">Branch Contact Phone</label>
+                <input type="text" required value={form.firstOutletPhone} onChange={e => setForm({...form, firstOutletPhone: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500/80 outline-none transition text-slate-200" placeholder="+91 98765 43210" />
               </div>
             </div>
           </div>
@@ -220,7 +219,7 @@ export default function MasterAdminHub() {
           <button 
             type="submit" 
             disabled={loading} 
-            className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-sm tracking-wider uppercase rounded-xl transition shadow-xl disabled:opacity-40 cursor-pointer flex items-center justify-center gap-2"
+            className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-sm tracking-wider uppercase rounded-xl transition shadow-xl disabled:opacity-40 cursor-pointer flex items-center justify-center gap-2 select-none"
           >
             {loading ? (
               <>
