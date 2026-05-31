@@ -488,7 +488,7 @@ export default function LandingLoginPage() {
               <ul className="space-y-4">
                 <li>
                   <Link
-                    href="/"
+                    href="/suites"
                     className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
                   >
                     The Suites
@@ -496,7 +496,7 @@ export default function LandingLoginPage() {
                 </li>
                 <li>
                   <Link
-                    href="/"
+                    href="/culinary"
                     className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
                   >
                     Urban Ambrosia
@@ -504,7 +504,7 @@ export default function LandingLoginPage() {
                 </li>
                 <li>
                   <Link
-                    href="/"
+                    href="/contact"
                     className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
                   >
                     Contact & Inquiry
