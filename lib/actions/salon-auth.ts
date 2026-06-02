@@ -2,7 +2,7 @@
 "use server";
 
 import { db } from "@/db";
-import { salonAuthUsers, salonTenants } from "@/db/glam-schema";
+import { salonAuthUsers, salonTenants, salonOutlets } from "@/db/glam-schema"; // 🌟 Import salonOutlets
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs"; 
 import { createSalonSession, destroySalonSession } from "@/lib/salon-token";
@@ -31,7 +31,7 @@ export async function loginSalonUser(credentials: {
   clientLon?: number;
 }) {
   try {
-    // 🌟 Flat join execution: Safe from relationship structure compilation drops
+    // 🌟 Expanded Join Execution: Grabs dynamic location markers straight from the assigned branch outlet
     const [resultRow] = await db
       .select({
         id: salonAuthUsers.id,
@@ -42,12 +42,13 @@ export async function loginSalonUser(credentials: {
         passwordHash: salonAuthUsers.passwordHash,
         isActive: salonAuthUsers.isActive,
         subscriptionStatus: salonTenants.subscriptionStatus,
-        // Pull down configuration metadata layer for geo evaluation checks
-        // Note: Assuming you mapped location variables inside salonTenants or extended parameters
-        // If these coordinates live inside salonTenantDetails, swap the table reference accordingly
+        // 🌟 Pull coordinates dynamically from the linked outlet location row
+        outletLat: salonOutlets.latitude,
+        outletLng: salonOutlets.longitude,
       })
       .from(salonAuthUsers)
       .leftJoin(salonTenants, eq(salonAuthUsers.tenantId, salonTenants.id))
+      .leftJoin(salonOutlets, eq(salonAuthUsers.outletId, salonOutlets.id)) // 🌟 Linked via outletId mapping
       .where(eq(salonAuthUsers.email, credentials.email))
       .limit(1);
 
@@ -67,31 +68,42 @@ export async function loginSalonUser(credentials: {
       return { success: false, error: "Subscription Expired or Suspended. Contact Administration." };
     }
 
-    // 4. 🛡️ 5 KM RADIUS GEOGATE ENFORCEMENT LAYER
-    // Replace placeholder coordinates below with real references if stored inside your configuration tables
-    const STORE_LATITUDE_ANCHOR = 25.4489;  // Target Store Base latitude
-    const STORE_LONGITUDE_ANCHOR = 81.8212; // Target Store Base longitude
-    const MAX_ALLOWED_RADIUS_KM = 5.00;
+    // =========================================================================
+    // 4. 🛡️ 5 KM RADIUS GEOGATE ENFORCEMENT LAYER WITH ADMINISTRATIVE OVERRIDE
+    // =========================================================================
+    const userRole = String(resultRow.role).toLowerCase().trim();
+    
+    // Administrative roles bypass spatial fences entirely to permit remote orchestration
+    const isAdministrativeRole = userRole === "admin" || userRole === "owner" || userRole === "tenant_admin";
 
-    if (!credentials.clientLat || !credentials.clientLon) {
-      return { 
-        success: false, 
-        error: "Security Access Requirement: Device physical location synchronization must be active to log in." 
-      };
-    }
+    if (!isAdministrativeRole) {
+      // 🌟 DYNAMIC RESOLUTION: Fall back safely to defaults if database coordinates aren't set yet
+      const STORE_LATITUDE_ANCHOR = resultRow.outletLat ? parseFloat(resultRow.outletLat) : 25.4489;  
+      const STORE_LONGITUDE_ANCHOR = resultRow.outletLng ? parseFloat(resultRow.outletLng) : 81.8212; 
+      const MAX_ALLOWED_RADIUS_KM = 5.00;
 
-    const physicalDistanceApart = calculateHaversineDistanceKm(
-      credentials.clientLat,
-      credentials.clientLon,
-      STORE_LATITUDE_ANCHOR,
-      STORE_LONGITUDE_ANCHOR
-    );
+      if (!credentials.clientLat || !credentials.clientLon) {
+        return { 
+          success: false, 
+          error: "Security Access Requirement: Device physical location synchronization must be active to log in." 
+        };
+      }
 
-    if (physicalDistanceApart > MAX_ALLOWED_RADIUS_KM) {
-      return {
-        success: false,
-        error: `Terminal Access Restricted: You are currently located ${physicalDistanceApart.toFixed(2)} km away. Device operations are locked to a ${MAX_ALLOWED_RADIUS_KM} km storefront radius.`
-      };
+      const physicalDistanceApart = calculateHaversineDistanceKm(
+        credentials.clientLat,
+        credentials.clientLon,
+        STORE_LATITUDE_ANCHOR,
+        STORE_LONGITUDE_ANCHOR
+      );
+
+      if (physicalDistanceApart > MAX_ALLOWED_RADIUS_KM) {
+        return {
+          success: false,
+          error: `Terminal Access Restricted: You are currently located ${physicalDistanceApart.toFixed(2)} km away. Device operations are locked to a ${MAX_ALLOWED_RADIUS_KM} km storefront radius.`
+        };
+      }
+    } else {
+      console.log(`🔓 Login Geo-fence bypassed for administrative session context: [${userRole}]`);
     }
 
     // 5. Build Cryptographic Cookie Session Identity

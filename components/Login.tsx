@@ -24,6 +24,8 @@ import {
   Facebook,
   PhoneCall,
   AlertCircle,
+  ExternalLink,
+  ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Script from "next/script";
@@ -141,6 +143,24 @@ export default function LandingLoginPage() {
 
   // 🌟 Action state hook handles state configurations gracefully
   const [state, formAction, isPending] = useActionState(loginUser, null);
+
+   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  
+    // Array map containing your exact application domains
+    const importantLinks = [
+      { name: "Main Platform Root", href: "https://www.etherealinn.com/" },
+      { name: "Boutique Suites", href: "https://www.etherealinn.com/suites" },
+      { name: "Urban Ambrosia Culinary", href: "https://www.etherealinn.com/culinary" },
+      { name: "Ethereal Glam SaaS Portal", href: "https://www.etherealinn.com/glam" },
+      { name: "The Sanctuary Workspace", href: "https://www.etherealinn.com/sanctuary" },
+      { name: "Contact & Inquiries Layout", href: "https://www.etherealinn.com/contact" },
+      { name: "Corporate Terminal Hub", href: "https://www.etherealinn.com/ethereal-inn" },
+      { name: "Glam Terminal Gateway Login", href: "https://www.etherealinn.com/glam/login" },
+      { name: "Sanctuary - Mohan Garden", href: "https://www.etherealinn.com/sanctuary/mohan-garden" },
+      { name: "Sanctuary - Urban Ambrosia", href: "https://www.etherealinn.com/sanctuary/urban-ambrosia" },
+      { name: "Sanctuary - Glam Studio Branch", href: "https://www.etherealinn.com/sanctuary/glam-studio" },
+    ];
 
   useEffect(() => {
     const timer = setInterval(
@@ -448,125 +468,166 @@ export default function LandingLoginPage() {
       </section>
 
       {/* --- MAIN FOOTER --- */}
-      <footer className="relative bg-[#050505] pt-24 pb-12 px-6 border-t border-white/5 overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#c5a059]/5 blur-[120px] rounded-full -z-10" />
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20 text-left">
-            <div className="md:col-span-2 space-y-8">
-              <div className="flex flex-col">
-                <span className="text-[10px] tracking-[0.5em] uppercase text-gray-500 font-black mb-2">
-                  The Collective
-                </span>
-                <h2 className="text-4xl md:text-5xl font-serif font-bold text-white uppercase italic leading-none">
-                  Ethereal <span className="text-[#c5a059]">Inn.</span>
-                </h2>
-              </div>
-              <p className="text-gray-500 text-sm max-w-sm leading-relaxed font-light">
-                Redefining the art of urban sanctuary. Where architectural
-                elegance meets the divine culinary craft of Urban Ambrosia.
-              </p>
-              <div className="flex gap-4">
-                {[
-                  { icon: <Instagram size={18} /> },
-                  { icon: <Facebook size={18} /> },
-                  { icon: <PhoneCall size={18} /> },
-                ].map((social, i) => (
-                  <button
-                    key={i}
-                    className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all cursor-pointer"
-                  >
-                    {social.icon}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
-                Experience
-              </h4>
-              <ul className="space-y-4">
-                <li>
-                  <Link
-                    href="/suites"
-                    className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
-                  >
-                    The Suites
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/culinary"
-                    className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
-                  >
-                    Urban Ambrosia
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/contact"
-                    className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
-                  >
-                    Contact & Inquiry
-                  </Link>
-                </li>
-                 <li>
-                  <Link
-                    href="/sanctuary"
-                    className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
-                  >
-                    Marketing
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-6">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
-                Legal
-              </h4>
-              <ul className="space-y-4 text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                <li
-                  onClick={() => setPolicyType("privacy")}
-                  className="hover:text-[#c5a059] transition-colors cursor-pointer"
-                >
-                  Privacy Policy
-                </li>
-                <li
-                  onClick={() => setPolicyType("terms")}
-                  className="hover:text-[#c5a059] transition-colors cursor-pointer"
-                >
-                  Terms of Service
-                </li>
-                <li
-                  onClick={() => setPolicyType("refunds")}
-                  className="hover:text-[#c5a059] transition-colors cursor-pointer"
-                >
-                  Refund Policy
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-              <p className="text-[9px] text-gray-600 uppercase tracking-[0.2em] font-black">
-                © 2026 Ethereal Inn Collective
-              </p>
-              <div className="h-px w-8 bg-white/10 hidden md:block" />
-              <p className="text-[9px] text-[#c5a059] uppercase tracking-[0.2em] font-black">
-                Urban Ambrosia Culinary by Ethereal Inn Hospitality
-              </p>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-white/[0.02] border border-white/5 rounded-full">
-              <ShieldCheck size={12} className="text-emerald-500" />
-              <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest">
-                Encrypted Booking Engine
-              </span>
-            </div>
-          </div>
-        </div>
-      </footer>
+           <footer className="relative bg-[#050505] pt-24 pb-12 px-6 border-t border-white/5 overflow-hidden">
+                 <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#c5a059]/5 blur-[120px] rounded-full -z-10" />
+                 <div className="max-w-7xl mx-auto">
+                   <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20 text-left">
+                     <div className="md:col-span-2 space-y-8">
+                       <div className="flex flex-col">
+                         <span className="text-[10px] tracking-[0.5em] uppercase text-gray-500 font-black mb-2">
+                           The Collective
+                         </span>
+                         <h2 className="text-4xl md:text-5xl font-serif font-bold text-white uppercase italic leading-none">
+                           Ethereal <span className="text-[#c5a059]">Inn.</span>
+                         </h2>
+                       </div>
+                       <p className="text-gray-500 text-sm max-w-sm leading-relaxed font-light">
+                         Redefining the art of urban sanctuary. Where architectural
+                         elegance meets the divine culinary craft of Urban Ambrosia.
+                       </p>
+                       <div className="flex gap-4">
+                         {[
+                           { icon: <Instagram size={18} /> },
+                           { icon: <Facebook size={18} /> },
+                           { icon: <PhoneCall size={18} /> },
+                         ].map((social, i) => (
+                           <button
+                             key={i}
+                             className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all cursor-pointer"
+                           >
+                             {social.icon}
+                           </button>
+                         ))}
+                       </div>
+                     </div>
+           
+                     <div className="space-y-6">
+                       <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
+                         Experience
+                       </h4>
+                       <ul className="space-y-4">
+                         <li>
+                           <Link
+                             href="/suites"
+                             className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+                           >
+                             The Suites
+                           </Link>
+                         </li>
+                         <li>
+                           <Link
+                             href="/culinary"
+                             className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+                           >
+                             Urban Ambrosia
+                           </Link>
+                         </li>
+                         <li>
+                           <Link
+                             href="/contact"
+                             className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+                           >
+                             Contact & Inquiry
+                           </Link>
+                         </li>
+                         <li>
+                           <Link
+                             href="/sanctuary"
+                             className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+                           >
+                             Marketing
+                           </Link>
+                         </li>
+                       </ul>
+                     </div>
+           
+                     {/* Legal Stack Layout Segment featuring the brand new custom drop-down utility panel */}
+                     <div className="space-y-6">
+                       <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
+                         Legal & Utilities
+                       </h4>
+                       <ul className="space-y-4 text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                         <li
+                           onClick={() => setPolicyType("privacy")}
+                           className="hover:text-[#c5a059] transition-colors cursor-pointer"
+                         >
+                           Privacy Policy
+                         </li>
+                         <li
+                           onClick={() => setPolicyType("terms")}
+                           className="hover:text-[#c5a059] transition-colors cursor-pointer"
+                         >
+                           Terms of Service
+                         </li>
+                         <li
+                           onClick={() => setPolicyType("refunds")}
+                           className="hover:text-[#c5a059] transition-colors cursor-pointer"
+                         >
+                           Refund Policy
+                         </li>
+                       </ul>
+           
+                       {/* 🌟 THE NEW IMPORTANT LINK DROPDOWN UTILITY COMPONENT */}
+                       <div className="relative pt-4 border-t border-white/5 max-w-[240px]">
+                         <button
+                           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                           className="w-full flex items-center justify-between px-4 py-2.5 bg-white/[0.02] border border-white/5 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all cursor-pointer"
+                         >
+                           <span>Ethereal Ecosystem</span>
+                           <ChevronDown 
+                             size={12} 
+                             className={`text-gray-500 transition-transform duration-300 ${isDropdownOpen ? "rotate-180 text-[#c5a059]" : ""}`} 
+                           />
+                         </button>
+           
+                         {isDropdownOpen && (
+                           <>
+                             {/* Backdrop Click Shield Block */}
+                             <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
+                             
+                             {/* Floating Link Matrix Container */}
+                             <ul className="absolute bottom-full left-0 mb-2 w-full max-h-56 overflow-y-auto bg-[#0a0a0a]/95 border border-white/10 rounded-xl p-2 shadow-2xl backdrop-blur-xl z-50 space-y-1 divide-y divide-white/[0.02] select-none scrollbar-thin scrollbar-thumb-white/10">
+                               {importantLinks.map((link, idx) => (
+                                 <li key={idx} className="pt-1 first:pt-0">
+                                   <a
+                                     href={link.href}
+                                     target="_blank"
+                                     rel="noopener noreferrer"
+                                     onClick={() => setIsDropdownOpen(false)}
+                                     className="w-full flex items-center justify-between px-3 py-2 rounded-md text-[9px] font-bold tracking-wider uppercase text-gray-500 hover:text-white hover:bg-white/[0.03] transition-all"
+                                   >
+                                     <span className="truncate pr-2">{link.name}</span>
+                                     <ExternalLink size={10} className="text-gray-600 shrink-0" />
+                                   </a>
+                                 </li>
+                               ))}
+                             </ul>
+                           </>
+                         )}
+                       </div>
+           
+                     </div>
+                   </div>
+           
+                   <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
+                     <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+                       <p className="text-[9px] text-gray-600 uppercase tracking-[0.2em] font-black">
+                         © 2026 Ethereal Inn Collective
+                       </p>
+                       <div className="h-px w-8 bg-white/10 hidden md:block" />
+                       <p className="text-[9px] text-[#c5a059] uppercase tracking-[0.2em] font-black">
+                         Urban Ambrosia Culinary by Ethereal Inn Hospitality
+                       </p>
+                     </div>
+                     <div className="flex items-center gap-2 px-4 py-2 bg-white/[0.02] border border-white/5 rounded-full">
+                       <ShieldCheck size={12} className="text-emerald-500" />
+                       <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest">
+                         Encrypted Booking Engine
+                       </span>
+                     </div>
+                   </div>
+                 </div>
+               </footer>
 
       {/* --- ABOUT STORY SIDE OVERLAY --- */}
       <AnimatePresence>

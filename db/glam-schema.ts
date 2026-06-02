@@ -56,6 +56,8 @@ export const salonOutlets = glamSchema.table("salon_outlets", {
   address: text("address").notNull(),
   phone: varchar("phone", { length: 50 }).notNull(),
   taxRegistrationNumber: varchar("tax_registration_number", { length: 100 }), // GSTIN
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),  // e.g., 25.4489000
+  longitude: decimal("longitude", { precision: 10, scale: 7 }), // e.g., 81.8212000
   operatingHoursOpen: varchar("operating_hours_open", { length: 10 }).default("09:00").notNull(),
   operatingHoursClose: varchar("operating_hours_close", { length: 10 }).default("21:00").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
