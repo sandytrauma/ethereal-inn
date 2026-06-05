@@ -7,20 +7,15 @@ import { loginSalonUser } from "@/lib/actions/salon-auth";
 
 export const dynamic = "force-dynamic";
 
-/**
- * 🔒 SECTION A: The Core Inner Form Interface (Armed with Geolocation Capture)
- */
 function SalonLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  // Local state tracking variables
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Automatically parse security violations passed from our dashboard layout gate
   useEffect(() => {
     const fallbackError = searchParams.get("error");
     if (fallbackError) {
@@ -39,25 +34,22 @@ function SalonLoginForm() {
       return;
     }
 
-    // 📍 THE PRODUCTION FIX: Enforce device location verification pass natively
     if (!navigator.geolocation) {
-      setErrorMsg("Security Exception: Location telemetry tracking is completely unsupported by this device.");
+      setErrorMsg("Geolocation is required. Please enable location access.");
       setIsLoading(false);
       return;
     }
 
-    // Query browser GPS telemetry vectors right before making the server action call
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
 
         try {
-          // Execute our airtight, isolated server action with captured geo parameters
           const response = await loginSalonUser({
             email: email.trim(),
             passwordRaw: password,
-            clientLat: latitude,  // 🌟 Inject captured horizontal coordinate coordinate
-            clientLon: longitude, // 🌟 Inject captured vertical coordinate coordinate
+            clientLat: latitude,
+            clientLon: longitude,
           });
 
           if (!response.success) {
@@ -66,35 +58,32 @@ function SalonLoginForm() {
             return;
           }
 
-          // SUCCESS: Router pre-fetches and pushes safely to the secure layout container
           router.push("/glam/dashboard");
           router.refresh();
         } catch (err) {
-          setErrorMsg("An unexpected server authentication gateway error occurred.");
+          setErrorMsg("An unexpected server authentication error occurred.");
           setIsLoading(false);
         }
       },
       (geoError) => {
         setIsLoading(false);
-        // Map native browser geolocation error codes to clear user warnings
         switch (geoError.code) {
           case geoError.PERMISSION_DENIED:
-            setErrorMsg("Access Denied: You must grant device location permission to sign into this storefront terminal.");
+            setErrorMsg("Location access denied. Please enable location permissions to sign in.");
             break;
           case geoError.POSITION_UNAVAILABLE:
-            setErrorMsg("Network Timeout: Unable to lock down physical satellite tracking coordinates.");
+            setErrorMsg("Unable to determine your location. Please check your device settings.");
             break;
           default:
-            setErrorMsg("Location Error: Verification process failed to lock your operational perimeter.");
+            setErrorMsg("Location verification failed. Please try again.");
         }
       },
-      { enableHighAccuracy: true, timeout: 10000 } // Enforce accurate network lookups
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
   return (
     <div className="w-full max-w-md z-10">
-      {/* Branding header block */}
       <div className="text-center mb-8 select-none">
         <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-400">
           ETHEREAL GLAM
@@ -104,11 +93,9 @@ function SalonLoginForm() {
         </p>
       </div>
 
-      {/* Login Card Core UI */}
       <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl">
         <h2 className="text-xl font-bold text-slate-200 mb-6 select-none">Sign In to Your Workspace</h2>
 
-        {/* Dynamic Error Status Box */}
         {errorMsg && (
           <div className="mb-5 p-3 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs font-medium max-w-full break-words">
             ⚠️ {errorMsg}
@@ -157,37 +144,32 @@ function SalonLoginForm() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Verifying Physical Location Perimeter...
+                Verifying Location...
               </>
             ) : (
-              "Verify Secure Identity"
+              "Sign In with Location"
             )}
           </button>
         </form>
       </div>
 
-      {/* Tenant Footer Notice */}
       <div className="text-center mt-6 text-[11px] text-slate-600 font-medium tracking-wide leading-relaxed select-none">
         Authorized Salon Staff Access Only.<br />
-        Cross-domain login geo-fence monitoring is active.
+        Location verification required.
       </div>
     </div>
   );
 }
 
-/**
- * 👑 SECTION B: MASTER EXPORT GATE (Armed with structural Suspense perimeters)
- */
 export default function SalonLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4 relative overflow-hidden selection:bg-pink-500 selection:text-white">
-      {/* Abstract Luxury Background Glow Orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
 
       <Suspense fallback={
         <div className="text-center font-mono text-xs text-slate-500 animate-pulse select-none">
-          Mounting Encrypted Form Perimeters...
+          Loading Authentication...
         </div>
       }>
         <SalonLoginForm />

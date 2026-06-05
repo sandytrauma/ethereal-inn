@@ -1,24 +1,21 @@
 // app/glam/(dashboard)/layout.tsx
 import { redirect } from "next/navigation";
 import { getSalonSession } from "@/lib/salon-token";
-import { logoutSalonOperator } from "@/lib/actions/salon-logout"; // 🌟 THE PRODUCTION FIX: Import centralized operator logout action
+import { logoutSalonOperator } from "@/lib/actions/salon-logout";
 
 export default async function SalonDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // 🌟 Real Server-Side Cryptographic Token Decryption
   const session = await getSalonSession();
 
-  // 🛡️ SECURITY GATEWAY: Bounces unauthorized requests straight back to the login block
   if (!session) {
     redirect("/glam/login?error=Session Expired or Invalid");
   }
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-white selection:bg-pink-500 selection:text-white">
-      {/* 🧭 Shared Salon Enterprise Sidebar (Outlets Switcher, Tokens, Schedules) */}
       <aside className="w-66 border-r border-slate-800/80 bg-slate-900/60 backdrop-blur-md p-6 hidden md:block select-none">
         <div className="mb-8 pb-4 border-b border-slate-800/60">
           <h2 className="text-xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-400">
@@ -38,10 +35,12 @@ export default async function SalonDashboardLayout({
           <a href="/glam/queue" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition">
             Live Token Queue
           </a>
+          <a href="/glam/inventory" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition">
+            Inventory Management
+          </a>
         </nav>
       </aside>
 
-      {/* 💻 Main Workspace Container */}
       <main className="flex-1 p-8 bg-slate-950">
         <header className="mb-8 flex justify-between items-center border-b border-slate-800/60 pb-5">
           <div className="space-y-1">
@@ -52,8 +51,7 @@ export default async function SalonDashboardLayout({
               Tenant ID: <span className="text-pink-500/80">{session.tenantId}</span>
             </div>
           </div>
-          
-          {/* 🌟 THE PRODUCTION FIX: Execute your dedicated form action coordinator directly */}
+
           <form action={logoutSalonOperator}>
             <button 
               type="submit" 
@@ -64,7 +62,6 @@ export default async function SalonDashboardLayout({
           </form>
         </header>
 
-        {/* Render child route panels cleanly inside this safe perimeter slot */}
         <div className="animate-fade-in">
           {children}
         </div>

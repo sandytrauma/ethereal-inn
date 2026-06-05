@@ -3,7 +3,8 @@
 
 import React, { useState } from "react";
 import { checkoutAppointmentTicket, closeOperationalDayLedger } from "@/lib/actions/salon-checkout";
-import { useRouter } from "next/navigation"; // 🌟 THE UX FIX: Import the native router hook
+import ProductConsumptionModal from "./ProductConsumptionModal";
+import { useRouter } from "next/navigation";
 
 interface TerminalProps {
   actionType: "settle_ticket" | "close_day";
@@ -12,8 +13,9 @@ interface TerminalProps {
 }
 
 export default function CheckoutControlTerminal({ actionType, ticketId, totalEarnings }: TerminalProps) {
-  const router = useRouter(); // Initialize the dynamic router refresh matrix
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showConsumptionModal, setShowConsumptionModal] = useState(false);
 
   const handleActionClick = async () => {
     if (actionType === "close_day") {
@@ -21,31 +23,30 @@ export default function CheckoutControlTerminal({ actionType, ticketId, totalEar
         `Are you sure you want to lock the daily balance ledger at ₹${totalEarnings?.toLocaleString("en-IN")}?\n\nThis action calculation concludes current database modifications for this tracking period.`
       );
       if (!confirmClose) return;
-      
+
       setLoading(true);
       const res = await closeOperationalDayLedger();
       setLoading(false);
-      
+
       alert(res.message || res.error);
-      
+
       if (res.success) {
-        router.refresh(); // 🌟 Force layout tree alignment across metrics blocks
+        router.refresh();
       }
       return;
     }
 
     if (actionType === "settle_ticket" && ticketId) {
-      setLoading(true);
-      const res = await checkoutAppointmentTicket(ticketId);
-      setLoading(false);
-      
-      if (!res.success) {
-        alert(res.error);
-      } else {
-        // 🌟 THE UX FIX: Force the dashboard to strip the row or transition status immediately
-        router.refresh();
-      }
+      setShowConsumptionModal(true);
     }
+  };
+
+  const handleConsumptionClose = async () => {
+    setShowConsumptionModal(false);
+  };
+
+  const handleConsumptionSuccess = () => {
+    router.refresh();
   };
 
   if (actionType === "close_day") {
@@ -61,12 +62,22 @@ export default function CheckoutControlTerminal({ actionType, ticketId, totalEar
   }
 
   return (
-    <button
-      onClick={handleActionClick}
-      disabled={loading}
-      className="px-3 py-1.5 bg-emerald-950/40 hover:bg-emerald-500 hover:text-slate-950 border border-emerald-800 text-emerald-400 font-bold uppercase tracking-wider rounded-lg transition disabled:opacity-40 text-[10px] cursor-pointer select-none"
-    >
-      {loading ? "Settling..." : "💳 Settle & Checkout"}
-    </button>
+    <>
+      <button
+        onClick={handleActionClick}
+        disabled={loading}
+        className="px-3 py-1.5 bg-emerald-950/40 hover:bg-emerald-500 hover:text-slate-950 border border-emerald-800 text-emerald-400 font-bold uppercase tracking-wider rounded-lg transition disabled:opacity-40 text-[10px] cursor-pointer select-none"
+      >
+        {loading ? "Settling..." : "💳 Settle & Checkout"}
+      </button>
+
+      {showConsumptionModal && ticketId && (
+        <ProductConsumptionModal
+          appointmentId={ticketId}
+          onClose={handleConsumptionClose}
+          onSuccess={handleConsumptionSuccess}
+        />
+      )}
+    </>
   );
 }

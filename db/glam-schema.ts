@@ -157,15 +157,25 @@ export const appointmentServicesBridge = glamSchema.table("appointment_services_
   serviceId: integer("service_id").references(() => salonServices.id, { onDelete: "cascade" }).notNull(),
 });
 
+// Link products to services (e.g., "Airbrush Makeup" service uses "Foundation" + "Primer" products)
+export const serviceProductsBridge = glamSchema.table("service_products_bridge", {
+  id: serial("id").primaryKey(),
+  tenantId: uuid("tenant_id").references(() => salonTenants.id, { onDelete: "cascade" }).notNull(),
+  serviceId: integer("service_id").references(() => salonServices.id, { onDelete: "cascade" }).notNull(),
+  productId: integer("product_id").references(() => salonProductsStock.id, { onDelete: "cascade" }).notNull(),
+  defaultUsageVolume: integer("default_usage_volume").notNull(), // Default ml/grams to deduct
+});
+
 // =========================================================================
 // 8. SALON CONSUMABLES MATERIAL STOCK & PRODUCT CONSUMPTION LOGS
 // =========================================================================
 export const salonProductsStock = glamSchema.table("salon_products_stock", {
   id: serial("id").primaryKey(),
+  tenantId: uuid("tenant_id").references(() => salonTenants.id, { onDelete: "cascade" }).notNull(),
   outletId: uuid("outlet_id").references(() => salonOutlets.id, { onDelete: "cascade" }).notNull(),
-  productName: varchar("product_name", { length: 255 }).notNull(), // e.g., "Retinol Revitalizing Serum"
+  productName: varchar("product_name", { length: 255 }).notNull(),
   sku: varchar("sku", { length: 100 }),
-  currentVolumeMlGrams: integer("current_volume_ml_grams").notNull(), // Fluid measurement control metric
+  currentVolumeMlGrams: integer("current_volume_ml_grams").notNull(),
   alertLevel: inventoryAlertEnum("alert_level").default("good").notNull(),
 });
 
@@ -283,7 +293,14 @@ export const appointmentServicesBridgeRelations = relations(appointmentServicesB
   service: one(salonServices, { fields: [appointmentServicesBridge.serviceId], references: [salonServices.id] }),
 }));
 
+export const serviceProductsBridgeRelations = relations(serviceProductsBridge, ({ one }) => ({
+  tenant: one(salonTenants, { fields: [serviceProductsBridge.tenantId], references: [salonTenants.id] }),
+  service: one(salonServices, { fields: [serviceProductsBridge.serviceId], references: [salonServices.id] }),
+  product: one(salonProductsStock, { fields: [serviceProductsBridge.productId], references: [salonProductsStock.id] }),
+}));
+
 export const salonProductsStockRelations = relations(salonProductsStock, ({ one, many }) => ({
+  tenant: one(salonTenants, { fields: [salonProductsStock.tenantId], references: [salonTenants.id] }),
   outlet: one(salonOutlets, { fields: [salonProductsStock.outletId], references: [salonOutlets.id] }),
   consumptionLogs: many(salonProductConsumptionLogs),
 }));

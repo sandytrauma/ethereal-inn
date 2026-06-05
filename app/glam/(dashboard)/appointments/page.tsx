@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { salonAppointments, salonClients } from "@/db/glam-schema";
 import { eq, and, gte, lte } from "drizzle-orm";
-import ReserveSlotModal from "@/components/ReserveSlotModal"; 
+import { getTodayDateRange } from "@/lib/date-utils";
+import ReserveSlotModal from "@/components/ReserveSlotModal";
 
 export const dynamic = "force-dynamic";
 
@@ -20,15 +21,8 @@ export default async function AppointmentsManagementPage() {
     redirect("/glam/login?error=Invalid physical branch anchor assignment.");
   }
 
-  // =========================================================================
-  // 📅 TIMEZONE PERIMETER ALIGNMENT (ISO STRING PERMUTATION LOGIC)
-  // =========================================================================
-  // Establishes clear, consistent timezone tracking loops across all workspace panels
-  const todayLocalDateStr = new Date().toISOString().split("T")[0]; // Generates local "YYYY-MM-DD" securely
-  const startOfDay = new Date(`${todayLocalDateStr}T00:00:00.000Z`);
-  const endOfDay = new Date(`${todayLocalDateStr}T23:59:59.999Z`);
+  const { localDateStr, startOfDay, endOfDay } = getTodayDateRange();
 
-  // Fetch true database values for today's operating timeline slots via flat join queries
   const dailyAppointments = await db
     .select({
       id: salonAppointments.id,
@@ -49,7 +43,6 @@ export default async function AppointmentsManagementPage() {
     )
     .orderBy(salonAppointments.startTime);
 
-  // 🌟 SEED DIRECTORY DATA: Query database clients list registered to this SaaS tenant
   const accessibleClients = await db
     .select({ id: salonClients.id, name: salonClients.name })
     .from(salonClients)
@@ -66,12 +59,11 @@ export default async function AppointmentsManagementPage() {
           <h1 className="text-xl font-bold tracking-tight">Appointments Matrix</h1>
           <p className="text-xs text-slate-400 mt-0.5">Manage real-time digital booking lanes and chair distributions.</p>
         </div>
-        
-        {/* 🌟 THE PRODUCTION FIX: Inject your structural target date parameter string securely */}
-        <ReserveSlotModal 
-          clientsList={accessibleClients} 
-          operationalHours={operationalHours} 
-          targetDate={todayLocalDateStr} 
+
+        <ReserveSlotModal
+          clientsList={accessibleClients}
+          operationalHours={operationalHours}
+          targetDate={localDateStr}
         />
       </div>
 

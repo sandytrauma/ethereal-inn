@@ -1,17 +1,16 @@
-// app/glam/(dashboard)/dashboard/page.tsx
 import React from "react";
 import { getSalonSession } from "@/lib/salon-token";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { salonOutlets, salonAuthUsers, salonAppointments, salonQueueTokens, salonClients } from "@/db/glam-schema"; 
+import { salonOutlets, salonAuthUsers, salonAppointments, salonQueueTokens, salonClients } from "@/db/glam-schema";
 import { eq, and, sql, gte, lte } from "drizzle-orm";
+import { getTodayDateRange } from "@/lib/date-utils";
 import CheckoutControlTerminal from "@/components/CheckoutControlTerminal";
-import CommandTerminalActions from "@/components/CommandTerminalActions"; 
+import CommandTerminalActions from "@/components/CommandTerminalActions";
 
 export const dynamic = "force-dynamic";
 
 export default async function SalonMainDashboard() {
-  // 1. Verify safe crypto server session identity context
   const session = await getSalonSession();
   if (!session) {
     redirect("/glam/login?error=Session expired");
@@ -24,15 +23,8 @@ export default async function SalonMainDashboard() {
     redirect("/glam/login?error=Invalid physical branch anchor assignment.");
   }
 
-  // =========================================================================
-  // 📅 TIMEZONE PERIMETER ALIGNMENT (IST / LOCAL OFFSET STRATEGY)
-  // =========================================================================
-  // Enforces absolute daily tracking envelopes matching local storefront hours (00:00:00 to 23:59:59)
-  const todayLocalDate = new Date().toISOString().split("T")[0]; // Generates accurate "YYYY-MM-DD"
-  const startOfDay = new Date(`${todayLocalDate}T00:00:00.000Z`);
-  const endOfDay = new Date(`${todayLocalDate}T23:59:59.999Z`);
+  const { startOfDay, endOfDay } = getTodayDateRange();
 
-  // 2. Fetch the current operating branch metadata fields
   const [activeOutlet] = await db
     .select()
     .from(salonOutlets)
@@ -43,12 +35,6 @@ export default async function SalonMainDashboard() {
       )
     )
     .limit(1);
-
-  // =========================================================================
-  // 📊 LIVE TELEMETRY COMPUTATIONS USING OPTIMIZED TARGETED SELECTS
-  // =========================================================================
-
-  // A. Today's Gross Sales Sum from totalAmount decimal fields
   const salesRows = await db
     .select({ amount: salonAppointments.totalAmount })
     .from(salonAppointments)
@@ -63,7 +49,6 @@ export default async function SalonMainDashboard() {
     );
   const totalSalesGross = salesRows.reduce((sum, row) => sum + parseFloat(row.amount || "0"), 0);
 
-  // B. Active Waiting Queue Counter running today (Read from standalone queue table)
   const [queueCountResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(salonQueueTokens)
@@ -77,7 +62,6 @@ export default async function SalonMainDashboard() {
       )
     );
 
-  // C. Total Booked Slots Overall for Today (Read from appointments calendar log)
   const [slotsResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(salonAppointments)
@@ -90,7 +74,6 @@ export default async function SalonMainDashboard() {
       )
     );
 
-  // D. Count Active Stylists/Staff on Floor
   const [staffCountResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(salonAuthUsers)
@@ -102,7 +85,6 @@ export default async function SalonMainDashboard() {
       )
     );
 
-  // E. Pull Live runway appointments that require interactive workflow handling
   const activeQueueRunway = await db
     .select({
       id: salonAppointments.id,
@@ -123,7 +105,6 @@ export default async function SalonMainDashboard() {
     )
     .orderBy(salonAppointments.startTime);
 
-  // 🌟 SEED DIRECTORY DATA: Query active client accounts registered under this tenant
   const accessibleClients = await db
     .select({ id: salonClients.id, name: salonClients.name })
     .from(salonClients)
@@ -132,8 +113,7 @@ export default async function SalonMainDashboard() {
 
   return (
     <div className="space-y-8 text-slate-100">
-      
-      {/* OUTLET CONTEXT CONTAINER BANNER WITH DAY CLOSURE TELEMETRY */}
+
       <div className="p-6 bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xl">
         <div className="space-y-1">
           <div className="text-[10px] uppercase font-black tracking-widest text-pink-500">Live Branch Operational Context</div>
@@ -153,7 +133,6 @@ export default async function SalonMainDashboard() {
         </div>
       </div>
 
-      {/* DYNAMIC LIVE TELEMETRY STAT CARDS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-2xl shadow-lg space-y-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Today's Gross Earnings</p>
@@ -188,7 +167,6 @@ export default async function SalonMainDashboard() {
         </div>
       </div>
 
-      {/* REAL RUNWAY MONITOR TABLE WITH BUILT-IN CHECKOUT TRIGGERS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 p-6 bg-slate-900/40 border border-slate-800 rounded-2xl shadow-xl flex flex-col justify-between">
           <div className="w-full">
@@ -262,7 +240,6 @@ export default async function SalonMainDashboard() {
           </div>
         </div>
 
-        {/* QUICK COMMAND TERMINAL */}
         <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-2xl shadow-xl flex flex-col justify-between space-y-6">
           <div className="space-y-4">
             <div>
