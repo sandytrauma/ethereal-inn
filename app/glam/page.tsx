@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import EtherealGlam from '@/components/EtherealGlam';
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ethereal-inn.vercel.app"),
+  metadataBase: new URL("https://www.etherealinn.com"),
   title: 'Ethereal Glam | Luxury Bridal & Aesthetic Procedures',
   description: 'Experience elite bridal makeup, couture styling, and advanced aesthetic procedures at Ethereal Glam. Part of Ethereal Inn Hospitality LLP.',
   openGraph: {

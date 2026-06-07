@@ -28,6 +28,7 @@ export const inventoryAlertEnum = glamSchema.enum("inventory_alert", [
 ]);
 
 
+
 // =========================================================================
 // 1. SAAS TENANTS (The Master Salon Business Accounts)
 // =========================================================================
@@ -40,8 +41,15 @@ export const salonTenants = glamSchema.table("salon_tenants", {
   businessName: varchar("business_name", { length: 255 }).notNull(),
   tier: businessTierEnum("tier").default("trial").notNull(),
   subscriptionStatus: varchar("subscription_status", { length: 50 }).default("active").notNull(), // "active", "suspended"
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
   maxAllowedOutlets: integer("max_allowed_outlets").default(1).notNull(), 
   subscriptionValidUntil: timestamp("subscription_valid_until").notNull(),
+  brandLogoUrl: text("brand_logo_url"),
+brandBannerUrl: text("brand_banner_url"),
+brandBio: text("brand_bio"),
+brandMetaTitle: varchar("brand_meta_title", { length: 255 }),
+brandMetaDescription: text("brand_meta_description"),
+googleAnalyticsId: varchar("google_analytics_id", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

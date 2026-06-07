@@ -20,6 +20,10 @@ export interface SalonSessionPayload {
   outletId: string | null;
   role: string;
   name: string;
+  email: string;
+  slug: string | null;
+latitude?: string | null;
+  longitude?: string | null;
 }
 
 /**

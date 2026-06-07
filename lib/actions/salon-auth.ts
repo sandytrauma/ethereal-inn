@@ -21,15 +21,32 @@ function calculateHaversineDistanceKm(lat1: number, lon1: number, lat2: number, 
 }
 
 /**
- * Validates credentials, evaluates geo-fence compliance, checks subscriptions, and issues cookies
+ * Validates credentials, evaluates geo-fence compliance, checks subscription constraints,
+ * enforces strict subdomain scope boundaries, and issues cookies.
  */
 export async function loginSalonUser(credentials: {
   email: string;
   passwordRaw: string;
+  currentDomainSlug: string | null; // 🌟 ADDED: Capture incoming browser routing context
   clientLat?: number;
   clientLon?: number;
 }) {
   try {
+    // =========================================================================
+    // 🛡️ ISOLATED MULTI-TENANT FILTER MATRICES
+    // =========================================================================
+    const queryConditions = [eq(salonAuthUsers.email, credentials.email.toLowerCase().trim())];
+
+    // If logging in from a customized domain tenant portal, lock the user search
+    // execution strictly down to that specific slug's database row partition.
+    if (
+      credentials.currentDomainSlug && 
+      credentials.currentDomainSlug !== "www" && 
+      !credentials.currentDomainSlug.includes("localhost")
+    ) {
+      queryConditions.push(eq(salonTenants.slug, credentials.currentDomainSlug.toLowerCase().trim()));
+    }
+
     const [resultRow] = await db
       .select({
         id: salonAuthUsers.id,
@@ -40,22 +57,24 @@ export async function loginSalonUser(credentials: {
         passwordHash: salonAuthUsers.passwordHash,
         isActive: salonAuthUsers.isActive,
         subscriptionStatus: salonTenants.subscriptionStatus,
+        slug: salonTenants.slug, 
         outletLat: salonOutlets.latitude,
         outletLng: salonOutlets.longitude,
       })
       .from(salonAuthUsers)
       .leftJoin(salonTenants, eq(salonAuthUsers.tenantId, salonTenants.id))
       .leftJoin(salonOutlets, eq(salonAuthUsers.outletId, salonOutlets.id))
-      .where(eq(salonAuthUsers.email, credentials.email))
+      .where(and(...queryConditions)) // 🌟 FIXED: Cross-checks domain tenant mapping during selection flight
       .limit(1);
 
+    // If user credentials do not belong inside this specific subdomain slice, fail right here
     if (!resultRow || !resultRow.isActive) {
-      return { success: false, error: "Invalid Salon Credentials. Access Denied." };
+      return { success: false, error: "Invalid Salon Credentials for this workspace portal." };
     }
 
     const isPasswordValid = await bcrypt.compare(credentials.passwordRaw, resultRow.passwordHash);
     if (!isPasswordValid) {
-      return { success: false, error: "Invalid Salon Credentials. Access Denied." };
+      return { success: false, error: "Invalid Salon Credentials for this workspace portal." };
     }
 
     if (!resultRow.subscriptionStatus || resultRow.subscriptionStatus !== "active") {
@@ -66,8 +85,15 @@ export async function loginSalonUser(credentials: {
     const isAdministrativeRole = userRole === "admin" || userRole === "owner" || userRole === "tenant_admin";
 
     if (!isAdministrativeRole) {
-      const STORE_LATITUDE_ANCHOR = resultRow.outletLat ? parseFloat(resultRow.outletLat) : 25.4489;
-      const STORE_LONGITUDE_ANCHOR = resultRow.outletLng ? parseFloat(resultRow.outletLng) : 81.8212;
+      if (!resultRow.outletLat || !resultRow.outletLng) {
+        return {
+          success: false,
+          error: "Store coordinate matrix unconfigured. Please contact your store administrator."
+        };
+      }
+
+      const STORE_LATITUDE_ANCHOR = parseFloat(resultRow.outletLat);
+      const STORE_LONGITUDE_ANCHOR = parseFloat(resultRow.outletLng);
       const MAX_ALLOWED_RADIUS_KM = 5.0;
 
       if (!credentials.clientLat || !credentials.clientLon) {
@@ -94,12 +120,17 @@ export async function loginSalonUser(credentials: {
       console.log(`Admin login geo-fence bypassed: [${userRole}]`);
     }
 
+    // Provision secure session token matching authenticated metadata parameters
     await createSalonSession({
       id: String(resultRow.id),
       tenantId: String(resultRow.tenantId),
       outletId: resultRow.outletId ? String(resultRow.outletId) : null,
       role: String(resultRow.role),
-      name: String(resultRow.name)
+      name: String(resultRow.name),
+      email: credentials.email.toLowerCase().trim(), 
+      slug: resultRow.slug ? String(resultRow.slug) : null, 
+      latitude: resultRow.outletLat ? String(resultRow.outletLat) : null,
+      longitude: resultRow.outletLng ? String(resultRow.outletLng) : null,
     });
 
     return { success: true, role: resultRow.role };

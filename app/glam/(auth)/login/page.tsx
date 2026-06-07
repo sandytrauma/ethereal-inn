@@ -1,4 +1,3 @@
-// app/glam/(auth)/login/page.tsx
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
@@ -40,14 +39,30 @@ function SalonLoginForm() {
       return;
     }
 
+    // =========================================================================
+    // 🛡️ EXTRACT SUBDOMAIN CONTEXT STRINGS DYNAMICALLY
+    // =========================================================================
+    let subdomainSlug: string | null = null;
+    if (typeof window !== "undefined") {
+      const hostParts = window.location.hostname.split(".");
+      // Catch subdomains on live infrastructure or custom localhost mappings
+      if (hostParts.length > 2 && hostParts[0] !== "www") {
+        subdomainSlug = hostParts[0];
+      } else if (hostParts.length === 2 && window.location.hostname.includes("localhost") && hostParts[0] !== "localhost") {
+        subdomainSlug = hostParts[0];
+      }
+    }
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
 
         try {
+          // 🌟 SYNCHRONIZED EXECUTION FLIGHT: Appending currentDomainSlug to payload parameters
           const response = await loginSalonUser({
             email: email.trim(),
             passwordRaw: password,
+            currentDomainSlug: subdomainSlug, // Passed down cleanly to database conditional query locks
             clientLat: latitude,
             clientLon: longitude,
           });

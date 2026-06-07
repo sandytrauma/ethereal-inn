@@ -2,12 +2,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server'; 
 import { decrypt } from '@/lib/auth'; // Master Hotel Decrypter Pass
-import { getSalonSession } from '@/lib/salon-token'; // 🌟 Brand new Salon Decrypter Pass
+import { getSalonSession } from '@/lib/salon-token'; // Brand new Salon Decrypter Pass
 
 // =========================================================================
-// 🌍 EDGE-COMPATIBLE GEOLOCATION BARRIER PROTECTION FENCE
+// 🌍 EDGE-COMPATIBLE GEOLOCATION BARRIER PROTECTION FENCE (COMPLETELY DYNAMIC)
 // =========================================================================
-function checkGeoProximity(req: NextRequest, userRole: string): { isAllowed: boolean; distanceKm: number } {
+function checkGeoProximity(
+  req: NextRequest, 
+  userRole: string, 
+  branchLat: number | null, 
+  branchLng: number | null
+): { isAllowed: boolean; distanceKm: number } {
   // 🌟 ADMINISTRATIVE OVERRIDE GATEWAY: Admins/Owners bypass spatial fences for remote operations
   if (userRole === 'admin' || userRole === 'owner' || userRole === 'tenant_admin') {
     return { isAllowed: true, distanceKm: 0 };
@@ -17,22 +22,19 @@ function checkGeoProximity(req: NextRequest, userRole: string): { isAllowed: boo
   const userLat = parseFloat(req.headers.get('x-vercel-ip-latitude') || '0');
   const userLng = parseFloat(req.headers.get('x-vercel-ip-longitude') || '0');
 
-  // Exact spatial coordinates for the Prayagraj physical operational anchor depot/base point
-  const PROPERTY_LAT = 25.4358; 
-  const PROPERTY_LNG = 81.8463;
-
-  // Defensive check: If geolocation headers are missing (e.g., local offline development), pass safely
-  if (!userLat || !userLng) {
+  // Defensive Check: If the branch coordinates haven't been configured or device headers are missing,
+  // pass safely to avoid runtime system locks during local offline development.
+  if (!branchLat || !branchLng || !userLat || !userLng) {
     return { isAllowed: true, distanceKm: 0 }; 
   }
 
-  // Haversine Mathematical Distance Calculation Formulation
+  // Haversine Mathematical Distance Calculation Formulation against dynamic database fields
   const R = 6371; // Earth's radius in kilometers
-  const dLat = (PROPERTY_LAT - userLat) * Math.PI / 180;
-  const dLng = (PROPERTY_LNG - userLng) * Math.PI / 180;
+  const dLat = (branchLat - userLat) * Math.PI / 180;
+  const dLng = (branchLng - userLng) * Math.PI / 180;
   const a = 
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(userLat * Math.PI / 180) * Math.cos(PROPERTY_LAT * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    Math.cos(userLat * Math.PI / 180) * Math.cos(branchLat * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distanceKm = R * c;
 
@@ -50,7 +52,7 @@ export async function middleware(req: NextRequest) {
 
   // 🌟 READ COOKIES FROM INDEPENDENT ISOLATED NAMESPACES
   const hotelToken = req.cookies.get('auth-token')?.value;
-  const glamToken = req.cookies.get('salon_session_token')?.value; // Matches COOKIE_NAME from lib/salon-token.ts
+  const glamToken = req.cookies.get('salon_session_token')?.value; 
   const masterSessionToken = req.cookies.get('glam_master_session')?.value;
 
   // Skip middleware execution for internal Next.js engine chunks, build file passes, and assets
@@ -69,14 +71,24 @@ export async function middleware(req: NextRequest) {
     currentSubdomain = domainParts[0];
   }
 
+  const normalizedSubdomain = currentSubdomain.toLowerCase().trim();
+
   // =========================================================================
   // 2. ROUTE CLASSIFICATION MATRIX
   // =========================================================================
   const isAdminRoute = path.startsWith('/pms-admin');
-  
   const isGlamMasterAdmin = path === '/glam/master-hub';
   const isGlamAuthPortal = path === '/glam/login' || path === '/glam';
-  const isGlamProtectedView = path.startsWith('/glam/') && !isGlamMasterAdmin && path !== '/glam/login';
+  
+  // 🌟 FIX: Check if the path is explicitly a public-facing dynamic brand link
+  const isGlamPublicBrandPage = path.startsWith('/glam/brand/');
+
+  // 🌟 FIX: Exclude both login, master-hub, and the new brand pages from internal protection gates
+  const isGlamProtectedView = 
+    path.startsWith('/glam/') && 
+    !isGlamMasterAdmin && 
+    path !== '/glam/login' && 
+    !isGlamPublicBrandPage;
 
   const STATIC_PUBLIC_ROUTES = [
     '/ethereal-inn', 
@@ -91,7 +103,8 @@ export async function middleware(req: NextRequest) {
   const isPublicPage = 
     STATIC_PUBLIC_ROUTES.includes(path) || 
     path.startsWith('/sanctuary/') ||      
-    path.startsWith('/invoices');
+    path.startsWith('/invoices') ||
+    isGlamPublicBrandPage; // 🌟 FIX: Register brand routing maps as natively public endpoints
 
   const isPmsRoute = !isAdminRoute && (path === '/pms' || path.startsWith('/pms/') || path.includes('/occupancy'));
 
@@ -114,12 +127,14 @@ export async function middleware(req: NextRequest) {
   }
 
   // 🌍 GEOLOCATION RADIAL PERIMETER BARRIER ENFORCEMENT
-  // Evaluated before individual application access handlers to avoid unnecessary server cycles
   if (isAdminRoute || isPmsRoute || isGlamProtectedView) {
-    const geo = checkGeoProximity(req, userRole);
+    const targetLat = glamSession?.latitude ? parseFloat(glamSession.latitude) : null;
+    const targetLng = glamSession?.longitude ? parseFloat(glamSession.longitude) : null;
+
+    const geo = checkGeoProximity(req, userRole, targetLat, targetLng);
     if (!geo.isAllowed) {
       return new NextResponse(
-        `⚠️ Terminal Access Restricted: You are currently located ${geo.distanceKm.toFixed(2)} km away. Device operations are locked to a 5 km storefront radius.`,
+        `⚠️ Terminal Access Restricted: You are currently located ${geo.distanceKm.toFixed(2)} km away from your assigned outlet branch location. Device operations are locked to a 5 km storefront radius.`,
         { status: 403 }
       );
     }
@@ -138,6 +153,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/glam/login?error=Session expired', req.url));
   }
 
+  // 🛡️ CROSS-TENANT SUBDOMAIN VALIDATION LOCK
+  if (glamSession && isGlamProtectedView && normalizedSubdomain && normalizedSubdomain !== "www") {
+    const tokenSlug = glamSession.slug ? String(glamSession.slug).toLowerCase().trim() : '';
+    if (tokenSlug !== normalizedSubdomain) {
+      return NextResponse.redirect(new URL('/glam/login?error=Cross-tenant switch detected. Re-authentication required.', req.url));
+    }
+  }
+
   if (glamSession && path === '/glam/login') {
     return NextResponse.redirect(new URL('/glam/dashboard', req.url));
   }
@@ -154,15 +177,31 @@ export async function middleware(req: NextRequest) {
   // =========================================================================
   // 5. SAAS SUBDOMAIN VIRTUAL DIRECTORY REWRITE LAYER
   // =========================================================================
-  if (currentSubdomain && !isPublicPage && !isAdminRoute && !path.startsWith('/glam')) {
+  if (currentSubdomain && !isPublicPage && !isAdminRoute) {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set('x-tenant-subdomain', currentSubdomain);
 
-    return NextResponse.rewrite(new URL(path, req.url), {
-      request: {
-        headers: requestHeaders,
-      },
-    });
+    // A. MULTI-TENANT ROUTING WITHIN /glam ONLY (Exact Folder Structure Maintained)
+    if (path.startsWith('/glam')) {
+      if (path.startsWith('/glam/master-hub')) {
+        return NextResponse.next();
+      }
+
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
+
+    // B. Fallbacks for standard multi-tenant hotel properties
+    if (!path.startsWith('/glam')) {
+      return NextResponse.rewrite(new URL(path, req.url), {
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
   }
 
   return NextResponse.next();
