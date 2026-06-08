@@ -185,6 +185,12 @@ export const salonProductsStock = glamSchema.table("salon_products_stock", {
   sku: varchar("sku", { length: 100 }),
   currentVolumeMlGrams: integer("current_volume_ml_grams").notNull(),
   alertLevel: inventoryAlertEnum("alert_level").default("good").notNull(),
+  // 🌟 ADDED: Dynamic threshold to clear Server Action compilation errors
+  alertThreshold: integer("alert_threshold").default(100).notNull(),
+  // 🌟 ADDED: Financial tracking variables mapped as decimal strings to match product modals
+  unitType: varchar("unit_type", { length: 20 }).default("ml").notNull(),
+  purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  retailPrice: decimal("retail_price", { precision: 10, scale: 2 }).default("0.00").notNull(),
 });
 
 export const salonProductConsumptionLogs = glamSchema.table("salon_product_consumption_logs", {
