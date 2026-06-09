@@ -11,12 +11,14 @@ import { revalidatePath } from "next/cache";
 interface InventoryFilters {
   search?: string;
   alertLevel?: string;
+  assetCategory?: "consumable" | "fixed_asset"; // 🌟 NEW: Category parsing filter contract
 }
 
 interface NewProductInput {
   productName: string;
   sku?: string;
-  unitType: string; // 🌟 NEW: Core measurement vector type parameter
+  assetCategory: "consumable" | "fixed_asset"; // 🌟 NEW: Added to creation payload structure
+  unitType: string; 
   currentVolumeMlGrams: number;
   alertThreshold: number;
   purchasePrice: number; 
@@ -26,7 +28,8 @@ interface NewProductInput {
 interface UpdateProductInput {
   productName?: string;
   sku?: string;
-  unitType?: string; // 🌟 NEW: Support updating measurement metrics
+  assetCategory?: "consumable" | "fixed_asset"; // 🌟 NEW: Support category adjustments
+  unitType?: string; 
   alertThreshold?: number;
   purchasePrice?: number; 
   retailPrice?: number;   
@@ -54,14 +57,15 @@ export async function getInventoryList(filters?: InventoryFilters) {
       return { success: false, error: "Invalid outlet assignment framework context." };
     }
 
-    // Explicitly select price metrics along with newly integrated unit vector types
+    // Explicitly select price metrics, categories, and vector types
     const products = await db
       .select({
         id: salonProductsStock.id,
         productName: salonProductsStock.productName,
         sku: salonProductsStock.sku,
-        unitType: salonProductsStock.unitType, // 🌟 NEW: Track dynamic unit identifiers
-        currentVolumeMlGrams: salonProductsStock.currentVolumeMlGrams,
+        assetCategory: salonProductsStock.assetCategory, // 🌟 NEW: Pull category row from Drizzle
+        unitType: salonProductsStock.unitType, 
+        currentVolumeMlGrams: salonProductsStock.currentVolumeMlGrams, // Kept exactly as requested
         alertThreshold: salonProductsStock.alertThreshold,
         alertLevel: salonProductsStock.alertLevel,
         purchasePrice: salonProductsStock.purchasePrice, 
@@ -89,6 +93,11 @@ export async function getInventoryList(filters?: InventoryFilters) {
 
     if (filters?.alertLevel && filters.alertLevel !== "all") {
       filtered = filtered.filter((p) => p.alertLevel === filters.alertLevel);
+    }
+
+    // 🌟 NEW: Client-side list category filter pass mapping
+    if (filters?.assetCategory && filters.assetCategory !== "all" as any) {
+      filtered = filtered.filter((p) => p.assetCategory === filters.assetCategory);
     }
 
     return { success: true, data: filtered, count: filtered.length };
@@ -122,8 +131,9 @@ export async function addInventoryItem(payload: NewProductInput) {
         outletId: outletIdStr,
         productName: payload.productName.trim(),
         sku: payload.sku?.trim() || null,
-        unitType: payload.unitType || "ml", // 🌟 NEW: Save clean multi-vector unit indicators
-        currentVolumeMlGrams: payload.currentVolumeMlGrams,
+        assetCategory: payload.assetCategory || "consumable", // 🌟 NEW: Safe injection into Drizzle tables
+        unitType: payload.unitType || "ml", 
+        currentVolumeMlGrams: payload.currentVolumeMlGrams, // Kept exactly as requested
         alertThreshold: payload.alertThreshold,
         alertLevel,
         purchasePrice: String(payload.purchasePrice || 0), 
@@ -160,7 +170,8 @@ export async function updateInventoryItem(productId: number, payload: UpdateProd
     const updateData: any = {};
     if (payload.productName) updateData.productName = payload.productName.trim();
     if (payload.sku !== undefined) updateData.sku = payload.sku?.trim() || null;
-    if (payload.unitType) updateData.unitType = payload.unitType; // 🌟 NEW: Track dynamic unit changes
+    if (payload.assetCategory) updateData.assetCategory = payload.assetCategory; 
+    if (payload.unitType) updateData.unitType = payload.unitType; 
     if (payload.alertThreshold !== undefined) updateData.alertThreshold = payload.alertThreshold;
     if (payload.purchasePrice !== undefined) updateData.purchasePrice = String(payload.purchasePrice);
     if (payload.retailPrice !== undefined) updateData.retailPrice = String(payload.retailPrice);
@@ -169,16 +180,32 @@ export async function updateInventoryItem(productId: number, payload: UpdateProd
       return { success: false, error: "No field mutations provided for submission query." };
     }
 
-    // If threshold changes or volumes exist, dynamically recalculate matrix tags
-    if (payload.alertThreshold !== undefined) {
-      const [existing] = await db
-        .select()
-        .from(salonProductsStock)
-        .where(and(eq(salonProductsStock.id, productId), eq(salonProductsStock.tenantId, tenantIdStr)));
-      
-      if (existing) {
-        updateData.alertLevel = determineAlertLevel(existing.currentVolumeMlGrams, payload.alertThreshold);
-      }
+    // 🌟 FIXED: Always fetch existing record parameters to guarantee accurate lifecycle sync maps
+    const [existing] = await db
+      .select()
+      .from(salonProductsStock)
+      .where(
+        and(
+          eq(salonProductsStock.id, productId), 
+          eq(salonProductsStock.tenantId, tenantIdStr)
+        )
+      );
+
+    if (!existing) {
+      return { success: false, error: "Target inventory product record not found." };
+    }
+
+    // Determine what the absolute final category will resolve to post-update pass
+    const resolvedCategory = payload.assetCategory || existing.assetCategory;
+
+    if (resolvedCategory === "fixed_asset") {
+      // 🌟 FIXED ASSET LIFECYCLE RULE: Clear all stock warning alerts completely
+      updateData.alertLevel = "good";
+      updateData.alertThreshold = 0; // Fixed assets have no depletion thresholds
+    } else {
+      // CONSUMABLE LIFECYCLE RULE: Calculate status flags based on current vs updated counts
+      const targetThreshold = payload.alertThreshold !== undefined ? payload.alertThreshold : existing.alertThreshold;
+      updateData.alertLevel = determineAlertLevel(existing.currentVolumeMlGrams, targetThreshold);
     }
 
     await db
@@ -261,8 +288,6 @@ export async function adjustStockLevel(productId: number, volumeDelta: number) {
     if (!product) return { success: false, error: "Product reference target profile not found." };
 
     const newVolume = Math.max(0, product.currentVolumeMlGrams + volumeDelta);
-    
-    // Use the actual stored database alert threshold instead of a hardcoded fallback
     const alertLevel = determineAlertLevel(newVolume, product.alertThreshold);
 
     await db
@@ -296,7 +321,8 @@ export async function getInventoryAlerts() {
         id: salonProductsStock.id,
         productName: salonProductsStock.productName,
         currentVolumeMlGrams: salonProductsStock.currentVolumeMlGrams,
-        unitType: salonProductsStock.unitType, // 🌟 NEW: Track units in active reorder alert panels
+        assetCategory: salonProductsStock.assetCategory, // 🌟 NEW: Pull category context for alerts
+        unitType: salonProductsStock.unitType, 
         alertThreshold: salonProductsStock.alertThreshold,
         alertLevel: salonProductsStock.alertLevel,
       })
@@ -310,10 +336,13 @@ export async function getInventoryAlerts() {
       )
       .orderBy(desc(salonProductsStock.alertLevel));
 
-    const criticalCount = alerts.filter((a) => a.alertLevel === "critical_empty").length;
-    const lowStockCount = alerts.filter((a) => a.alertLevel === "low_stock").length;
+    // Fixed Assets are not depleted sequentially, so exclude them from warning logs
+    const activeConsumableAlerts = alerts.filter((a) => a.assetCategory !== "fixed_asset");
 
-    return { success: true, data: { alerts, criticalCount, lowStockCount } };
+    const criticalCount = activeConsumableAlerts.filter((a) => a.alertLevel === "critical_empty").length;
+    const lowStockCount = activeConsumableAlerts.filter((a) => a.alertLevel === "low_stock").length;
+
+    return { success: true, data: { alerts: activeConsumableAlerts, criticalCount, lowStockCount } };
   } catch (error: any) {
     console.error("❌ Parse Inventory Alerts Error:", error.message);
     return { success: false, error: "Failed to assemble active inventory warning matrices." };
@@ -383,11 +412,8 @@ export async function logProductConsumption(appointmentId: string, productId: nu
     if (!product) return { success: false, error: "Product asset target reference profile not found." };
 
     const newVolume = Math.max(0, product.currentVolumeMlGrams - consumedVolume);
-    
-    // Use actual database product configuration threshold for status calculations
     const alertLevel = determineAlertLevel(newVolume, product.alertThreshold);
 
-    // Run atomically inside an explicit isolation block to ensure accurate stock tallies
     await db.transaction(async (tx) => {
       await tx
         .insert(salonProductConsumptionLogs)
@@ -434,13 +460,10 @@ export async function restockInventory(productId: number, quantity: number, supp
     if (!product) return { success: false, error: "Inventory node reference not found." };
 
     const newVolume = product.currentVolumeMlGrams + quantity;
-    
-    // Use actual database dynamic validation thresholds rather than a hardcoded fallback
     const alertLevel = determineAlertLevel(newVolume, product.alertThreshold);
 
     const updatePayload: any = { currentVolumeMlGrams: newVolume, alertLevel };
     
-    // Optionally log/update updated purchase costs on restock pipelines if supplied
     if (supplierCost !== undefined && supplierCost > 0) {
       updatePayload.purchasePrice = String(supplierCost);
     }
@@ -457,3 +480,4 @@ export async function restockInventory(productId: number, quantity: number, supp
     return { success: false, error: "Failed to execute restock operations on table arrays." };
   }
 }
+

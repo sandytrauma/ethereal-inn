@@ -27,6 +27,10 @@ export const inventoryAlertEnum = glamSchema.enum("inventory_alert", [
   "good", "low_stock", "critical_empty"
 ]);
 
+export const assetCategoryEnum = glamSchema.enum("asset_category", [
+  "consumable", "fixed_asset"
+]);
+
 
 
 // =========================================================================
@@ -188,7 +192,10 @@ export const salonProductsStock = glamSchema.table("salon_products_stock", {
   // 🌟 ADDED: Dynamic threshold to clear Server Action compilation errors
   alertThreshold: integer("alert_threshold").default(100).notNull(),
   // 🌟 ADDED: Financial tracking variables mapped as decimal strings to match product modals
+ 
+  assetCategory: assetCategoryEnum("asset_category").default("consumable").notNull(),
   unitType: varchar("unit_type", { length: 20 }).default("ml").notNull(),
+  
   purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }).default("0.00").notNull(),
   retailPrice: decimal("retail_price", { precision: 10, scale: 2 }).default("0.00").notNull(),
 });
