@@ -4,10 +4,14 @@ import { redirect } from "next/navigation";
 import { decrypt } from "@/lib/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { properties } from "@/db/micro-schema";
-import { eq, not, sql } from "drizzle-orm";
+import { partnerInquiries, properties } from "@/db/micro-schema";
+import { desc, eq, not, sql } from "drizzle-orm";
 import TenantCreationForm from "@/components/admin/TenantCreationForm";
 import TenantDeleteButton from "@/components/admin/TenantDeleteButton";
+import InquiriesTableClient from "./InquiriesTableClient";
+import Link from "next/link";
+import { ArrowLeft, Zap } from "lucide-react";
+import Footer from "@/components/layout/Footer";
 
 export default async function AdminOnboardingPage() {
   const cookieStore = await cookies();
@@ -37,9 +41,46 @@ export default async function AdminOnboardingPage() {
     .where(not(eq(users.id, 1)))
     .groupBy(users.id, users.name, users.email);
 
+    const leads = await db
+    .select()
+    .from(partnerInquiries)
+    .orderBy(desc(partnerInquiries.loggedAt));
+
   return (
     <main className="min-h-screen bg-slate-950 p-6 md:p-12 flex flex-col items-center gap-8 font-sans selection:bg-amber-400 selection:text-black">
-      
+
+      <nav className="fixed top-0 left-0 right-0 z-[80] p-4 lg:p-6 bg-[#0a0a0a]/60 backdrop-blur-2xl border-b border-white/5">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          
+          {/* 🌟 FIXED NAVIGATION: Updated routing target from /login to your secure workspace gate /glam/login */}
+          <Link href="/" className="flex items-center gap-3 p-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 group cursor-pointer transition-all duration-300 z-[90] relative">
+            <div className="w-9 h-9 bg-amber-400 rounded-full flex items-center justify-center text-slate-950 transform group-hover:-translate-x-0.5 transition-transform">
+              <ArrowLeft size={18} strokeWidth={3} />
+            </div>
+            <div className="pr-3">
+              <p className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-500 leading-none">Ethereal Inn SuperAdmin</p>
+              <p className="text-[10px] font-bold text-white uppercase tracking-tighter mt-0.5 group-hover:text-pink-400 transition-colors">Return to Operational Dashboard</p>
+            </div>
+          </Link>
+
+          <Zap size={18} className="text-rose-400 animate-pulse" />
+        </div>
+      </nav>
+
+    <div className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden mt-24">
+        <div className="mb-6 select-none border-b border-white/5 pb-4">
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-pink-400 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-pink-500 rounded-full animate-ping" />
+            Incoming Hotelier Onboarding Inquiries
+          </h2>
+          <p className="text-[10px] text-slate-500 font-medium mt-1">
+            Review corporate application footprints, key properties sizes, and cycle pipeline stage states.
+          </p>
+        </div>
+
+        {/* 🛡️ Safe Variable Passing: plural "leads" array matches your data-fetch array perfectly */}
+        <InquiriesTableClient initialLeads={leads} />
+      </div>
       {/* 1. Onboarding Provision Form */}
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
@@ -93,6 +134,7 @@ export default async function AdminOnboardingPage() {
           </div>
         )}
       </div>
+      <Footer/>
     </main>
   );
 }

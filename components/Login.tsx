@@ -34,6 +34,8 @@ import Link from "next/link";
 import DashboardBackground from "./dashboard/DashboardBackground";
 import MultiPropertyMap from "./MultiPropertyMap";
 import Image from "next/image";
+import PartnerBrandingSegment from "./PartnerBrandingSegment";
+import { LandingPageFAQ } from "./LandingPageFAQ";
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
 
@@ -442,6 +444,12 @@ export default function LandingLoginPage() {
         </div>
       </section>
 
+    <section className="py-24 border-t border-white/5 overflow-hidden bg-slate-950">
+      {/* Handled autonomously with state-isolated modal overlays built inside */}
+      <PartnerBrandingSegment />
+      <LandingPageFAQ />
+    </section>
+  
       {/* --- REVIEWS MARQUEE --- */}
       <section className="py-24 border-t border-white/5 overflow-hidden">
         <div className="flex flex-col items-center mb-16 text-center">

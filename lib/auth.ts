@@ -26,6 +26,8 @@ export async function setSession(user: any) {
 
   // Access cookies correctly for Next.js 15+ (awaiting cookies())
   const cookieStore = await cookies();
+
+
   
   cookieStore.set("auth-token", session, { 
     expires, 
@@ -53,11 +55,12 @@ export async function updateSession() {
   
   const res = await encrypt(parsed);
   const cookieStore = await cookies();
+    const isProd = process.env.NODE_ENV === "production";
   
   cookieStore.set("auth-token", res, {
     expires: parsed.expires,
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+   secure: isProd, // 🌟 False on localhost, True in production
+  sameSite: isProd ? "none" : "lax",
   });
 }
