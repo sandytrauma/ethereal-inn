@@ -2,7 +2,26 @@
 
 import React, { useState, useTransition } from "react";
 import { submitPartnerInquiry } from "@/lib/actions/partner-inquiry";
-import { Handshake, X, CheckCircle, Sparkles, Building2 } from "lucide-react";
+import { X, CheckCircle, Sparkles, Building2 } from "lucide-react";
+
+// 🌟 TypeScript Global Override Declaration for Google Tags
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+  }
+}
+
+interface Lead {
+  id: number;
+  hotelName: string;
+  ownerName: string;
+  email: string;
+  phone: string;
+  totalRooms: number;
+  message: string | null;
+  status: string;
+  loggedAt: Date | string;
+}
 
 export default function PartnerInquiryModal({ onClose }: { onClose: () => void }) {
   const [formData, setFormData] = useState({
@@ -22,7 +41,7 @@ export default function PartnerInquiryModal({ onClose }: { onClose: () => void }
     e.preventDefault();
     setError(null);
 
-    // Basic scale gate
+    // Basic data sanity gate check
     if (formData.totalRooms <= 0) {
       setError("Please specify a valid room count greater than 0.");
       return;
@@ -30,8 +49,19 @@ export default function PartnerInquiryModal({ onClose }: { onClose: () => void }
 
     startTransition(async () => {
       const result = await submitPartnerInquiry(formData);
+      
       if (result.success) {
         setIsSubmitted(true);
+
+        // 🎯 GOOGLE ADS CONVERSION INJECTION LAYER
+        // Fires only when the database commits and passes back a success boolean token
+        if (typeof window !== "undefined" && window.gtag) {
+          window.gtag("event", "conversion_event_contact", {
+            event_callback: () => {
+              console.log("🚀 B2B Conversion pipeline verified by Google Analytics.");
+            },
+          });
+        }
       } else {
         setError(result.error || "An error occurred during pipeline data sync.");
       }

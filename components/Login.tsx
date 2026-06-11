@@ -39,6 +39,12 @@ import { LandingPageFAQ } from "./LandingPageFAQ";
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
 
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+  }
+}
+
 interface Review {
   author_name: string;
   rating: number;
@@ -188,6 +194,15 @@ export default function LandingLoginPage() {
 
   const handleBookingRedirect = (e: React.MouseEvent) => {
     e.preventDefault();
+
+    // 🎯 GOOGLE ADS EVENT: Track Instant Booking Intent
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "click_book_instant", {
+        event_category: "Engagement",
+        event_label: "WhatsApp Redirection Triggered",
+      });
+    }
+
     const decodedPhone = atob(ENCODED_PHONE);
     const whatsappUrl = `https://wa.me/${decodedPhone.replace("+", "")}?text=${WHATSAPP_MESSAGE}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
@@ -209,6 +224,15 @@ export default function LandingLoginPage() {
         const res = await createInquiryAction(PROPERTY_ID, formData);
 
         if (res.success) {
+          // 🎯 GOOGLE ADS EVENT: Successful Form Conversion
+          // Fires ONLY when database safely writes row tokens
+          if (typeof window !== "undefined" && window.gtag) {
+            window.gtag("event", "conversion_event_contact", {
+              event_category: "Conversion",
+              event_label: "Direct Property Inquiry Logged",
+            });
+          }
+
           setInquirySuccess(true);
           currentFormElement.reset(); // Safe explicit call
 
@@ -224,6 +248,8 @@ export default function LandingLoginPage() {
       }
     });
   }
+
+  
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-slate-100 overflow-x-hidden font-sans selection:bg-[#c5a059] selection:text-black pb-24 md:pb-0">
@@ -334,18 +360,32 @@ export default function LandingLoginPage() {
           </motion.h1>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6 px-4">
-            <button
-              onClick={() => setShowInquiry(true)}
-              className="w-full sm:w-auto bg-white/5 backdrop-blur-md border border-white/10 text-white font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-[#c5a059] hover:text-black transition-all uppercase tracking-widest text-[11px] cursor-pointer"
-            >
-              Direct Inquiry
-            </button>
-            <button
-              onClick={handleBookingRedirect}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-emerald-400 transition-all uppercase tracking-widest text-[11px] cursor-pointer shadow-xl shadow-emerald-500/10"
-            >
-              <MessageCircle size={18} /> Book Instant
-            </button>
+           {/* 1. Direct Inquiry - Triggers tracking and opens the modal modal */}
+  <button
+    type="button"
+    onClick={() => {
+      // 🎯 GOOGLE ADS EVENT: Track initial inquiry intent
+      if (typeof window !== "undefined" && window.gtag) {
+        window.gtag("event", "click_direct_inquiry", {
+          event_category: "Engagement",
+          event_label: "Inquiry Form Opened",
+        });
+      }
+      setShowInquiry(true);
+    }}
+    className="w-full sm:w-auto bg-white/5 backdrop-blur-md border border-white/10 text-white font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-[#c5a059] hover:text-black transition-all uppercase tracking-widest text-[11px] cursor-pointer"
+  >
+    Direct Inquiry
+  </button>
+
+  {/* 2. Book Instant - Handled directly by your updated handleBookingRedirect function */}
+  <button
+    type="button"
+    onClick={handleBookingRedirect}
+    className="w-full sm:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-emerald-400 transition-all uppercase tracking-widest text-[11px] cursor-pointer shadow-xl shadow-emerald-500/10"
+  >
+    <MessageCircle size={18} /> Book Instant
+  </button>
           </div>
         </div>
       </section>
