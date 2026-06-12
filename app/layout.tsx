@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script"; // 🌟 Injected for optimized Google Tag handling
 import "./globals.css";
-
-
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,33 +20,41 @@ export const metadata: Metadata = {
       ? "https://www.etherealinn.com"
       : "http://localhost:3000"
   ),
-  title: "Ethereal Inn | Luxury Boutique Stay in Delhi",
-  description: "Experience refined luxury at Ethereal Inn. Located near Metro, offering boutique rooms, fine dining, and elite amenities.",
-  keywords: ["Luxury Hotel Delhi", "Boutique Stay Delhi", "Hotels near Metro", "Ethereal Inn New Delhi"],
+  title: "Ethereal Inn Hospitality LLP | Luxury Boutique Stays & Tech Platforms",
+  description: "Experience premium boutique luxury accommodations, aesthetic spaces, and advanced cloud-native technology platforms managed by Ethereal Inn Hospitality LLP.",
+  keywords: [
+    "Ethereal Inn Hospitality LLP",
+    "Luxury Hotel Delhi", 
+    "Boutique Stay Delhi", 
+    "Hotels near Metro", 
+    "Ethereal Inn New Delhi",
+    "Ethereal Glam",
+    "Urban Ambrosia"
+  ],
   authors: [{ name: "Ethereal Inn Hospitality LLP" }],
   icons: {
     icon: "/logo-bg.jpeg", 
     apple: "/logo-bg.jpeg",
   },
   openGraph: {
-    title: "Ethereal Inn | Delhi's Most Refined Experience",
-    description: "Boutique luxury, minutes from the Metro.",
+    title: "Ethereal Inn Hospitality LLP | Delhi's Refined Experience",
+    description: "Boutique luxury accommodations, lifestyle concepts, and enterprise hospitality SaaS modules.",
     url: "https://www.etherealinn.com",
-    siteName: "Ethereal Inn",
+    siteName: "Ethereal Inn Hospitality LLP",
     images: [{ 
-      url: "/logo-bg.jpeg", // Changed to your local asset for consistent branding
+      url: "/logo-bg.jpeg", 
       width: 1200, 
       height: 630, 
-      alt: "Luxury at Ethereal Inn" 
+      alt: "Premium Hospitality at Ethereal Inn" 
     }],
     locale: "en_IN",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ethereal Inn | Boutique Luxury",
-    description: "Experience refined luxury in Delhi.",
-    images: ["/logo-bg.jpeg"], // Matched with OG image so Twitter cards render identically
+    title: "Ethereal Inn Hospitality LLP",
+    description: "Experience refined luxury accommodations and modern property management infrastructure.",
+    images: ["/logo-bg.jpeg"],
   },
   alternates: {
     canonical: "https://www.etherealinn.com/",
@@ -76,15 +83,39 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // 🌟 Dynamic integration tracking pulling straight from your variable mapping
+  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
   return (
     <html lang="en" className="dark" style={{ colorScheme: 'dark' }}>
+      <head>
+        {/* 🚀 DYNAMIC GOOGLE TAG ENGINE
+            Only initializes tracking frames if the environmental value exists. */}
+        {gaId && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-tag-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gaId}', {
+                  page_path: window.location.pathname,
+                });
+              `}
+            </Script>
+          </>
+        )}
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen relative`}>
         <DashboardBackground />
         
         <main className="relative z-10">
           {children}
         </main>
-        
       </body>
     </html>
   );

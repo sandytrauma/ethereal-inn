@@ -7,35 +7,58 @@ export default function BrandingJsonLd() {
   const schemaGraph = {
     "@context": "https://schema.org",
     "@graph": [
+      // 🌟 Parent Corporate Entity (LLP)
       {
-        "@type": "Organization",
-        "@id": "https://www.etherealinn.com/#organization",
-        "name": "Ethereal Inn",
+        "@type": "HospitalityBusiness",
+        "@id": "https://www.etherealinn.com/#corporate-llp",
+        "name": "Ethereal Inn Hospitality LLP",
         "url": "https://www.etherealinn.com",
         "logo": "https://www.etherealinn.com/logo-bg.jpeg",
         "sameAs": [
           "https://www.linkedin.com/company/etherealinn",
           "https://www.instagram.com/etherealinn"
         ],
-        "description": "A high-performance cloud-native multi-tenant operating ecosystem engineered for automated hospitality management and wellness workflows.",
+        "description": "A premier multi-tenant hospitality corporation operating premium budget lodging networks, curated lifestyle aesthetic spaces, and advanced enterprise tech ecosystems.",
         "contactPoint": {
           "@type": "ContactPoint",
           "telephone": "+91-8796211849",
           "contactType": "customer service",
-          "email": "partners@etherealinn.com",
+          "email": "etherealinn055@gmail.com",
           "availableLanguage": ["en", "hi"]
-        }
+        },
+        // 🔗 Linking Child Operational Brands to the Parent LLP
+        "subOrganization": [
+          {
+            "@type": "LocalBusiness",
+            "name": "Ethereal Inn",
+            "description": "Premium luxury-budget lodging network and modern boutique stays."
+          },
+          {
+            "@type": "LocalBusiness",
+            "name": "Ethereal Glam",
+            "description": "Premium curated lifestyle, aesthetics, and elevated hospitality presentations."
+          },
+          {
+            "@type": "FoodEstablishment",
+            "name": "Urban Ambrosia",
+            "description": "Premium culinary destinations, cafe concepts, and upscale food & beverage management units."
+          }
+        ]
       },
+
+      // 🌐 Website Entity
       {
         "@type": "WebSite",
         "@id": "https://www.etherealinn.com/#website",
         "url": "https://www.etherealinn.com",
         "name": "Ethereal Inn",
         "publisher": {
-          "@id": "https://www.etherealinn.com/#organization"
+          "@id": "https://www.etherealinn.com/#corporate-llp"
         },
         "description": "Frictionless multi-property tracking, dynamic inventory management, and day-end autonomous financial ledger reconciliation loops."
       },
+
+      // 📄 Current WebPage Entity
       {
         "@type": "WebPage",
         "@id": `${canonicalUrl}/#webpage`,
@@ -46,6 +69,8 @@ export default function BrandingJsonLd() {
         },
         "description": "Align your hospitality property with the Ethereal brand network. Streamline your property management tracking, multi-vector inventory controls, and financial operations from a single dashboard node."
       },
+
+      // 💻 Software / Tech Solution Entity
       {
         "@type": "SoftwareApplication",
         "@id": `${canonicalUrl}/#software`,
@@ -54,7 +79,7 @@ export default function BrandingJsonLd() {
         "applicationCategory": "BusinessApplication",
         "browserRequirements": "Requires HTML5 capable browser",
         "publisher": {
-          "@id": "https://www.etherealinn.com/#organization"
+          "@id": "https://www.etherealinn.com/#corporate-llp"
         },
         "offers": {
           "@type": "Offer",
@@ -69,6 +94,8 @@ export default function BrandingJsonLd() {
           "Unified multi-branch dashboard cross-reconciliation control"
         ]
       },
+
+      // ❓ FAQ Page Entity
       {
         "@type": "FAQPage",
         "@id": `${canonicalUrl}/#faq`,

@@ -1,0 +1,25 @@
+# Ethereal Inn Hospitality LLP
+
+## Corporate Entity Structure
+Ethereal Inn Hospitality LLP is a parent hospitality corporate framework managing a diversified portfolio of physical lifestyle, luxury-budget stays, and digital software solution modules.
+
+## Operating Business Units
+- **Ethereal Inn:** Premium hospitality accommodations and boutique luxury-budget lodging networks (Flagship location: Mohan Garden / Uttam Nagar, New Delhi).
+- **Ethereal Glam:** Premium lifestyle and hospitality aesthetics segment.
+- **Urban Ambrosia:** Premium culinary, café, and upscale food & beverage destination management units.
+
+## B2B Technology Solutions & Infrastructure
+Ethereal Inn Hospitality LLP builds and provisions custom, enterprise-grade hospitality technology systems for property owners looking to completely offload software logistics.
+
+### 1. Multi-Tenant Enterprise Cluster Sandboxes
+- **Dynamic Provisioning Engine:** Allows master-level administrators to instantly provision or deprecate secure, isolated business clusters on the fly for incoming external partner nodes.
+- **Strict Role Isolation:** Secured with flat JWT authorization constraints that restrict core global database adjustments exclusively to `userId: 1` and `propertyId: global`.
+
+### 2. Scalable High-Volume Data Ingestion
+- **Connection Optimizations:** Built using modern serverless Next.js and Drizzle ORM paths talking to Neon PostgreSQL. Traffic routes natively through transaction-mode connection pooling (`-pooler`) to cleanly absorb sudden advertisement spikes of up to 100,000 concurrent partner leads without core memory exhaustion.
+- **Conversion Safety Filters:** Employs explicit asynchronous state handshakes with Google Ads Event tags (`gtag`). This isolates marketing analytics measurements to true, database-validated property submissions, filtering out proxy or duplicate web spam.
+
+## Official Canonical Vectors
+- Corporate Web Domain: https://www.etherealinn.com
+- Partner Portal Matrix: https://www.etherealinn.com/ethereal-inn
+- Corporate Communication Node: contact@etherealinn.com

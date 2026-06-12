@@ -4,16 +4,18 @@ import LoginPage from "@/components/Login";
 import BrandingJsonLd from "@/components/BrandingJsonLd";
 
 // =========================================================================
-// 🎯 B2B OVERRIDE METADATA: Aligns with your /ethereal-inn URL structure
+// 🎯 B2B OVERRIDE METADATA: Aligns with Ethereal Inn Hospitality LLP
 // =========================================================================
 export const metadata: Metadata = {
-  title: "Ethereal Inn Platform | Effortless Multi-Property Management Ecosystem",
-  description: "Run your properties with absolute leniency. Align with the Ethereal brand network for plug-and-play multi-location management, live stock tracking, and automated ledgers.",
+  title: "Become a Partner Node | Ethereal Inn Hospitality LLP",
+  description: "Scale your hospitality footprint with Ethereal Inn Hospitality LLP. Access advanced cloud-native multi-tenant tech solutions, automated inventory loops, and multi-property logistics for Ethereal Inn, Ethereal Glam, and Urban Ambrosia units.",
   keywords: [
-    "Hospitality SaaS", 
-    "Multi-Property Management Software", 
-    "Hotel Operations Automation", 
-    "Ethereal Inn Partner Node", 
+    "Ethereal Inn Hospitality LLP",
+    "Ethereal Inn Partner Node",
+    "Ethereal Glam",
+    "Urban Ambrosia",
+    "Multi-Property Management Software",
+    "Hospitality SaaS Automation",
     "Plug and Play Hotel Ledger"
   ],
   alternates: {
@@ -21,22 +23,22 @@ export const metadata: Metadata = {
     canonical: "https://www.etherealinn.com/ethereal-inn",
   },
   openGraph: {
-    title: "Ethereal Inn | Operational Scaling Engineered for Hoteliers",
-    description: "Zero heavy setups. No technical stress. Turn your property operations into our priority.",
+    title: "Ethereal Inn Hospitality LLP | Multi-Tenant Tech Solutions",
+    description: "Plug-and-play property activation loops with zero infrastructure overhead. Offload your operational logistics completely across lodging, lifestyle, and culinary branches.",
     url: "https://www.etherealinn.com/ethereal-inn",
-    siteName: "Ethereal Inn Platform",
+    siteName: "Ethereal Inn Hospitality LLP Platform",
     images: [{ 
       url: "/logo-bg.jpeg", 
       width: 1200, 
       height: 630, 
-      alt: "Ethereal Inn SaaS Management Command Interface Dashboard" 
+      alt: "Ethereal Inn Hospitality LLP SaaS Command Interface Dashboard" 
     }],
     locale: "en_IN",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ethereal Inn Platform | Scale Instantly",
+    title: "Ethereal Inn Hospitality LLP | Scale Instantly",
     description: "Plug-and-play hospitality management frameworks built for modern ambitious brands.",
     images: ["/logo-bg.jpeg"],
   },
@@ -45,7 +47,7 @@ export const metadata: Metadata = {
 export default function Page() {
   return (
     <>
-      {/* 🚀 Injects the knowledge graph layers into the HTML response header for AI models */}
+      {/* 🚀 Injects the complete multi-unit knowledge graph layers into the HTML response header for AI models */}
       <BrandingJsonLd />
       
       {/* Renders your full responsive interactive entry matrix component */}
