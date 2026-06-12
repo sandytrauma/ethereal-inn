@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Camera,
   Star,
-  ArrowUpRight,
   ChefHat,
   UtensilsCrossed,
   CheckCircle2,
@@ -26,6 +25,8 @@ import {
   AlertCircle,
   ExternalLink,
   ChevronDown,
+  Sparkles,
+  Building,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Script from "next/script";
@@ -104,9 +105,12 @@ const POLICY_CONTENT = {
     sections: [
       {
         h: "Data Security",
-        p: "We use encryption to protect your contact info. Your data is stored only for booking and statutory purposes.",
+        p: "We use encryption to protect your contact info. Your data is stored safely only for booking and statutory corporate purposes under Ethereal Inn Hospitality LLP rules.",
       },
-      { h: "Cookies", p: "We use Google Analytics to track site traffic." },
+      {
+        h: "Cookies",
+        p: "We use Google Analytics to track site traffic safely without tracking personal data parameters.",
+      },
     ],
   },
   terms: {
@@ -114,9 +118,12 @@ const POLICY_CONTENT = {
     sections: [
       {
         h: "Guest ID",
-        p: "Government-approved ID is mandatory upon check-in.",
+        p: "Government-approved physical ID verification is mandatory upon check-in logs.",
       },
-      { h: "Property Care", p: "Ethereal Inn is a non-smoking property." },
+      {
+        h: "Property Care",
+        p: "Ethereal Inn nodes are strictly non-smoking property matrices.",
+      },
     ],
   },
   refunds: {
@@ -124,7 +131,7 @@ const POLICY_CONTENT = {
     sections: [
       {
         h: "Cancellation Window",
-        p: "Cancel 48 hours before check-in for a full refund.",
+        p: "Cancel 48 hours prior to check-in session parameters for a full transaction refund.",
       },
     ],
   },
@@ -149,26 +156,49 @@ export default function LandingLoginPage() {
   const [isPendingInquiry, startTransition] = useTransition();
   const [inquirySuccess, setInquirySuccess] = useState(false);
 
-  // 🌟 Action state hook handles state configurations gracefully
   const [state, formAction, isPending] = useActionState(loginUser, null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  
-    // Array map containing your exact application domains
-    const importantLinks = [
-      { name: "Main Platform Root", href: "https://www.etherealinn.com/" },
-      { name: "Boutique Suites", href: "https://www.etherealinn.com/suites" },
-      { name: "Urban Ambrosia Culinary", href: "https://www.etherealinn.com/culinary" },
-      { name: "Ethereal Glam SaaS Portal", href: "https://www.etherealinn.com/glam" },
-      { name: "The Sanctuary Workspace", href: "https://www.etherealinn.com/sanctuary" },
-      { name: "Contact & Inquiries Layout", href: "https://www.etherealinn.com/contact" },
-      { name: "Corporate Terminal Hub", href: "https://www.etherealinn.com/ethereal-inn" },
-      { name: "Glam Terminal Gateway Login", href: "https://www.etherealinn.com/glam/login" },
-      { name: "Sanctuary - Mohan Garden", href: "https://www.etherealinn.com/sanctuary/mohan-garden" },
-      { name: "Sanctuary - Urban Ambrosia", href: "https://www.etherealinn.com/sanctuary/urban-ambrosia" },
-      { name: "Sanctuary - Glam Studio Branch", href: "https://www.etherealinn.com/sanctuary/glam-studio" },
-    ];
+  const importantLinks = [
+    { name: "Main Platform Root", href: "https://www.etherealinn.com/" },
+    { name: "Boutique Suites", href: "https://www.etherealinn.com/suites" },
+    {
+      name: "Urban Ambrosia Culinary",
+      href: "https://www.etherealinn.com/culinary",
+    },
+    {
+      name: "Ethereal Glam SaaS Portal",
+      href: "https://www.etherealinn.com/glam",
+    },
+    {
+      name: "The Sanctuary Workspace",
+      href: "https://www.etherealinn.com/sanctuary",
+    },
+    {
+      name: "Contact & Inquiries Layout",
+      href: "https://www.etherealinn.com/contact",
+    },
+    {
+      name: "Corporate Terminal Hub",
+      href: "https://www.etherealinn.com/ethereal-inn",
+    },
+    {
+      name: "Glam Terminal Gateway Login",
+      href: "https://www.etherealinn.com/glam/login",
+    },
+    {
+      name: "Sanctuary - Mohan Garden",
+      href: "https://www.etherealinn.com/sanctuary/mohan-garden",
+    },
+    {
+      name: "Sanctuary - Urban Ambrosia",
+      href: "https://www.etherealinn.com/sanctuary/urban-ambrosia",
+    },
+    {
+      name: "Sanctuary - Glam Studio Branch",
+      href: "https://www.etherealinn.com/sanctuary/glam-studio",
+    },
+  ];
 
   useEffect(() => {
     const timer = setInterval(
@@ -195,7 +225,6 @@ export default function LandingLoginPage() {
   const handleBookingRedirect = (e: React.MouseEvent) => {
     e.preventDefault();
 
-    // 🎯 GOOGLE ADS EVENT: Track Instant Booking Intent
     if (typeof window !== "undefined" && window.gtag) {
       window.gtag("event", "click_book_instant", {
         event_category: "Engagement",
@@ -211,10 +240,8 @@ export default function LandingLoginPage() {
   async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    // 🌟 FIXED: Captured native DOM form reference before execution thread asynchronously steps into transitions
     const currentFormElement = e.currentTarget;
     const formData = new FormData(currentFormElement);
-
     const PROPERTY_ID =
       process.env.NEXT_PUBLIC_MOHAN_GARDEN_ID ||
       "00000000-0000-0000-0000-000000000000";
@@ -224,8 +251,6 @@ export default function LandingLoginPage() {
         const res = await createInquiryAction(PROPERTY_ID, formData);
 
         if (res.success) {
-          // 🎯 GOOGLE ADS EVENT: Successful Form Conversion
-          // Fires ONLY when database safely writes row tokens
           if (typeof window !== "undefined" && window.gtag) {
             window.gtag("event", "conversion_event_contact", {
               event_category: "Conversion",
@@ -234,7 +259,7 @@ export default function LandingLoginPage() {
           }
 
           setInquirySuccess(true);
-          currentFormElement.reset(); // Safe explicit call
+          currentFormElement.reset();
 
           setTimeout(() => {
             setShowInquiry(false);
@@ -249,13 +274,10 @@ export default function LandingLoginPage() {
     });
   }
 
-  
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-slate-100 overflow-x-hidden font-sans selection:bg-[#c5a059] selection:text-black pb-24 md:pb-0">
       <DashboardBackground />
 
-      {/* 🌟 FIXED: Google Analytics Global Tracking Snippet Configuration Tag Loader */}
       {GA_MEASUREMENT_ID && (
         <>
           <Script
@@ -279,7 +301,7 @@ export default function LandingLoginPage() {
       <nav className="fixed top-0 w-full z-[100] flex justify-between items-center px-6 md:px-12 py-6 backdrop-blur-md border-b border-white/5 bg-black/20">
         <div className="flex flex-col text-left">
           <span className="text-[10px] tracking-[0.4em] uppercase text-gray-500 font-black">
-            The Collective
+            Ethereal Inn Hospitality LLP
           </span>
           <span className="text-xl md:text-2xl font-serif font-bold italic text-[#c5a059]">
             Ethereal Inn
@@ -287,13 +309,15 @@ export default function LandingLoginPage() {
         </div>
         <div className="flex items-center gap-4">
           <button
+            type="button"
             onClick={() => setShowAbout(true)}
-            className="hidden md:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c5a059] transition-colors mr-4"
+            className="hidden md:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c5a059] transition-colors mr-4 cursor-pointer"
           >
             Our Story
           </button>
 
           <button
+            type="button"
             onClick={() => setShowLogin(true)}
             className="bg-[#c5a059] text-black px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform duration-200 cursor-pointer"
           >
@@ -306,6 +330,7 @@ export default function LandingLoginPage() {
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[150] md:hidden">
         <div className="bg-zinc-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-2 flex items-center justify-around shadow-2xl">
           <button
+            type="button"
             onClick={() => setShowAbout(true)}
             className="flex flex-col items-center gap-1 p-3 text-gray-400 hover:text-[#c5a059] active:scale-90 transition-all cursor-pointer"
           >
@@ -328,6 +353,7 @@ export default function LandingLoginPage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 2 }}
             className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+            alt="Ethereal Inn Luxury Ambience"
           />
         </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-[#0a0a0a]/80 z-[1]" />
@@ -339,7 +365,8 @@ export default function LandingLoginPage() {
               alt="Ethereal Logo"
               width={140}
               height={140}
-              className=" mt-8 border border-white/10 shadow-2xl"
+              className="mt-8 border border-white/10 shadow-2xl"
+              priority
             />
           </div>
           <motion.h1
@@ -360,32 +387,29 @@ export default function LandingLoginPage() {
           </motion.h1>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6 px-4">
-           {/* 1. Direct Inquiry - Triggers tracking and opens the modal modal */}
-  <button
-    type="button"
-    onClick={() => {
-      // 🎯 GOOGLE ADS EVENT: Track initial inquiry intent
-      if (typeof window !== "undefined" && window.gtag) {
-        window.gtag("event", "click_direct_inquiry", {
-          event_category: "Engagement",
-          event_label: "Inquiry Form Opened",
-        });
-      }
-      setShowInquiry(true);
-    }}
-    className="w-full sm:w-auto bg-white/5 backdrop-blur-md border border-white/10 text-white font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-[#c5a059] hover:text-black transition-all uppercase tracking-widest text-[11px] cursor-pointer"
-  >
-    Direct Inquiry
-  </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined" && window.gtag) {
+                  window.gtag("event", "click_direct_inquiry", {
+                    event_category: "Engagement",
+                    event_label: "Inquiry Form Opened",
+                  });
+                }
+                setShowInquiry(true);
+              }}
+              className="w-full sm:w-auto bg-white/5 backdrop-blur-md border border-white/10 text-white font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-[#c5a059] hover:text-black transition-all uppercase tracking-widest text-[11px] cursor-pointer"
+            >
+              Direct Inquiry
+            </button>
 
-  {/* 2. Book Instant - Handled directly by your updated handleBookingRedirect function */}
-  <button
-    type="button"
-    onClick={handleBookingRedirect}
-    className="w-full sm:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-emerald-400 transition-all uppercase tracking-widest text-[11px] cursor-pointer shadow-xl shadow-emerald-500/10"
-  >
-    <MessageCircle size={18} /> Book Instant
-  </button>
+            <button
+              type="button"
+              onClick={handleBookingRedirect}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-emerald-400 transition-all uppercase tracking-widest text-[11px] cursor-pointer shadow-xl shadow-emerald-500/10"
+            >
+              <MessageCircle size={18} /> Book Instant
+            </button>
           </div>
         </div>
       </section>
@@ -398,7 +422,7 @@ export default function LandingLoginPage() {
             <img
               src={GALLERY_DATA.Culinary[0]}
               className="relative rounded-[3rem] border border-white/10 shadow-2xl grayscale hover:grayscale-0 transition-all duration-1000 w-full object-cover"
-              alt="Urban Ambrosia"
+              alt="Urban Ambrosia Culinary Preparation"
             />
             <div className="absolute bottom-10 right-10 bg-black/80 backdrop-blur-xl p-8 rounded-3xl border border-[#c5a059]/30 max-w-xs hidden md:block text-left">
               <UtensilsCrossed className="text-[#c5a059] mb-4" size={32} />
@@ -407,7 +431,7 @@ export default function LandingLoginPage() {
               </h4>
               <p className="text-gray-500 text-xs leading-relaxed">
                 Premium delivery optimized for temperature and celestial
-                presentation.
+                presentation across our Delhi hub locations.
               </p>
             </div>
           </div>
@@ -417,8 +441,9 @@ export default function LandingLoginPage() {
               Urban <span className="text-[#c5a059]">Ambrosia.</span>
             </h2>
             <p className="text-gray-400 text-lg leading-relaxed font-light">
-              A premium culinary brand under the Ethereal Inn umbrella. We blend
-              traditional Indian soul with modern presentation to create the{" "}
+              A premium culinary brand under the Ethereal Inn Hospitality LLP
+              umbrella. We blend traditional Indian soul with modern
+              presentation to create the{" "}
               <span className="text-white font-bold italic uppercase tracking-widest">
                 Food of Modern Gods.
               </span>
@@ -451,6 +476,7 @@ export default function LandingLoginPage() {
             <div className="flex bg-white/5 backdrop-blur-2xl p-1.5 rounded-full border border-white/10">
               {Object.keys(GALLERY_DATA).map((tab) => (
                 <button
+                  type="button"
                   key={tab}
                   onClick={() => setActiveGalleryTab(tab as any)}
                   className={`flex-1 px-4 py-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-500 cursor-pointer ${
@@ -477,19 +503,18 @@ export default function LandingLoginPage() {
               <img
                 src={img}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1.5s]"
-                alt="Ethereal Spaces"
+                alt="Ethereal Spaces Premium Real Estate Architecture"
               />
             </motion.div>
           ))}
         </div>
       </section>
 
-    <section className="py-24 border-t border-white/5 overflow-hidden bg-slate-950">
-      {/* Handled autonomously with state-isolated modal overlays built inside */}
-      <PartnerBrandingSegment />
-      <LandingPageFAQ />
-    </section>
-  
+      <section className="py-24 border-t border-white/5 overflow-hidden bg-slate-950">
+        <PartnerBrandingSegment />
+        <LandingPageFAQ />
+      </section>
+
       {/* --- REVIEWS MARQUEE --- */}
       <section className="py-24 border-t border-white/5 overflow-hidden">
         <div className="flex flex-col items-center mb-16 text-center">
@@ -516,166 +541,170 @@ export default function LandingLoginPage() {
       </section>
 
       {/* --- MAIN FOOTER --- */}
-           <footer className="relative bg-[#050505] pt-24 pb-12 px-6 border-t border-white/5 overflow-hidden">
-                 <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#c5a059]/5 blur-[120px] rounded-full -z-10" />
-                 <div className="max-w-7xl mx-auto">
-                   <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20 text-left">
-                     <div className="md:col-span-2 space-y-8">
-                       <div className="flex flex-col">
-                         <span className="text-[10px] tracking-[0.5em] uppercase text-gray-500 font-black mb-2">
-                           The Collective
-                         </span>
-                         <h2 className="text-4xl md:text-5xl font-serif font-bold text-white uppercase italic leading-none">
-                           Ethereal <span className="text-[#c5a059]">Inn.</span>
-                         </h2>
-                       </div>
-                       <p className="text-gray-500 text-sm max-w-sm leading-relaxed font-light">
-                         Redefining the art of urban sanctuary. Where architectural
-                         elegance meets the divine culinary craft of Urban Ambrosia.
-                       </p>
-                       <div className="flex gap-4">
-                         {[
-                           { icon: <Instagram size={18} /> },
-                           { icon: <Facebook size={18} /> },
-                           { icon: <PhoneCall size={18} /> },
-                         ].map((social, i) => (
-                           <button
-                             key={i}
-                             className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all cursor-pointer"
-                           >
-                             {social.icon}
-                           </button>
-                         ))}
-                       </div>
-                     </div>
-           
-                     <div className="space-y-6">
-                       <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
-                         Experience
-                       </h4>
-                       <ul className="space-y-4">
-                         <li>
-                           <Link
-                             href="/suites"
-                             className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
-                           >
-                             The Suites
-                           </Link>
-                         </li>
-                         <li>
-                           <Link
-                             href="/culinary"
-                             className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
-                           >
-                             Urban Ambrosia
-                           </Link>
-                         </li>
-                         <li>
-                           <Link
-                             href="/contact"
-                             className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
-                           >
-                             Contact & Inquiry
-                           </Link>
-                         </li>
-                         <li>
-                           <Link
-                             href="/sanctuary"
-                             className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
-                           >
-                             Marketing
-                           </Link>
-                         </li>
-                       </ul>
-                     </div>
-           
-                     {/* Legal Stack Layout Segment featuring the brand new custom drop-down utility panel */}
-                     <div className="space-y-6">
-                       <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
-                         Legal & Utilities
-                       </h4>
-                       <ul className="space-y-4 text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                         <li
-                           onClick={() => setPolicyType("privacy")}
-                           className="hover:text-[#c5a059] transition-colors cursor-pointer"
-                         >
-                           Privacy Policy
-                         </li>
-                         <li
-                           onClick={() => setPolicyType("terms")}
-                           className="hover:text-[#c5a059] transition-colors cursor-pointer"
-                         >
-                           Terms of Service
-                         </li>
-                         <li
-                           onClick={() => setPolicyType("refunds")}
-                           className="hover:text-[#c5a059] transition-colors cursor-pointer"
-                         >
-                           Refund Policy
-                         </li>
-                       </ul>
-           
-                       {/* 🌟 THE NEW IMPORTANT LINK DROPDOWN UTILITY COMPONENT */}
-                       <div className="relative pt-4 border-t border-white/5 max-w-[240px]">
-                         <button
-                           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                           className="w-full flex items-center justify-between px-4 py-2.5 bg-white/[0.02] border border-white/5 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all cursor-pointer"
-                         >
-                           <span>Ethereal Ecosystem</span>
-                           <ChevronDown 
-                             size={12} 
-                             className={`text-gray-500 transition-transform duration-300 ${isDropdownOpen ? "rotate-180 text-[#c5a059]" : ""}`} 
-                           />
-                         </button>
-           
-                         {isDropdownOpen && (
-                           <>
-                             {/* Backdrop Click Shield Block */}
-                             <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                             
-                             {/* Floating Link Matrix Container */}
-                             <ul className="absolute bottom-full left-0 mb-2 w-full max-h-56 overflow-y-auto bg-[#0a0a0a]/95 border border-white/10 rounded-xl p-2 shadow-2xl backdrop-blur-xl z-50 space-y-1 divide-y divide-white/[0.02] select-none scrollbar-thin scrollbar-thumb-white/10">
-                               {importantLinks.map((link, idx) => (
-                                 <li key={idx} className="pt-1 first:pt-0">
-                                   <a
-                                     href={link.href}
-                                     target="_blank"
-                                     rel="noopener noreferrer"
-                                     onClick={() => setIsDropdownOpen(false)}
-                                     className="w-full flex items-center justify-between px-3 py-2 rounded-md text-[9px] font-bold tracking-wider uppercase text-gray-500 hover:text-white hover:bg-white/[0.03] transition-all"
-                                   >
-                                     <span className="truncate pr-2">{link.name}</span>
-                                     <ExternalLink size={10} className="text-gray-600 shrink-0" />
-                                   </a>
-                                 </li>
-                               ))}
-                             </ul>
-                           </>
-                         )}
-                       </div>
-           
-                     </div>
-                   </div>
-           
-                   <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
-                     <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                       <p className="text-[9px] text-gray-600 uppercase tracking-[0.2em] font-black">
-                         © 2026 Ethereal Inn Collective
-                       </p>
-                       <div className="h-px w-8 bg-white/10 hidden md:block" />
-                       <p className="text-[9px] text-[#c5a059] uppercase tracking-[0.2em] font-black">
-                         Urban Ambrosia Culinary by Ethereal Inn Hospitality
-                       </p>
-                     </div>
-                     <div className="flex items-center gap-2 px-4 py-2 bg-white/[0.02] border border-white/5 rounded-full">
-                       <ShieldCheck size={12} className="text-emerald-500" />
-                       <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest">
-                         Encrypted Booking Engine
-                       </span>
-                     </div>
-                   </div>
-                 </div>
-               </footer>
+      <footer className="relative bg-[#050505] pt-24 pb-12 px-6 border-t border-white/5 overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#c5a059]/5 blur-[120px] rounded-full -z-10" />
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20 text-left">
+            <div className="md:col-span-2 space-y-8">
+              <div className="flex flex-col">
+                <span className="text-[10px] tracking-[0.5em] uppercase text-gray-500 font-black mb-2">
+                  Ethereal Inn Hospitality LLP
+                </span>
+                <h2 className="text-4xl md:text-5xl font-serif font-bold text-white uppercase italic leading-none">
+                  Ethereal <span className="text-[#c5a059]">Inn.</span>
+                </h2>
+              </div>
+              <p className="text-gray-500 text-sm max-w-sm leading-relaxed font-light">
+                Redefining the art of urban sanctuary. Where architectural
+                elegance meets the divine culinary craft of Urban Ambrosia.
+              </p>
+              <div className="flex gap-4">
+                {[
+                  { icon: <Instagram size={18} />, label: "Instagram Link" },
+                  { icon: <Facebook size={18} />, label: "Facebook Link" },
+                  { icon: <PhoneCall size={18} />, label: "Phone Node Link" },
+                ].map((social, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={social.label}
+                    className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all cursor-pointer"
+                  >
+                    {social.icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
+                Experience Nodes
+              </h4>
+              <ul className="space-y-4">
+                <li>
+                  <Link
+                    href="/suites"
+                    className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+                  >
+                    The Suites
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/culinary"
+                    className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+                  >
+                    Urban Ambrosia
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+                  >
+                    Contact & Inquiry
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/sanctuary"
+                    className="text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#c5a059] transition-colors"
+                  >
+                    Marketing Hub
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
+                Legal & Utilities
+              </h4>
+              <ul className="space-y-4 text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                <li
+                  onClick={() => setPolicyType("privacy")}
+                  className="hover:text-[#c5a059] transition-colors cursor-pointer list-none"
+                >
+                  Privacy Policy
+                </li>
+                <li
+                  onClick={() => setPolicyType("terms")}
+                  className="hover:text-[#c5a059] transition-colors cursor-pointer list-none"
+                >
+                  Terms of Service
+                </li>
+                <li
+                  onClick={() => setPolicyType("refunds")}
+                  className="hover:text-[#c5a059] transition-colors cursor-pointer list-none"
+                >
+                  Refund Policy
+                </li>
+              </ul>
+
+              <div className="relative pt-4 border-t border-white/5 max-w-[240px]">
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 bg-white/[0.02] border border-white/5 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c5a059] hover:border-[#c5a059]/30 transition-all cursor-pointer"
+                >
+                  <span>Ethereal Ecosystem</span>
+                  <ChevronDown
+                    size={12}
+                    className={`text-gray-500 transition-transform duration-300 ${isDropdownOpen ? "rotate-180 text-[#c5a059]" : ""}`}
+                  />
+                </button>
+
+                {isDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setIsDropdownOpen(false)}
+                    />
+                    <ul className="absolute bottom-full left-0 mb-2 w-full max-h-56 overflow-y-auto bg-[#0a0a0a]/95 border border border-white/10 rounded-xl p-2 shadow-2xl backdrop-blur-xl z-50 space-y-1 divide-y divide-white/[0.02] select-none scrollbar-thin scrollbar-thumb-white/10">
+                      {importantLinks.map((link, idx) => (
+                        <li key={idx} className="pt-1 first:pt-0">
+                          <a
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setIsDropdownOpen(false)}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-md text-[9px] font-bold tracking-wider uppercase text-gray-500 hover:text-white hover:bg-white/[0.03] transition-all"
+                          >
+                            <span className="truncate pr-2">{link.name}</span>
+                            <ExternalLink
+                              size={10}
+                              className="text-gray-600 shrink-0"
+                            />
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+              <p className="text-[9px] text-gray-600 uppercase tracking-[0.2em] font-black">
+                © 2026 Ethereal Inn Hospitality LLP. All Rights Reserved.
+              </p>
+              <div className="h-px w-8 bg-white/10 hidden md:block" />
+              <p className="text-[9px] text-[#c5a059] uppercase tracking-[0.2em] font-black">
+                Ethereal Inn • Ethereal Glam • Urban Ambrosia Culinary
+                Operations
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white/[0.02] border border-white/5 rounded-full">
+              <ShieldCheck size={12} className="text-emerald-500" />
+              <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest">
+                Encrypted Booking Engine
+              </span>
+            </div>
+          </div>
+        </div>
+      </footer>
 
       {/* --- ABOUT STORY SIDE OVERLAY --- */}
       <AnimatePresence>
@@ -688,6 +717,7 @@ export default function LandingLoginPage() {
             className="fixed inset-0 z-[1000] bg-[#0a0a0a] text-white overflow-y-auto overflow-x-hidden selection:bg-[#c5a059] selection:text-black font-sans text-center"
           >
             <button
+              type="button"
               onClick={() => setShowAbout(false)}
               className="fixed top-8 right-8 z-[1010] bg-white/5 hover:bg-[#c5a059] hover:text-black p-5 rounded-full text-white backdrop-blur-xl transition-all border border-white/10 group shadow-2xl cursor-pointer"
             >
@@ -708,7 +738,7 @@ export default function LandingLoginPage() {
                 <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-transparent to-[#0a0a0a]" />
                 <div className="relative z-10 max-w-4xl">
                   <span className="text-[#c5a059] text-[10px] font-black uppercase tracking-[0.6em] mb-6 block">
-                    The Collective Legacy
+                    Ethereal Inn Hospitality LLP
                   </span>
                   <h1 className="text-5xl md:text-[8rem] font-serif font-bold italic leading-[0.9] text-white uppercase">
                     Crafting <span className="text-gray-500">Silence</span>{" "}
@@ -719,12 +749,25 @@ export default function LandingLoginPage() {
 
               <section className="max-w-4xl mx-auto py-24 px-6 space-y-12">
                 <p className="text-xl md:text-3xl font-serif text-gray-300 leading-relaxed italic">
-                  "Ethereal Inn was born from a simple realization: that modern
-                  luxury isn't about excess, but about the{" "}
-                  <span className="text-white">intentionality of space</span>{" "}
-                  and the{" "}
-                  <span className="text-[#c5a059]">purity of nourishment.</span>
-                  "
+                  "Ethereal Inn Hospitality LLP was engineered to bridge premium
+                  budget lodging, curated brand design, and modern tech
+                  solutions under a single operational framework—unifying our
+                  specialized branches
+                  <span className="text-white font-semibold">
+                    {" "}
+                    Ethereal Inn
+                  </span>
+                  ,
+                  <span className="text-white font-semibold">
+                    {" "}
+                    Ethereal Glam
+                  </span>
+                  , and
+                  <span className="text-[#c5a059] font-semibold">
+                    {" "}
+                    Urban Ambrosia
+                  </span>{" "}
+                  into an ecosystem of intentional spaces."
                 </p>
                 <div className="h-20 w-px bg-gradient-to-b from-[#c5a059] to-transparent mx-auto" />
               </section>
@@ -745,17 +788,17 @@ export default function LandingLoginPage() {
                     {
                       name: "Sandeep Kumar Chaudhry",
                       role: "Managing Partner",
-                      desc: "Directs the collective vision with a focus on operational precision and strategic web cloud infrastructure configurations.",
+                      desc: "Directs the collective vision with a focus on operational precision, multi-tenant cluster sandboxes, and cloud infrastructure configurations for Ethereal Inn Hospitality LLP.",
                     },
                     {
                       name: "Shyam Kumar Chaudhry",
                       role: "Founder",
-                      desc: "The architect of our premium hospitality standards, ensuring every guest feels our trademark pristine touch.",
+                      desc: "The architect of our premium hospitality standards, ensuring every physical budget stay node across Delhi maintains our signature pristine touch.",
                     },
                     {
                       name: "Tushar Kumar Chaudhry",
                       role: "Operations Lead",
-                      desc: "Master of daily rhythms, bridging operational assets execution parameters with pristine guest care.",
+                      desc: "Master of daily rhythms, bridging operational assets, automated inventory loops, and multi-vector supply management with pristine guest care.",
                     },
                   ].map((leader, i) => (
                     <div
@@ -780,7 +823,8 @@ export default function LandingLoginPage() {
 
               <footer className="py-12 border-t border-white/5 w-full">
                 <p className="text-[9px] text-gray-700 uppercase tracking-[0.4em]">
-                  Designed for the Discerning • 2026
+                  Designed for the Discerning • Ethereal Inn Hospitality LLP •
+                  2026
                 </p>
               </footer>
             </div>
@@ -802,6 +846,7 @@ export default function LandingLoginPage() {
               className="w-full max-w-lg bg-zinc-900 rounded-[3rem] p-8 md:p-10 relative border border-white/5 shadow-2xl text-left"
             >
               <button
+                type="button"
                 onClick={() => {
                   setShowInquiry(false);
                   setShowLogin(false);
@@ -814,9 +859,19 @@ export default function LandingLoginPage() {
 
               {showInquiry && (
                 <form onSubmit={handleInquirySubmit} className="space-y-4">
-                  <h3 className="text-2xl font-serif font-bold text-white uppercase italic mb-6">
-                    Inquiry <span className="text-[#c5a059]">Desk</span>
-                  </h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building size={16} className="text-[#c5a059]" />
+                    <h3 className="text-2xl font-serif font-bold text-white uppercase italic">
+                      Inquiry <span className="text-[#c5a059]">Desk</span>
+                    </h3>
+                  </div>
+
+                  <p className="text-[11px] text-gray-500 -mt-2 mb-4 leading-relaxed">
+                    Submit a prospectus application to link your property
+                    footprint as an active branch node under the Ethereal Inn
+                    platform infrastructure.
+                  </p>
+
                   {inquirySuccess ? (
                     <div className="text-center py-10 text-emerald-400 font-black uppercase tracking-widest animate-pulse text-sm">
                       ✔ Message Routed Successfully
@@ -826,31 +881,33 @@ export default function LandingLoginPage() {
                       <input
                         required
                         name="name"
-                        placeholder="Name"
+                        type="text"
+                        placeholder="Your Full Name / Representative ID"
                         className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] font-medium text-sm"
                       />
                       <input
                         required
                         name="phone"
-                        placeholder="WhatsApp Number"
+                        type="tel"
+                        placeholder="Contact WhatsApp Number (Include Country Code)"
                         className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] font-medium text-sm"
                       />
                       <textarea
                         required
                         name="message"
-                        placeholder="How can we assist you? (e.g. Booking inquiry details...)"
+                        placeholder="Specify your integration parameters or property setup request details..."
                         rows={4}
                         className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] resize-none font-medium text-sm"
                       />
                       <button
+                        type="submit"
                         disabled={isPendingInquiry}
-                        className="w-full bg-[#c5a059] text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-widest cursor-pointer active:scale-[0.98] transition-all disabled:opacity-40"
+                        className="w-full bg-[#c5a059] text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-widest flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all disabled:opacity-40 shadow-lg shadow-amber-950/20"
                       >
-                        {isPendingInquiry ? (
-                          <Loader2 className="animate-spin mx-auto h-4 w-4" />
-                        ) : (
-                          "Send Request"
-                        )}
+                        <Sparkles size={12} />
+                        {isPendingInquiry
+                          ? "Transmitting Node Parameters..."
+                          : "Send Request Protocol"}
                       </button>
                     </>
                   )}
@@ -863,7 +920,6 @@ export default function LandingLoginPage() {
                     Staff <span className="text-[#c5a059]">Access</span>
                   </h3>
 
-                  {/* 🌟 FIXED: Handled action response state logs rendering error alert validations */}
                   {state?.error && (
                     <div className="p-4 rounded-xl bg-rose-500/5 border border-rose-500/10 text-rose-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-2">
                       <AlertCircle size={14} /> {state.error}
@@ -873,25 +929,26 @@ export default function LandingLoginPage() {
                   <input
                     name="email"
                     type="email"
-                    placeholder="Email"
+                    placeholder="Terminal Administrator Email"
                     required
                     className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] font-medium text-sm"
                   />
                   <input
                     name="password"
                     type="password"
-                    placeholder="Passkey"
+                    placeholder="System Verification Passkey"
                     required
                     className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#c5a059] font-medium text-sm"
                   />
                   <button
+                    type="submit"
                     disabled={isPending}
                     className="w-full bg-white text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-widest flex justify-center items-center cursor-pointer active:scale-[0.98] transition-all disabled:opacity-40"
                   >
                     {isPending ? (
                       <Loader2 className="animate-spin text-black h-4 w-4" />
                     ) : (
-                      "Verify Terminal"
+                      "Verify Terminal Session"
                     )}
                   </button>
                 </form>
@@ -947,7 +1004,7 @@ function ReviewCard({ review }: { review: Review }) {
         <img
           src={review.profile_photo_url}
           className="w-10 h-10 rounded-full grayscale border border-white/10"
-          alt=""
+          alt="Reviewer Avatar Profile Node"
         />
         <div className="text-left">
           <h4 className="text-white font-black text-[10px] uppercase tracking-wide">

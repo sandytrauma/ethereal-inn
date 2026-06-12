@@ -69,7 +69,7 @@ export default function PartnerInquiryModal({ onClose }: { onClose: () => void }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center mt-24 p-4">
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl w-full max-w-md max-h-[95vh] overflow-y-auto text-slate-200 relative animate-in zoom-in-95 duration-150">
         
         {/* Absolute Close Action Pin */}
