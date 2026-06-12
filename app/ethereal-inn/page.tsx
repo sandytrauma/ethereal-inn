@@ -7,7 +7,7 @@ import BrandingJsonLd from "@/components/BrandingJsonLd";
 // 🎯 B2B OVERRIDE METADATA: Aligns with Ethereal Inn Hospitality LLP
 // =========================================================================
 export const metadata: Metadata = {
-  title: "Become a Partner Node | Ethereal Inn Hospitality LLP",
+  title: "Ethereal Inn Hospitality LLP | Luxury Boutique Stays & Tech Platform | Become a Partner | Ethereal Inn Hospitality LLP",
   description: "Scale your hospitality footprint with Ethereal Inn Hospitality LLP. Access advanced cloud-native multi-tenant tech solutions, automated inventory loops, and multi-property logistics for Ethereal Inn, Ethereal Glam, and Urban Ambrosia units.",
   keywords: [
     "Ethereal Inn Hospitality LLP",
