@@ -88,7 +88,7 @@ export default function EtherealSanctuaryPage() {
         {/* HERO IMAGE BANNER: Using Catalogue_1.avif */}
         <div className="max-w-5xl mx-auto rounded-[32px] overflow-hidden border border-white/10 shadow-2xl relative h-[250px] md:h-[450px]">
           <Image
-            src="/Catalogue_1.avif"
+            src="/Matial_6.jpg"
             alt="Ethereal Luxury Boutique Hotel Experience"
             fill
             priority
@@ -106,7 +106,7 @@ export default function EtherealSanctuaryPage() {
           <div className="group relative flex flex-col bg-slate-950/50 border border-white/10 rounded-[40px] backdrop-blur-xl transition-all duration-500 hover:bg-slate-950/80 hover:border-amber-500/40 shadow-xl overflow-hidden">
             <Link href="/sanctuary/couple-friendly-stay" className="block relative h-48 w-full overflow-hidden">
               <Image 
-                src="/Catalogue_2.avif" 
+                src="/Matial_3.jpg" 
                 alt="Ethereal Luxury Stays and Guest Suites" 
                 fill 
                 className="object-cover object-center group-hover:scale-105 transition-transform duration-500" 

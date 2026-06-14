@@ -52,6 +52,8 @@ export default function Page() {
       
       {/* Renders your full responsive interactive entry matrix component */}
       <LoginPage />
+
+      
     </>
   );
 }

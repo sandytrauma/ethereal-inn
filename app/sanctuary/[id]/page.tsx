@@ -282,7 +282,7 @@ export default async function DynamicSanctuaryAdPage({ params }: PageProps) {
               : "border-white/10"
           }`}>
             <div className="relative h-48 w-full">
-              <Image src="/Catalogue_2.avif" alt="Luxury Guest Suites" fill className="object-cover object-center group-hover:scale-105 transition-transform duration-500" />
+              <Image src="/Matial_2.jpg" alt="Luxury Guest Suites" fill className="object-cover object-center group-hover:scale-105 transition-transform duration-500" />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
             </div>
             <div className="p-8 pt-4 flex flex-col flex-grow">

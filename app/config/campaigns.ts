@@ -26,7 +26,7 @@ export const CAMPAIGN_MAP: Record<string, CampaignConfig> = {
   "corporate-stay": {
     title: "Seamless Business Transit. Premium Living.",
     subtitle: "The ultimate hospitality sanctuary for corporate professionals and business travelers in New Delhi. Engineered for productivity, luxury, and frictionless administrative check-ins.",
-    primaryImage: "/Catalogue_1.avif", 
+    primaryImage: "/Matial_2.jpg", 
     badge: "Corporate Elite Transit Tier",
     whatsappMessage: "Hello Ethereal Inn Reservations, I am flying into Delhi on business. I would like to check availability, corporate tariffs, and corporate booking arrangements.",
     marketingPoints: [

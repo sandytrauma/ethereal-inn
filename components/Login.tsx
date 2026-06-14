@@ -37,6 +37,7 @@ import MultiPropertyMap from "./MultiPropertyMap";
 import Image from "next/image";
 import PartnerBrandingSegment from "./PartnerBrandingSegment";
 import { LandingPageFAQ } from "./LandingPageFAQ";
+import PropertyShowcase from "./PropertyShowcase";
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
 
@@ -466,7 +467,7 @@ export default function LandingLoginPage() {
         </div>
       </section>
 
-      {/* --- COLLECTION GALLERY --- */}
+    {/* --- COLLECTION GALLERY --- */}
       <section className="max-w-6xl mx-auto py-20 px-4">
         <div className="flex flex-col items-center text-center mb-12">
           <h2 className="text-4xl md:text-6xl font-serif font-bold text-white flex items-center gap-4 uppercase italic">
@@ -491,24 +492,33 @@ export default function LandingLoginPage() {
             </div>
           </div>
         </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {GALLERY_DATA[activeGalleryTab].map((img, i) => (
-            <motion.div
-              layout
-              key={img + i}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="aspect-[4/3] rounded-[2.5rem] md:rounded-[4rem] overflow-hidden border border-white/10 group relative shadow-2xl"
-            >
-              <img
-                src={img}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1.5s]"
-                alt="Ethereal Spaces Premium Real Estate Architecture"
-              />
-            </motion.div>
-          ))}
+          <AnimatePresence mode="popLayout">
+            {GALLERY_DATA[activeGalleryTab].map((img, i) => (
+              <motion.div
+                layout
+                key={img + i}
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={{ type: "spring", damping: 25, stiffness: 140 }}
+                className="aspect-[4/3] rounded-[2.5rem] md:rounded-[4rem] overflow-hidden border border-white/10 group relative shadow-2xl"
+              >
+                <img
+                  src={img}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1.5s]"
+                  alt="Ethereal Spaces Premium Real Estate Architecture"
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       </section>
+
+      {/* 🚀 FIXED: Rendered directly without double-wrapping section containers */}
+      <PropertyShowcase />
+
 
       <section className="py-24 border-t border-white/5 overflow-hidden bg-slate-950">
         <PartnerBrandingSegment />
