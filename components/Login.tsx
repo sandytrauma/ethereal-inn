@@ -401,7 +401,7 @@ export default function LandingLoginPage() {
               }}
               className="w-full sm:w-auto bg-white/5 backdrop-blur-md border border-white/10 text-white font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-[#c5a059] hover:text-black transition-all uppercase tracking-widest text-[11px] cursor-pointer"
             >
-              Direct Inquiry
+              Business Inquiry
             </button>
 
             <button
@@ -409,7 +409,7 @@ export default function LandingLoginPage() {
               onClick={handleBookingRedirect}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-4 bg-emerald-500 text-slate-950 font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-emerald-400 transition-all uppercase tracking-widest text-[11px] cursor-pointer shadow-xl shadow-emerald-500/10"
             >
-              <MessageCircle size={18} /> Book Instant
+              <MessageCircle size={18} /> Guest Booking
             </button>
           </div>
         </div>
