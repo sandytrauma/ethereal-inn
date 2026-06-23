@@ -1,4 +1,3 @@
-// middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server'; 
 import { decrypt } from '@/lib/auth'; // Master Hotel Decrypter Pass
@@ -82,6 +81,9 @@ export async function middleware(req: NextRequest) {
   
   // 🌟 FIX: Check if the path is explicitly a public-facing dynamic brand link
   const isGlamPublicBrandPage = path.startsWith('/glam/brand/');
+  // 🌟 PATCH: Registered Culinary Routes
+  const isCulinaryPublicBrandPage = path.startsWith('/culinary/brand/');
+  const isCulinaryAdminRoute = path.startsWith('/culinary/admin/');
 
   // 🌟 FIX: Exclude both login, master-hub, and the new brand pages from internal protection gates
   const isGlamProtectedView = 
@@ -102,9 +104,10 @@ export async function middleware(req: NextRequest) {
 
   const isPublicPage = 
     STATIC_PUBLIC_ROUTES.includes(path) || 
-    path.startsWith('/sanctuary/') ||      
+    path.startsWith('/sanctuary/') ||          
     path.startsWith('/invoices') ||
-    isGlamPublicBrandPage; // 🌟 FIX: Register brand routing maps as natively public endpoints
+    isGlamPublicBrandPage || 
+    isCulinaryPublicBrandPage; // 🌟 REGISTERED PUBLIC
 
   const isPmsRoute = !isAdminRoute && (path === '/pms' || path.startsWith('/pms/') || path.includes('/occupancy'));
 
@@ -127,7 +130,8 @@ export async function middleware(req: NextRequest) {
   }
 
   // 🌍 GEOLOCATION RADIAL PERIMETER BARRIER ENFORCEMENT
-  if (isAdminRoute || isPmsRoute || isGlamProtectedView) {
+  // 🌟 PATCH: Exclude public pages from Geofencing
+  if (!isPublicPage && (isAdminRoute || isPmsRoute || isGlamProtectedView)) {
     const targetLat = glamSession?.latitude ? parseFloat(glamSession.latitude) : null;
     const targetLng = glamSession?.longitude ? parseFloat(glamSession.longitude) : null;
 
@@ -144,6 +148,14 @@ export async function middleware(req: NextRequest) {
   if (isAdminRoute) {
     if (!hotelSession) {
       return NextResponse.redirect(new URL('/ethereal-inn', req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // 🌟 PATCH: Culinary Admin Gateway
+  if (isCulinaryAdminRoute) {
+    if (!hotelSession) {
+        return NextResponse.redirect(new URL('/ethereal-inn', req.url));
     }
     return NextResponse.next();
   }
@@ -165,8 +177,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/glam/dashboard', req.url));
   }
 
-  // D. 🛡️ HOTEL PMS BASE PLATFORM GUARD: Handles standard core app views
-  if (!hotelSession && !path.startsWith('/glam') && (isPmsRoute || path === '/' || !isPublicPage)) {
+  // D. 🛡️ HOTEL PMS BASE PLATFORM GUARD
+  // 🌟 PATCH: Excluded Culinary paths to prevent redirect loops
+  if (!hotelSession && !path.startsWith('/glam') && !path.startsWith('/culinary') && (isPmsRoute || path === '/' || !isPublicPage)) {
     return NextResponse.redirect(new URL('/ethereal-inn', req.url));
   }
 

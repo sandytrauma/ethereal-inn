@@ -1,17 +1,17 @@
 import { db } from "@/db";
 import { properties } from "@/db/micro-schema";
 import { financialRecords, inquiries, tasks } from "@/db/schema";
-import { sql, eq, ne, and } from "drizzle-orm";
+import { sql, eq, ne } from "drizzle-orm";
 import React from "react";
 
 export default async function PortfolioSummary() {
   try {
     // =========================================================================
     // 🌟 THE ARCHITECTURAL FIX: ISOLATED PARALLEL SUBQUERIES
-    // Breaks apart chained leftJoins to eliminate Cartesian Product multiplication!
+    // Using sql`` for the filter parameter prevents type-binding collisions
     // =========================================================================
     const [revResult, unitResult, leadResult, taskResult, propertyBreakdown] = await Promise.all([
-      // 1. Compile Total Revenue Matrix cleanly
+      // 1. Compile Total Revenue Matrix
       db.select({
         total: sql<string>`coalesce(sum(cast(${financialRecords.totalCollection} as numeric)), '0')`
       }).from(financialRecords),
@@ -21,17 +21,19 @@ export default async function PortfolioSummary() {
         count: sql<number>`count(${properties.id})`
       }).from(properties),
 
-      // 3. Count Global Guest Leads Context
+      // 3. Count Global Guest Leads
       db.select({
         count: sql<number>`count(${inquiries.id})`
       }).from(inquiries),
 
-      // 4. Count Global Pending Tasks
-      db.select({
-        count: sql<number>`count(${tasks.id})`
-      }).from(tasks).where(ne(tasks.status, "completed")),
+      // 4. Count Global Pending Tasks (Type-safe SQL binding)
+     db.select({
+  count: sql<number>`count(${tasks.id})`
+})
+.from(tasks)
+.where(sql`${tasks.status} != 'completed'`),
 
-      // 5. Build Pristine Fleet Ledger (Group-by is safe here as there is only ONE leftJoin)
+      // 5. Build Pristine Fleet Ledger
       db.select({
         id: properties.id,
         name: properties.name,
@@ -52,14 +54,12 @@ export default async function PortfolioSummary() {
 
     return (
       <div className="space-y-8 w-full max-w-7xl mx-auto font-sans selection:bg-amber-400/30">
-        {/* GLOBAL HUD: THE TOTAL SUM */}
+        {/* GLOBAL HUD */}
         <div className="p-12 bg-zinc-950 rounded-[3rem] border border-[#c5a059]/20 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#c5a059]/5 blur-3xl rounded-full pointer-events-none" />
-          
           <h2 className="text-[#c5a059] text-[10px] font-black uppercase tracking-[0.5em] mb-12">
             Global Portfolio Outcome
           </h2>
-          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
             <StatBox label="Total Revenue" value={`₹${Number(summary.revenue).toLocaleString("en-IN")}`} />
             <StatBox label="Sanctuaries" value={String(summary.units)} />
@@ -68,36 +68,21 @@ export default async function PortfolioSummary() {
           </div>
         </div>
 
-        {/* PROPERTY BREAKDOWN: THE FLEET LEDGER */}
+        {/* FLEET LEDGER */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {propertyBreakdown && propertyBreakdown.length > 0 ? (
-            propertyBreakdown.map((prop, idx) => {
-              const safePropKey = prop.id ? `fleet-prop-${prop.id}` : `fleet-idx-${idx}`;
-              
-              return (
-                <div 
-                  key={safePropKey} 
-                  className="p-8 bg-zinc-900/40 rounded-[2.5rem] border border-white/5 flex justify-between items-center hover:border-[#c5a059]/30 transition-all group backdrop-blur-sm"
-                >
-                  <div>
-                    <h3 className="text-xl font-serif italic text-white group-hover:text-[#c5a059] transition-colors">
-                      {prop.name || "Isolated Partition"}
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mt-1">
-                      {prop.city || "Delhi"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[#c5a059] text-2xl font-bold font-mono">
-                      ₹{Number(prop.revenue).toLocaleString("en-IN")}
-                    </p>
-                    <p className="text-[9px] text-zinc-600 uppercase font-black tracking-tighter mt-0.5">
-                      Outcome Contributed
-                    </p>
-                  </div>
+            propertyBreakdown.map((prop, idx) => (
+              <div key={prop.id || idx} className="p-8 bg-zinc-900/40 rounded-[2.5rem] border border-white/5 flex justify-between items-center hover:border-[#c5a059]/30 transition-all backdrop-blur-sm group">
+                <div>
+                  <h3 className="text-xl font-serif italic text-white group-hover:text-[#c5a059] transition-colors">{prop.name || "Isolated Partition"}</h3>
+                  <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mt-1">{prop.city || "Delhi"}</p>
                 </div>
-              );
-            })
+                <div className="text-right">
+                  <p className="text-[#c5a059] text-2xl font-bold font-mono">₹{Number(prop.revenue).toLocaleString("en-IN")}</p>
+                  <p className="text-[9px] text-zinc-600 uppercase font-black tracking-tighter mt-0.5">Outcome Contributed</p>
+                </div>
+              </div>
+            ))
           ) : (
             <div className="col-span-2 py-16 text-center bg-zinc-900/20 border border-dashed border-white/5 rounded-[2.5rem]">
                <p className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">No Properties Configured</p>

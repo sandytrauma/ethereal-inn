@@ -1,9 +1,10 @@
 import { neonConfig, Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from 'ws';
-import * as schema from './schema'; // Main schema (rooms, tasks, etc.)
-import * as microSchema from "./micro-schema"; // Micro schema (properties)
-import * as glamSchema from "./glam-schema"; // 🌟 NEW: Detached Salon SaaS Schema
+import * as schema from './schema'; // Main schema
+import * as microSchema from "./micro-schema"; // Micro schema
+import * as glamSchema from "./glam-schema"; // Salon SaaS Schema
+import * as culinarySchema from "./schema/culinary"; // 🌟 ADDED: Culinary Schema
 
 if (typeof window === 'undefined') {
   neonConfig.webSocketConstructor = ws;
@@ -12,13 +13,14 @@ if (typeof window === 'undefined') {
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 /**
- * FIX: Spread all three schemas into the configuration object.
- * This flattens the tables and exposes 'salonAuthUsers' to the 'db.query' engine.
+ * UPDATED: Added culinarySchema to the global DB object.
+ * This exposes 'culinary.outlets' to the db.select() engine.
  */
 export const db = drizzle(pool, { 
   schema: { 
     ...schema, 
     ...microSchema, 
-    ...glamSchema // 🌟 Spread completely flat on the root level
+    ...glamSchema,
+    ...culinarySchema // 🌟 Spread added here
   } 
 });
