@@ -31,6 +31,14 @@ export const assetCategoryEnum = glamSchema.enum("asset_category", [
   "consumable", "fixed_asset"
 ]);
 
+export const unitTypeEnum = glamSchema.enum("unit_type_enum", [
+  "ml", 
+  "g", 
+  "pcs", 
+  "pkts", 
+  "kg"
+]);
+
 
 
 // =========================================================================
@@ -194,7 +202,7 @@ export const salonProductsStock = glamSchema.table("salon_products_stock", {
   // 🌟 ADDED: Financial tracking variables mapped as decimal strings to match product modals
  
   assetCategory: assetCategoryEnum("asset_category").default("consumable").notNull(),
-  unitType: varchar("unit_type", { length: 20 }).default("ml").notNull(),
+  unitType: unitTypeEnum("unit_type").default("ml").notNull(),
   
   purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }).default("0.00").notNull(),
   retailPrice: decimal("retail_price", { precision: 10, scale: 2 }).default("0.00").notNull(),
