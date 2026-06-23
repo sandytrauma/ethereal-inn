@@ -22,13 +22,11 @@ const LOOKBOOK_GALLERY = [
   { id: 1, src: "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=600&auto=format&fit=crop", title: "Couture Balayage", tag: "HAIR LAB" },
   { id: 2, src: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?q=80&w=600&auto=format&fit=crop", title: "Bridal Glow Premium", tag: "MAKEOVER" },
   { id: 3, src: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=600&auto=format&fit=crop", title: "Aesthetic Skin Revival", tag: "CLINICAL" },
-  // 🌟 FIXED: Replaced broken link with verified luxury editorial styling asset link
   { id: 4, src: "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=600&auto=format&fit=crop", title: "Precision Editorial Crop", tag: "STYLING" },
   { id: 5, src: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=600&auto=format&fit=crop", title: "High-Gloss Glass Mani", tag: "NAIL BAR" },
   { id: 6, src: "https://images.unsplash.com/photo-1595425970377-c9703cf48b6d?q=80&w=600&auto=format&fit=crop", title: "Ethereal Waves Treatment", tag: "THERAPY" },
 ];
 
-// 🌟 ADDED: Marketing Trust FAQs Component Module Content Matrix
 const BRAND_FAQS = [
   { q: "Do I need to book an appointment in advance?", a: "While we accommodate walk-ins based on fractional chair availability, we highly recommend confirming your booking online via our store terminal layer to lock in your preferred stylist node." },
   { q: "What premium material formulations do you use?", a: "Our outlets exclusively utilize sustainable, clinically verified, high-end backbar luxury lines optimized for custom skin thresholds and hair health structural safety." },
@@ -80,11 +78,11 @@ export default async function PublicTenantBrandPage({ params, searchParams }: Br
     .from(salonOutlets)
     .where(eq(salonOutlets.tenantId, tenant.id));
 
+  // 🌟 FIXED: Removed .limit(6) restriction so newly added custom services are visible publicly
   const services = await db
     .select()
     .from(salonServices)
-    .where(eq(salonServices.tenantId, tenant.id))
-    .limit(6);
+    .where(eq(salonServices.tenantId, tenant.id));
 
   const session = await getSalonSession();
   const isVerifiedTenantOwner = 
@@ -134,7 +132,6 @@ export default async function PublicTenantBrandPage({ params, searchParams }: Br
               {isStudioOpen ? "Close Customization Console" : "Open Brand Customization Studio"}
             </Link>
           </div>
-          {/* 🌟 FILLED & ALIGNED: Passing the active services list down into the dashboard settings terminal prop structure */}
           {isStudioOpen && (
             <div className="w-full max-w-5xl px-2 pt-2 animate-fade-in pb-4">
               <BrandSettingsTerminal tenantProfile={tenant} publicServices={services} />

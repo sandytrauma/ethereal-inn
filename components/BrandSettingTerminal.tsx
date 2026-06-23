@@ -2,11 +2,9 @@
 
 import React, { useState, useTransition } from "react";
 import { UploadButton } from "@/lib/uploadthing"; 
-import { updateTenantBrandAction } from "@/lib/actions/salon-brand-update"; 
-// 🌟 NEW INVENTORY INTEGRATION: Added active server action contracts for inline service mutation management
-import { addInventoryItem } from "@/lib/actions/salon-inventory"; 
+import { updateTenantBrandAction, addSalonServiceAction } from "@/lib/actions/salon-brand-update"; 
 import { useRouter } from "next/navigation";
-import { Scissors, Sparkle, MessageSquare, Plus, Trash2, ShieldCheck, Clock, Coins } from "lucide-react";
+import { Scissors, Sparkle, MessageSquare, Plus, ShieldCheck, Clock, Coins } from "lucide-react";
 
 interface BrandSettingsTerminalProps {
   tenantProfile: any;
@@ -31,7 +29,7 @@ export default function BrandSettingsTerminal({ tenantProfile, publicServices = 
   const [brandMetaDescription, setBrandMetaDescription] = useState(tenantProfile.brandMetaDescription || "");
   const [googleAnalyticsId, setGoogleAnalyticsId] = useState(tenantProfile.googleAnalyticsId || "");
 
-  // 4. 🌟 NEW STATE: Dynamic Custom Service Submission Form State
+  // 4. Dynamic Custom Service Submission Form State
   const [newService, setNewService] = useState({
     name: "",
     description: "",
@@ -70,7 +68,7 @@ export default function BrandSettingsTerminal({ tenantProfile, publicServices = 
   };
 
   // =========================================================================
-  // ➕ NEW MUTATION ACTION: Handle Dynamic Custom Service Injection Passing
+  // ➕ MUTATION ACTION: Invokes Server Action Directly for Database Insertion
   // =========================================================================
   const handleAddCustomService = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,31 +79,30 @@ export default function BrandSettingsTerminal({ tenantProfile, publicServices = 
       return;
     }
 
-    if (parseFloat(newService.price) < 0) {
-      setServiceError("Service valuation price matrices cannot be negative metrics.");
+    if (parseFloat(newService.price) < 0 || isNaN(parseFloat(newService.price))) {
+      setServiceError("Service valuation price matrices must be a non-negative number.");
       return;
     }
 
     startTransition(async () => {
-      // Direct action execution wrapper pointing to server database insertions
-      // Since we are strictly utilizing unified action layers, we route through your transaction endpoints
-      // Note: In your architecture, you can create a specific addService action or map it cleanly here
       try {
-        // Mock payload confirmation or direct call sequence integration
-        // Replace with your explicit `addSalonServiceAction(newService)` when running migrations
-        // For production compilation compatibility without throwing type discrepancies:
-        const response = await fetch(`/api/glam/services/create`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...newService, tenantId: tenantProfile.id }),
+        // 🌟 FIXED: Dropped fetch calls completely to use your exact addSalonServiceAction contract
+        const res = await addSalonServiceAction({
+          name: newService.name,
+          description: newService.description,
+          durationMinutes: newService.durationMinutes,
+          price: newService.price,
+          isAestheticProcedure: newService.isAestheticProcedure,
         });
 
-        if (response.ok || true) {
+        if (res.success) {
           setNewService({ name: "", description: "", durationMinutes: 60, price: "", isAestheticProcedure: false });
           router.refresh();
+        } else {
+          setServiceError(res.error || "Failed to register custom service parameters.");
         }
       } catch (err: any) {
-        setServiceError("Failed to register the custom treatment to the active server array.");
+        setServiceError("An unexpected compilation fault occurred during pipeline transmission.");
       }
     });
   };
@@ -268,7 +265,7 @@ export default function BrandSettingsTerminal({ tenantProfile, publicServices = 
       )}
 
       {/* =========================================================================
-          🌟 TAB SECTOR TWO: INLINE SERVICE CATALOG GENERATION suite (FOR OWNERS)
+          TAB SECTOR TWO: INLINE SERVICE CATALOG GENERATION SUITE (FOR OWNERS)
          ========================================================================= */}
       {activeTab === "services" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -356,14 +353,14 @@ export default function BrandSettingsTerminal({ tenantProfile, publicServices = 
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full py-2 bg-pink-600 hover:bg-pink-500 text-white text-xs font-black uppercase tracking-wider rounded-xl transition shadow-lg active:scale-95 disabled:opacity-40"
+                className="w-full py-2 bg-pink-600 hover:bg-pink-500 text-white text-xs font-black uppercase tracking-wider rounded-xl transition shadow-lg active:scale-95 disabled:opacity-40 cursor-pointer"
               >
-                Publish Treatment Entry
+                {isPending ? "Publishing Entry..." : "Publish Treatment Entry"}
               </button>
             </form>
           </div>
 
-          {/* Column B: Live Live Catalog Array Preview Node Layer */}
+          {/* Column B: Live Catalog Array Preview Node Layer */}
           <div className="lg:col-span-2 bg-slate-900/40 border border-slate-800 rounded-2xl p-5 space-y-4 text-slate-200">
             <div>
               <h3 className="text-sm font-bold text-slate-200 tracking-wide flex items-center gap-1.5">
