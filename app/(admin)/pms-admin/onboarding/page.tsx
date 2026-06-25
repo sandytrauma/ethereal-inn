@@ -25,23 +25,22 @@ export default async function AdminOnboardingPage() {
   }
 
   // =========================================================================
-  // 🌟 THE ARCHITECTURAL FIX: AGGREGATE LINKED TENANT PROPERTIES COALESCE
-  // Provides your master panel with structural metadata count constraints!
+  // 🌟 ARCHITECTURAL FIX: Explicitly qualified count and group by
+  // Using explicit strings in sql`` prevents the syntax error 42601
   // =========================================================================
   const activeTenants = await db
     .select({
       id: users.id,
       name: users.name,
       email: users.email,
-      // Aggregates how many hotel branches this tenant profile controls
-      allocatedBranches: sql<number>`count(${properties.id})`,
+      allocatedBranches: sql<number>`count("properties"."id")`,
     })
     .from(users)
-    .leftJoin(properties, eq(users.id, properties.ownerId)) // Cross-verify corporate ownership column links
+    .leftJoin(properties, eq(users.id, properties.ownerId))
     .where(not(eq(users.id, 1)))
     .groupBy(users.id, users.name, users.email);
 
-    const leads = await db
+  const leads = await db
     .select()
     .from(partnerInquiries)
     .orderBy(desc(partnerInquiries.loggedAt));
@@ -51,8 +50,6 @@ export default async function AdminOnboardingPage() {
 
       <nav className="fixed top-0 left-0 right-0 z-[80] p-4 lg:p-6 bg-[#0a0a0a]/60 backdrop-blur-2xl border-b border-white/5">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          
-          {/* 🌟 FIXED NAVIGATION: Updated routing target from /login to your secure workspace gate /glam/login */}
           <Link href="/" className="flex items-center gap-3 p-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 group cursor-pointer transition-all duration-300 z-[90] relative">
             <div className="w-9 h-9 bg-amber-400 rounded-full flex items-center justify-center text-slate-950 transform group-hover:-translate-x-0.5 transition-transform">
               <ArrowLeft size={18} strokeWidth={3} />
@@ -67,7 +64,7 @@ export default async function AdminOnboardingPage() {
         </div>
       </nav>
 
-    <div className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden mt-24">
+      <div className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden mt-24">
         <div className="mb-6 select-none border-b border-white/5 pb-4">
           <h2 className="text-xs font-black uppercase tracking-[0.2em] text-pink-400 flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-pink-500 rounded-full animate-ping" />
@@ -78,9 +75,9 @@ export default async function AdminOnboardingPage() {
           </p>
         </div>
 
-        {/* 🛡️ Safe Variable Passing: plural "leads" array matches your data-fetch array perfectly */}
         <InquiriesTableClient initialLeads={leads} />
       </div>
+
       {/* 1. Onboarding Provision Form */}
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
@@ -112,7 +109,6 @@ export default async function AdminOnboardingPage() {
                   </h3>
                   <p className="text-slate-500 text-[11px] font-medium mt-1.5 truncate">{tenant.email}</p>
                   
-                  {/* Dynamic Metadata Badge Context */}
                   <div className="flex items-center gap-3 mt-3">
                     <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${
                       Number(tenant.allocatedBranches) > 0 
@@ -125,7 +121,6 @@ export default async function AdminOnboardingPage() {
                   </div>
                 </div>
 
-                {/* Client component teardown wrapper */}
                 <div className="flex-shrink-0">
                   <TenantDeleteButton tenantId={tenant.id} branchCount={Number(tenant.allocatedBranches)} />
                 </div>

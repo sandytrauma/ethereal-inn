@@ -10,7 +10,16 @@ if (typeof window === 'undefined') {
   neonConfig.webSocketConstructor = ws;
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL,
+  max: 10
+ });
+
+
+pool.on('connect', (client: any) => {
+  // This allows the connection to see both the dynamic schema (set by middleware)
+  // and the 'public' schema where your core tables live.
+  client.query('SET search_path TO ');
+});
 
 /**
  * UPDATED: Added culinarySchema to the global DB object.

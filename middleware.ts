@@ -52,7 +52,7 @@ export async function middleware(req: NextRequest) {
   // 🌟 READ COOKIES FROM INDEPENDENT ISOLATED NAMESPACES
   const hotelToken = req.cookies.get('auth-token')?.value;
   const glamToken = req.cookies.get('salon_session_token')?.value; 
-  const masterSessionToken = req.cookies.get('glam_master_session')?.value;
+  const culinaryToken = req.cookies.get('culinary-token')?.value; // Added Culinary Token
 
   // Skip middleware execution for internal Next.js engine chunks, build file passes, and assets
   const isInternalAsset = path.startsWith('/_next') || path.startsWith('/api') || path.includes('.');
@@ -79,11 +79,13 @@ export async function middleware(req: NextRequest) {
   const isGlamMasterAdmin = path === '/glam/master-hub';
   const isGlamAuthPortal = path === '/glam/login' || path === '/glam';
   
+  // Culinary Logic
+  const isCulinaryRoute = path.startsWith('/culinary');
+  const isCulinaryAdminRoute = path.startsWith('/culinary/admin/');
+  const isCulinaryPublicBrandPage = path.startsWith('/culinary/brand/');
+
   // 🌟 FIX: Check if the path is explicitly a public-facing dynamic brand link
   const isGlamPublicBrandPage = path.startsWith('/glam/brand/');
-  // 🌟 PATCH: Registered Culinary Routes
-  const isCulinaryPublicBrandPage = path.startsWith('/culinary/brand/');
-  const isCulinaryAdminRoute = path.startsWith('/culinary/admin/');
 
   // 🌟 FIX: Exclude both login, master-hub, and the new brand pages from internal protection gates
   const isGlamProtectedView = 
@@ -99,12 +101,13 @@ export async function middleware(req: NextRequest) {
     '/suites', 
     '/culinary', 
     '/contact',
-    '/sanctuary'
+    '/sanctuary',
+    '/culinary/login'
   ];
 
   const isPublicPage = 
     STATIC_PUBLIC_ROUTES.includes(path) || 
-    path.startsWith('/sanctuary/') ||          
+    path.startsWith('/sanctuary/') ||             
     path.startsWith('/invoices') ||
     isGlamPublicBrandPage || 
     isCulinaryPublicBrandPage; // 🌟 REGISTERED PUBLIC
@@ -112,13 +115,19 @@ export async function middleware(req: NextRequest) {
   const isPmsRoute = !isAdminRoute && (path === '/pms' || path.startsWith('/pms/') || path.includes('/occupancy'));
 
   // =========================================================================
-  // 3. SECURE DECRYPTION LAYER (COMPLETELY DECOUPLED)
+  // 3. SECURE DECRYPTION LAYER (STRICTLY SEPARATED)
   // =========================================================================
   const hotelSession = hotelToken ? await decrypt(hotelToken).catch(() => null) : null;
   const glamSession = glamToken ? await getSalonSession().catch(() => null) : null;
+  const culinarySession = culinaryToken ? await decrypt(culinaryToken).catch(() => null) : null; // Separate Culinary Decryption
 
   // Extract the raw user role string from whichever session is currently active
-  const userRole = String((hotelSession as any)?.role || (glamSession as any)?.role || 'staff').toLowerCase().trim();
+  const userRole = String(
+    (hotelSession as any)?.role || 
+    (glamSession as any)?.role || 
+    (culinarySession as any)?.role || 
+    'staff'
+  ).toLowerCase().trim();
 
   // =========================================================================
   // 4. SECURITY GATEWAY FIREWALL MATRIX & GEO-FENCE ENFORCEMENT
@@ -130,7 +139,6 @@ export async function middleware(req: NextRequest) {
   }
 
   // 🌍 GEOLOCATION RADIAL PERIMETER BARRIER ENFORCEMENT
-  // 🌟 PATCH: Exclude public pages from Geofencing
   if (!isPublicPage && (isAdminRoute || isPmsRoute || isGlamProtectedView)) {
     const targetLat = glamSession?.latitude ? parseFloat(glamSession.latitude) : null;
     const targetLng = glamSession?.longitude ? parseFloat(glamSession.longitude) : null;
@@ -138,7 +146,7 @@ export async function middleware(req: NextRequest) {
     const geo = checkGeoProximity(req, userRole, targetLat, targetLng);
     if (!geo.isAllowed) {
       return new NextResponse(
-        `⚠️ Terminal Access Restricted: You are currently located ${geo.distanceKm.toFixed(2)} km away from your assigned outlet branch location. Device operations are locked to a 5 km storefront radius.`,
+        `⚠️ Terminal Access Restricted: You are currently located ${geo.distanceKm.toFixed(2)} km away from your assigned outlet branch location.`,
         { status: 403 }
       );
     }
@@ -152,15 +160,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 🌟 PATCH: Culinary Admin Gateway
-  if (isCulinaryAdminRoute) {
-    if (!hotelSession) {
-        return NextResponse.redirect(new URL('/ethereal-inn', req.url));
-    }
-    return NextResponse.next();
+  // C. CULINARY ADMIN GATEWAY (Isolated Logic)
+  if (isCulinaryAdminRoute && !culinarySession) {
+      return NextResponse.redirect(new URL('/culinary/login', req.url));
   }
 
-  // C. 🛡️ GLAM WORKSPACE GUARD: Protect salon routes independently of hotel states
+  // D. 🛡️ GLAM WORKSPACE GUARD: Protect salon routes independently of hotel states
   if (!glamSession && isGlamProtectedView) {
     return NextResponse.redirect(new URL('/glam/login?error=Session expired', req.url));
   }
@@ -169,7 +174,7 @@ export async function middleware(req: NextRequest) {
   if (glamSession && isGlamProtectedView && normalizedSubdomain && normalizedSubdomain !== "www") {
     const tokenSlug = glamSession.slug ? String(glamSession.slug).toLowerCase().trim() : '';
     if (tokenSlug !== normalizedSubdomain) {
-      return NextResponse.redirect(new URL('/glam/login?error=Cross-tenant switch detected. Re-authentication required.', req.url));
+      return NextResponse.redirect(new URL('/glam/login?error=Cross-tenant switch detected.', req.url));
     }
   }
 
@@ -177,9 +182,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/glam/dashboard', req.url));
   }
 
-  // D. 🛡️ HOTEL PMS BASE PLATFORM GUARD
+  // E. 🛡️ HOTEL PMS BASE PLATFORM GUARD
   // 🌟 PATCH: Excluded Culinary paths to prevent redirect loops
-  if (!hotelSession && !path.startsWith('/glam') && !path.startsWith('/culinary') && (isPmsRoute || path === '/' || !isPublicPage)) {
+  if (!hotelSession && !path.startsWith('/glam') && !isCulinaryRoute && (isPmsRoute || path === '/' || !isPublicPage)) {
     return NextResponse.redirect(new URL('/ethereal-inn', req.url));
   }
 
@@ -194,12 +199,11 @@ export async function middleware(req: NextRequest) {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set('x-tenant-subdomain', currentSubdomain);
 
-    // A. MULTI-TENANT ROUTING WITHIN /glam ONLY (Exact Folder Structure Maintained)
+    // A. MULTI-TENANT ROUTING WITHIN /glam ONLY
     if (path.startsWith('/glam')) {
       if (path.startsWith('/glam/master-hub')) {
         return NextResponse.next();
       }
-
       return NextResponse.next({
         request: {
           headers: requestHeaders,
