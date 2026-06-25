@@ -1,56 +1,49 @@
 import { db } from "@/db";
-import { properties } from "@/db/micro-schema";
-import { financialRecords, inquiries, tasks } from "@/db/schema";
-import { sql, eq, ne } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import React from "react";
+
+// Define the interface for the breakdown rows
+interface PropertyBreakdown {
+  id: string;
+  name: string;
+  city: string;
+  revenue: string;
+}
 
 export default async function PortfolioSummary() {
   try {
-    // =========================================================================
-    // 🌟 THE ARCHITECTURAL FIX: ISOLATED PARALLEL SUBQUERIES
-    // Using sql`` for the filter parameter prevents type-binding collisions
-    // =========================================================================
-    const [revResult, unitResult, leadResult, taskResult, propertyBreakdown] = await Promise.all([
-      // 1. Compile Total Revenue Matrix
-      db.select({
-        total: sql<string>`coalesce(sum(cast(${financialRecords.totalCollection} as numeric)), '0')`
-      }).from(financialRecords),
-
-      // 2. Count Active Asset Locations
-      db.select({
-        count: sql<number>`count(${properties.id})`
-      }).from(properties),
-
-      // 3. Count Global Guest Leads
-      db.select({
-        count: sql<number>`count(${inquiries.id})`
-      }).from(inquiries),
-
-      // 4. Count Global Pending Tasks (Type-safe SQL binding)
-     db.select({
-  count: sql<number>`count(${tasks.id})`
-})
-.from(tasks)
-.where(sql`${tasks.status} != 'completed'`),
-
-      // 5. Build Pristine Fleet Ledger
-      db.select({
-        id: properties.id,
-        name: properties.name,
-        city: properties.city,
-        revenue: sql<string>`coalesce(sum(cast(${financialRecords.totalCollection} as numeric)), '0')`,
-      })
-      .from(properties)
-      .leftJoin(financialRecords, eq(properties.id, financialRecords.propertyId))
-      .groupBy(properties.id, properties.name, properties.city)
+    // 🌟 ARCHITECTURAL FIX: Use fully schema-qualified SQL identifiers.
+    // This bypasses Drizzle's object resolution and prevents 'syntax error'
+    // by ensuring Postgres always receives a valid table and column name.
+    
+ const [revResult, unitResult, leadResult, taskResult, propertyBreakdown] = await Promise.all([
+      db.execute(sql`SELECT coalesce(sum("total_collection"::numeric), 0) as "total" FROM "public"."financial_records"`),
+      db.execute(sql`SELECT count(*) as "count" FROM "public"."properties"`),
+      db.execute(sql`SELECT count(*) as "count" FROM "public"."partner_inquiries"`),
+      db.execute(sql`SELECT count(*) as "count" FROM "public"."tasks" WHERE "status" != 'completed'`),
+      db.execute(sql`
+        SELECT p."id", p."name", p."city", coalesce(sum(f."total_collection"::numeric), 0) as "revenue" 
+        FROM "public"."properties" p 
+        LEFT JOIN "public"."financial_records" f ON p."id" = f."property_id" 
+        GROUP BY p."id", p."name", p."city"
+      `)
+      
     ]);
-
+    // Safely map results using .rows and explicit casting
     const summary = {
-      revenue: revResult[0]?.total || "0",
-      units: unitResult[0]?.count || 0,
-      leads: leadResult[0]?.count || 0,
-      activeTasks: taskResult[0]?.count || 0,
+      revenue: (revResult.rows[0] as any)?.total || "0",
+      units: (unitResult.rows[0] as any)?.count || 0,
+      leads: (leadResult.rows[0] as any)?.count || 0,
+      activeTasks: (taskResult.rows[0] as any)?.count || 0,
     };
+
+    // Explicit mapping to satisfy TypeScript and data sanitization
+    const breakdown: PropertyBreakdown[] = propertyBreakdown.rows.map((row: any) => ({
+      id: String(row.id),
+      name: String(row.name),
+      city: String(row.city),
+      revenue: String(row.revenue),
+    }));
 
     return (
       <div className="space-y-8 w-full max-w-7xl mx-auto font-sans selection:bg-amber-400/30">
@@ -70,12 +63,12 @@ export default async function PortfolioSummary() {
 
         {/* FLEET LEDGER */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {propertyBreakdown && propertyBreakdown.length > 0 ? (
-            propertyBreakdown.map((prop, idx) => (
+          {breakdown.length > 0 ? (
+            breakdown.map((prop, idx) => (
               <div key={prop.id || idx} className="p-8 bg-zinc-900/40 rounded-[2.5rem] border border-white/5 flex justify-between items-center hover:border-[#c5a059]/30 transition-all backdrop-blur-sm group">
                 <div>
-                  <h3 className="text-xl font-serif italic text-white group-hover:text-[#c5a059] transition-colors">{prop.name || "Isolated Partition"}</h3>
-                  <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mt-1">{prop.city || "Delhi"}</p>
+                  <h3 className="text-xl font-serif italic text-white group-hover:text-[#c5a059] transition-colors">{prop.name}</h3>
+                  <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mt-1">{prop.city}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[#c5a059] text-2xl font-bold font-mono">₹{Number(prop.revenue).toLocaleString("en-IN")}</p>
@@ -91,12 +84,12 @@ export default async function PortfolioSummary() {
         </div>
       </div>
     );
-  } catch (error) {
-    console.error("Critical Failure in PortfolioSummary Rendering Engine:", error);
+  } catch (error: any) {
+    console.error("Critical Failure in PortfolioSummary:", error);
     return (
       <div className="p-12 bg-zinc-950 rounded-[3rem] border border-red-500/20 text-center font-sans">
         <h3 className="text-red-500 font-black uppercase text-xs tracking-widest">Data Synchronization Disrupted</h3>
-        <p className="text-zinc-500 text-[11px] font-medium mt-2">Failed to compile cross-tenant system metrics totals charts.</p>
+        <p className="text-zinc-500 text-[10px] mt-2 font-mono">{error.message}</p>
       </div>
     );
   }
