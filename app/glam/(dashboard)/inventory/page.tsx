@@ -1,15 +1,13 @@
-// app/glam/(dashboard)/inventory/page.tsx
 import React from "react";
 import { getSalonSession } from "@/lib/salon-token";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers"; 
-import Link from "next/link"; // 🌟 Added for client-side routing transitions
+import Link from "next/link"; 
 import { db } from "@/db";
 import { salonProductsStock, salonProductConsumptionLogs } from "@/db/glam-schema";
 import { eq, and, desc } from "drizzle-orm";
 import InventoryDashboard from "@/components/InventoryDashboard";
 
-// 🌟 Mobile Ergonomic Navigation Icons
 import { LayoutDashboard, CalendarDays, Users2, PackageCheck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -25,9 +23,6 @@ export default async function InventoryPage() {
     redirect("/glam/login?error=Invalid physical branch anchor assignment.");
   }
 
-  // =========================================================================
-  // 🛡️ NATIVE COLUMN SLUG MULTI-TENANT SECURITY GATEWAY (ZERO-DB LOOKUP)
-  // =========================================================================
   const headersList = await headers();
   const edgeSubdomainSlug = headersList.get("x-tenant-subdomain");
 
@@ -49,7 +44,7 @@ export default async function InventoryPage() {
   }
 
   // =========================================================================
-  // DATA ENGINE & SCOPED STOCK QUERIES
+  // DATA ENGINE & SCOPED STOCK QUERIES - FULL DATA FETCHING
   // =========================================================================
   const products = await db
     .select({
@@ -58,6 +53,11 @@ export default async function InventoryPage() {
       sku: salonProductsStock.sku,
       currentVolumeMlGrams: salonProductsStock.currentVolumeMlGrams,
       alertLevel: salonProductsStock.alertLevel,
+      // 🌟 ADDED MISSING COLUMNS
+      assetCategory: salonProductsStock.assetCategory,
+      unitType: salonProductsStock.unitType,
+      purchasePrice: salonProductsStock.purchasePrice,
+      retailPrice: salonProductsStock.retailPrice,
     })
     .from(salonProductsStock)
     .where(
@@ -97,10 +97,6 @@ export default async function InventoryPage() {
   return (
     <div className="space-y-6 pb-24 md:pb-8 text-slate-100 max-w-[1600px] mx-auto px-1 sm:px-4">
 
-      {/* =========================================================================
-          🌟 THUMB-READY NAVIGATION ROUTERS
-         ========================================================================= */}
-      {/* A. Desktop Action Bar Strip */}
       <div className="hidden md:flex items-center gap-2 bg-slate-900/60 p-2 border border-slate-800/80 rounded-2xl w-fit select-none">
         <Link href="/glam/dashboard" className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-xl text-xs font-semibold transition">
           <LayoutDashboard size={14} /> Dashboard
@@ -116,7 +112,6 @@ export default async function InventoryPage() {
         </Link>
       </div>
 
-      {/* B. Sticky Mobile Tab Dock (Optimized for Floor Terminals) */}
       <div className="md:hidden fixed bottom-4 left-4 right-4 h-16 bg-slate-950/90 border border-slate-800 backdrop-blur-xl rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.7)] z-[99] flex items-center justify-around px-2 select-none">
         <Link href="/glam/dashboard" className="flex flex-col items-center justify-center gap-1 flex-1 text-slate-500 active:text-pink-400 py-1">
           <LayoutDashboard size={20} />
@@ -136,7 +131,6 @@ export default async function InventoryPage() {
         </Link>
       </div>
 
-      {/* Title Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
           <h1 className="text-xl font-bold tracking-tight">Inventory Management</h1>
@@ -146,7 +140,6 @@ export default async function InventoryPage() {
         </div>
       </div>
 
-      {/* Core Dashboard UI Interlock */}
       <InventoryDashboard
         products={products}
         alerts={alerts}

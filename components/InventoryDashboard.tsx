@@ -16,8 +16,22 @@ export default function InventoryDashboard({
 }) {
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const criticalCount = alerts.filter((a) => a.alertLevel === "critical_empty").length;
-  const lowStockCount = alerts.filter((a) => a.alertLevel === "low_stock").length;
+  // 🌟 DATA NORMALIZATION LAYER: Maps database snake_case to UI camelCase
+ const normalizedProducts = (products || []).map((p) => ({
+  id: p.id,
+  productName: p.product_name || p.productName || "Unnamed",
+  assetCategory: p.asset_category || p.assetCategory || "consumable",
+  sku: p.sku || "—",
+  // Ensure we parse the numeric values from the database decimals
+  purchasePrice: Number(p.purchase_price || p.purchasePrice || 0),
+  retailPrice: Number(p.retail_price || p.retailPrice || 0),
+  currentVolumeMlGrams: Number(p.current_volume_ml_grams || p.currentVolumeMlGrams || 0),
+  unitType: p.unit_type || p.unitType || "units",
+  alertLevel: p.alert_level || p.alertLevel || "good",
+}));
+
+  const criticalCount = alerts.filter((a) => a.alertLevel === "critical_empty" || a.alert_level === "critical_empty").length;
+  const lowStockCount = alerts.filter((a) => a.alertLevel === "low_stock" || a.alert_level === "low_stock").length;
 
   return (
     <div className="space-y-6">
@@ -25,7 +39,7 @@ export default function InventoryDashboard({
         <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-2xl shadow-lg space-y-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Products</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-black tracking-tight text-pink-400">{products.length}</span>
+            <span className="text-2xl font-black tracking-tight text-pink-400">{normalizedProducts.length}</span>
             <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
               IN STOCK
             </span>
@@ -77,7 +91,8 @@ export default function InventoryDashboard({
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3">
-          <InventoryTable products={products} />
+          {/* Passing the normalized data to the table */}
+          <InventoryTable products={normalizedProducts} />
         </div>
 
         <div className="space-y-4">

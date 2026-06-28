@@ -3,8 +3,18 @@
 import React from "react";
 
 export default function InventoryAlerts({ alerts }: { alerts: any[] }) {
-  const criticalItems = alerts.filter((a) => a.alertLevel === "critical_empty");
-  const lowStockItems = alerts.filter((a) => a.alertLevel === "low_stock");
+  // Normalize the alert data: check for both camelCase and snake_case keys
+  const normalizedAlerts = alerts.map((a) => ({
+    ...a,
+    id: a.id,
+    productName: a.product_name || a.productName || "Unnamed Item",
+    alertLevel: a.alert_level || a.alertLevel || "good",
+    currentVolumeMlGrams: Number(a.current_volume_ml_grams || a.currentVolumeMlGrams || 0),
+    unitType: a.unit_type || a.unitType || "units",
+  }));
+
+  const criticalItems = normalizedAlerts.filter((a) => a.alertLevel === "critical_empty");
+  const lowStockItems = normalizedAlerts.filter((a) => a.alertLevel === "low_stock");
 
   return (
     <div className="space-y-4">
@@ -21,7 +31,7 @@ export default function InventoryAlerts({ alerts }: { alerts: any[] }) {
               <div className="mt-2 space-y-1">
                 {criticalItems.map((item) => (
                   <p key={item.id} className="text-xs text-red-300">
-                    • {item.productName}: {item.currentVolumeMlGrams}ml
+                    • {item.productName}: {item.currentVolumeMlGrams.toLocaleString()} {item.unitType}
                   </p>
                 ))}
               </div>
@@ -43,11 +53,11 @@ export default function InventoryAlerts({ alerts }: { alerts: any[] }) {
               <div className="mt-2 space-y-1">
                 {lowStockItems.slice(0, 5).map((item) => (
                   <p key={item.id} className="text-xs text-amber-300">
-                    • {item.productName}: {item.currentVolumeMlGrams}ml
+                    • {item.productName}: {item.currentVolumeMlGrams.toLocaleString()} {item.unitType}
                   </p>
                 ))}
                 {lowStockItems.length > 5 && (
-                  <p className="text-xs text-amber-300 pt-1">
+                  <p className="text-xs text-amber-300 pt-1 font-bold">
                     +{lowStockItems.length - 5} more items
                   </p>
                 )}
@@ -57,7 +67,7 @@ export default function InventoryAlerts({ alerts }: { alerts: any[] }) {
         </div>
       )}
 
-      {alerts.length === 0 && (
+      {normalizedAlerts.length === 0 && (
         <div className="p-4 bg-emerald-950/20 border border-emerald-800/40 rounded-2xl shadow-lg">
           <div className="flex items-center gap-3">
             <span className="text-lg">✓</span>

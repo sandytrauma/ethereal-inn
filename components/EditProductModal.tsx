@@ -43,15 +43,19 @@ export default function EditProductModal({ product, onClose }: { product: any; o
     }
 
     startTransition(async () => {
-      const result = await updateInventoryItem(product.id, {
+      // 🛡️ BUSINESS LOGIC ENFORCEMENT
+      // Fixed Assets: Force unitType to 'pcs', alertThreshold to 0, disable metric selection
+      const payload = {
         productName: formData.productName,
         sku: formData.sku,
-        assetCategory: formData.assetCategory as any,
+        assetCategory: formData.assetCategory as "consumable" | "fixed_asset",
         unitType: formData.assetCategory === "fixed_asset" ? "pcs" : formData.unitType,
         alertThreshold: formData.assetCategory === "fixed_asset" ? 0 : formData.alertThreshold,
         purchasePrice: formData.purchasePrice,
         retailPrice: formData.retailPrice,
-      });
+      };
+
+      const result = await updateInventoryItem(product.id, payload);
 
       if (result.success) {
         router.refresh();
@@ -64,12 +68,12 @@ export default function EditProductModal({ product, onClose }: { product: any; o
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto text-slate-200 relative">
+      <div className="bg-slate-900/90 border border-slate-800/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto text-slate-200 relative">
         
         {isPending && (
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center z-50">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center z-50 rounded-2xl">
             <div className="text-xs font-mono font-bold text-pink-400 animate-pulse">
-              ⚡ Applying Corrections to Ledger...
+              ⚡ Updating Ledger...
             </div>
           </div>
         )}
@@ -89,31 +93,24 @@ export default function EditProductModal({ product, onClose }: { product: any; o
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          
-          {/* Category Switcher Buttons */}
+          {/* Category Switcher */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">
-              Accounting Ledger Category
-            </label>
+            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Category</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, assetCategory: "consumable" })}
                 className={`py-2 px-3 text-xs font-bold rounded-xl border transition ${
-                  formData.assetCategory === "consumable"
-                    ? "bg-pink-950/40 border-pink-500/50 text-pink-400"
-                    : "bg-slate-950 border-slate-800 text-slate-400"
+                  formData.assetCategory === "consumable" ? "bg-pink-950/40 border-pink-500/50 text-pink-400" : "bg-slate-950 border-slate-800 text-slate-400"
                 }`}
               >
                 🧴 Consumable
               </button>
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, assetCategory: "fixed_asset", unitType: "pcs" })}
+                onClick={() => setFormData({ ...formData, assetCategory: "fixed_asset", unitType: "pcs", alertThreshold: 0 })}
                 className={`py-2 px-3 text-xs font-bold rounded-xl border transition ${
-                  formData.assetCategory === "fixed_asset"
-                    ? "bg-pink-950/40 border-pink-500/50 text-pink-400"
-                    : "bg-slate-950 border-slate-800 text-slate-400"
+                  formData.assetCategory === "fixed_asset" ? "bg-pink-950/40 border-pink-500/50 text-pink-400" : "bg-slate-950 border-slate-800 text-slate-400"
                 }`}
               >
                 ✂️ Fixed Asset
@@ -121,113 +118,41 @@ export default function EditProductModal({ product, onClose }: { product: any; o
             </div>
           </div>
 
-          {/* Product Name Input */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">
-              Product Name
-            </label>
-            <input
-              type="text"
-              value={formData.productName}
-              onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
-              className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-200 text-xs font-semibold"
-              required
-            />
+            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Product Name</label>
+            <input type="text" value={formData.productName} onChange={(e) => setFormData({...formData, productName: e.target.value})} className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-xs font-semibold" required />
           </div>
 
-          {/* SKU Tag Input */}
-          <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">
-              SKU Identifier
-            </label>
-            <input
-              type="text"
-              value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-200 text-xs font-mono"
-            />
-          </div>
-
-          {/* Multi-Vector Suffix Dropdown */}
+          {/* Consumable Only Fields */}
           {formData.assetCategory === "consumable" && (
-            <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">
-                Measurement Vector Unit
-              </label>
-              <select
-                value={formData.unitType}
-                onChange={(e) => setFormData({ ...formData, unitType: e.target.value })}
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-semibold text-slate-200 focus:outline-none"
-              >
-                {MEASUREMENT_UNITS.map((unit) => (
-                  <option key={unit.value} value={unit.value}>{unit.label}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Measurement Unit</label>
+                <select value={formData.unitType} onChange={(e) => setFormData({...formData, unitType: e.target.value})} className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-semibold">
+                  {MEASUREMENT_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Alert Trigger</label>
+                <input type="number" value={formData.alertThreshold} onChange={(e) => setFormData({...formData, alertThreshold: parseInt(e.target.value) || 0})} className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-xs font-mono font-bold" required />
+              </div>
+            </>
           )}
 
-          {/* Alert Threshold Modifier Form Slot */}
-          {formData.assetCategory === "consumable" && (
-            <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2 truncate">
-                Alert Trigger ({formData.unitType})
-              </label>
-              <input
-                type="number"
-                value={formData.alertThreshold || ""}
-                onChange={(e) => setFormData({ ...formData, alertThreshold: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-200 text-xs font-mono font-bold"
-                required
-              />
-            </div>
-          )}
-
-          {/* Commercial Price Layout Segment */}
           <div className="grid grid-cols-2 gap-4 border-t border-slate-800/60 pt-4">
             <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">
-                Cost Price (₹)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.purchasePrice || ""}
-                onChange={(e) => setFormData({ ...formData, purchasePrice: parseFloat(e.target.value) || 0 })}
-                className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-200 text-xs font-mono font-bold"
-                required
-              />
+              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Cost Price (₹)</label>
+              <input type="number" step="0.01" value={formData.purchasePrice} onChange={(e) => setFormData({...formData, purchasePrice: parseFloat(e.target.value) || 0})} className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-xs font-mono font-bold" required />
             </div>
             <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">
-                Retail Price (₹)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.retailPrice || ""}
-                onChange={(e) => setFormData({ ...formData, retailPrice: parseFloat(e.target.value) || 0 })}
-                className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-200 text-xs font-mono font-bold"
-                required
-              />
+              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Retail Price (₹)</label>
+              <input type="number" step="0.01" value={formData.retailPrice} onChange={(e) => setFormData({...formData, retailPrice: parseFloat(e.target.value) || 0})} className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-xs font-mono font-bold" required />
             </div>
           </div>
 
           <div className="flex gap-3 pt-3 border-t border-slate-800/40">
-            <button
-              type="submit"
-              disabled={isPending}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-500 hover:to-rose-400 text-white font-black text-xs uppercase tracking-wider"
-            >
-              Save Changes
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isPending}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider"
-            >
-              Cancel
-            </button>
+            <button type="submit" disabled={isPending} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-500 text-white font-black text-xs uppercase tracking-wider">Save</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-200 font-bold text-xs uppercase">Cancel</button>
           </div>
         </form>
       </div>

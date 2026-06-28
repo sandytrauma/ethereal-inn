@@ -9,6 +9,10 @@ import Script from "next/script";
 import { getSalonSession } from "@/lib/salon-token"; 
 import { MapPin, Phone, Clock, Sparkles, Settings2, Scissors, Sparkle, Camera, MessageSquare, HelpCircle } from "lucide-react";
 import Link from "next/link";
+import { salonAppointments } from "@/db/glam-schema";
+import { and, gte, lte } from "drizzle-orm";
+import { startOfDay, endOfDay } from "date-fns";
+import PublicAppointmentCalendar from "@/components/SalonAvailabilityCalendar";
 
 // Drop-in your component settings configuration panel dynamically
 import BrandSettingsTerminal from "@/components/BrandSettingTerminal";
@@ -55,6 +59,9 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
   };
 }
 
+
+
+
 export default async function PublicTenantBrandPage({ params, searchParams }: BrandPageProps) {
   const resolvedParams = await params;
   const { tenantSlug } = resolvedParams;
@@ -97,6 +104,20 @@ export default async function PublicTenantBrandPage({ params, searchParams }: Br
   const formatCurrency = (amount: string | number) => {
     return `₹${parseFloat(String(amount)).toLocaleString("en-IN", { minimumFractionDigits: 0 })}`;
   };
+
+  const todayStart = startOfDay(new Date());
+  const todayEnd = endOfDay(new Date());
+
+  const publicAppointments = await db
+    .select({ startTime: salonAppointments.startTime })
+    .from(salonAppointments)
+    .where(
+      and(
+        eq(salonAppointments.tenantId, tenant.id),
+        gte(salonAppointments.startTime, todayStart),
+        lte(salonAppointments.startTime, todayEnd)
+      )
+    );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-pink-500 selection:text-white pb-24 relative">
@@ -264,6 +285,12 @@ export default async function PublicTenantBrandPage({ params, searchParams }: Br
               ))}
             </div>
           )}
+
+
+          <PublicAppointmentCalendar 
+  clientId={0} // Anonymous/Public context
+  existingAppointments={publicAppointments} 
+/>
         </div>
 
         {/* BRAND PORTFOLIO / LOOKBOOK MARKETING GRID VISUALS LAYER */}

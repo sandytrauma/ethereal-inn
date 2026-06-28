@@ -40,41 +40,26 @@ const determineAlertLevel = (currentVolume: number, threshold: number): "critica
   return "good";
 };
 
-export async function getInventoryList(filters?: InventoryFilters) {
+// Replace your existing getInventoryList in lib/actions/salon-inventory.ts
+export async function getInventoryList() {
+  const session = await getSalonSession();
+  if (!session) return []; // Return empty array if no session
+
   try {
-    const session = await getSalonSession();
-    if (!session) return { success: false, error: "Session expired. Please log in again." };
-
-    const tenantIdStr = String(session.tenantId);
-    const outletIdStr = session.outletId ? String(session.outletId) : null;
-
-    if (!outletIdStr) return { success: false, error: "Invalid outlet assignment framework context." };
-
-    const products = await db
+    // Fetch directly from DB
+    const results = await db
       .select()
       .from(salonProductsStock)
-      .where(and(eq(salonProductsStock.tenantId, tenantIdStr), eq(salonProductsStock.outletId, outletIdStr)))
-      .orderBy(salonProductsStock.productName);
+      .where(and(
+        eq(salonProductsStock.tenantId, String(session.tenantId)),
+        eq(salonProductsStock.outletId, String(session.outletId))
+      ));
 
-    let filtered = products;
-
-    if (filters?.search) {
-      const searchLower = filters.search.toLowerCase().trim();
-      filtered = filtered.filter((p) => p.productName.toLowerCase().includes(searchLower) || p.sku?.toLowerCase().includes(searchLower));
-    }
-
-    if (filters?.alertLevel && filters.alertLevel !== "all") {
-      filtered = filtered.filter((p) => p.alertLevel === filters.alertLevel);
-    }
-
-   if (filters?.assetCategory && filters.assetCategory !== "all") {
-  filtered = filtered.filter((p) => p.assetCategory === filters.assetCategory);
-}
-
-    return { success: true, data: filtered, count: filtered.length };
-  } catch (error: any) {
-    console.error("❌ Get Inventory Critical Failure:", error.message);
-    return { success: false, error: "Internal processing error while parsing product lists." };
+    // Return the array directly so InventoryTable receives it as 'products'
+    return results; 
+  } catch (error) {
+    console.error("DB Fetch Error:", error);
+    return [];
   }
 }
 
