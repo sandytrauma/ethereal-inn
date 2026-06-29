@@ -165,15 +165,33 @@ export default function BrandSettingsTerminal({ tenantProfile, publicServices = 
                 ) : (
                   <div className="text-xs text-slate-600 italic">No Image Configured</div>
                 )}
-                <UploadButton
-                  endpoint="imageUploader"
-                  onClientUploadComplete={(res) => {
-                    const targetUrl = res[0].ufsUrl || res[0].url;
-                    setLogo(targetUrl);
-                    handleDatabaseSync(targetUrl, banner);
-                  }}
-                  className="ut-button:bg-pink-600 ut-button:text-xs ut-button:h-8 ut-button:rounded-lg ut-allowed-content:hidden"
-                />
+              <UploadButton
+  endpoint="imageUploader"
+  onClientUploadComplete={(res) => {
+    // 1. Validation: Ensure response exists
+    if (!res || res.length === 0) return;
+
+    const fileData = res[0];
+    
+    // 2. Normalize the URL: Check for standard, VFS, and fallback properties
+    // Using ?. and || is safer for different SDK versions
+    const targetUrl = fileData.url || fileData.ufsUrl;
+
+    if (targetUrl) {
+      console.log("[UPLOAD] Syncing URL:", targetUrl);
+      setLogo(targetUrl);
+      handleDatabaseSync(targetUrl, banner);
+    } else {
+      console.error("[UPLOAD] No URL returned from provider", fileData);
+      alert("Upload failed: No URL returned.");
+    }
+  }}
+  onUploadError={(err: Error) => {
+    console.error("[UPLOAD] Error:", err.message);
+    alert(`Upload Error: ${err.message}`);
+  }}
+  className="ut-button:bg-pink-600 ut-button:text-xs ut-button:h-8 ut-button:rounded-lg ut-allowed-content:hidden"
+/>
               </div>
             </div>
 
