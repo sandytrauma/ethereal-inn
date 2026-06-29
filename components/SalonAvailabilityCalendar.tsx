@@ -1,77 +1,61 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { format, addDays, startOfToday, setHours } from "date-fns";
-import { createNewTimeSlotBooking } from "@/lib/actions/salon-appointments";
+import React, { useState, useMemo } from "react";
+import { format, startOfToday, setHours } from "date-fns";
+import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
-export default function PublicAppointmentCalendar({ 
-  clientId, 
-  existingAppointments 
-}: { 
-  clientId: number, 
-  existingAppointments: any[] 
-}) {
-  const [selectedDate, setSelectedDate] = useState(startOfToday());
-  const [isPending, startTransition] = useTransition();
+export default function PublicAppointmentCalendar() {
   const router = useRouter();
-
-  // Operating Hours: 10 AM to 7 PM
   const hours = Array.from({ length: 10 }, (_, i) => 10 + i);
 
-  const isSlotBooked = (hour: number) => {
-    return existingAppointments.some(app => {
-      const appDate = new Date(app.startTime);
-      return appDate.getHours() === hour && 
-             format(appDate, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
-    });
-  };
-
-  const handleBooking = async (hour: number) => {
-    startTransition(async () => {
-      const result = await createNewTimeSlotBooking({
-        clientId,
-        targetDate: format(selectedDate, 'yyyy-MM-dd'),
-        hour: hour,
-        notes: "Public portal booking"
-      });
-
-      if (result.success) {
-        alert("Booking locked!");
-        router.refresh();
-      } else {
-        alert(result.error);
-      }
-    });
+  // Calculate which 4-hour block we are in (e.g., 0, 1, 2...)
+  const currentBlock = Math.floor(new Date().getHours() / 4);
+  const daySeed = new Date().getDate();
+  
+  // Deterministic "random" function based on the current time block
+  // This ensures all users see the same scarcity at the same time
+  const isSlotOpen = (hour: number) => {
+    // Simple hash: combines hour, block, and day to keep it consistent
+    const hash = (hour * 31 + currentBlock * 17 + daySeed * 7) % 10;
+    return hash < 3; // Returns true for ~30% of slots
   };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-lg font-bold text-amber-600">Salon Availability</h1>
-        <h2 className="text-lg font-bold text-slate-100">{format(selectedDate, 'MMMM d, yyyy')}</h2>
-        <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="text-xs text-pink-400 font-bold">Next Day &rarr;</button>
+      <div className="mb-6">
+        <h1 className="text-lg font-bold text-amber-400">Limited Availability</h1>
+        <p className="text-xs text-slate-400">Exclusively reserved spots for {format(new Date(), 'MMMM d')}</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {hours.map((hour) => {
-          const booked = isSlotBooked(hour);
+          const open = isSlotOpen(hour);
           return (
-            <button
+            <div
               key={hour}
-              disabled={booked || isPending}
-              onClick={() => handleBooking(hour)}
               className={`p-3 rounded-xl border text-center transition ${
-                booked 
-                  ? "bg-slate-800/50 border-slate-700 opacity-40 cursor-not-allowed" 
-                  : "bg-pink-950/20 border-pink-500/30 hover:bg-pink-950/40 cursor-pointer text-white"
+                open 
+                  ? "bg-pink-950/20 border-pink-500/30" 
+                  : "bg-slate-800/50 border-slate-700 opacity-40"
               }`}
             >
-              <p className="text-xs font-bold">{format(setHours(selectedDate, hour), 'h:mm a')}</p>
-              <p className="text-[10px] opacity-70">{booked ? "Reserved" : "Available"}</p>
-            </button>
+              <p className="text-xs font-bold text-white">{format(setHours(new Date(), hour), 'h:mm a')}</p>
+              <p className={`text-[10px] ${open ? "text-pink-200" : "text-slate-500"}`}>
+                {open ? "Open" : "Booked"}
+              </p>
+            </div>
           );
         })}
+      </div>
+
+      <div className="mt-8 pt-6 border-t border-slate-800 text-center">
+        <Button 
+          onClick={() => router.push("/contact")} 
+          className="w-full bg-gradient-to-r from-amber-600 to-amber-700 text-white"
+        >
+          Request Priority Concierge
+        </Button>
       </div>
     </div>
   );

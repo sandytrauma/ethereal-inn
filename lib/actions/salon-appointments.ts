@@ -13,6 +13,9 @@ interface BookingPayload {
   hour: number;       // Operational hours block (e.g., 14 for 2:00 PM)
   notes?: string;
   estimatedCost?: string;
+  name: string;
+  phone: string;
+  services: string;
 }
 
 export async function createNewTimeSlotBooking(formData: BookingPayload) {

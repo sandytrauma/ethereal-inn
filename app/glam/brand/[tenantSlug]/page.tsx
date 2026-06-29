@@ -16,6 +16,7 @@ import PublicAppointmentCalendar from "@/components/SalonAvailabilityCalendar";
 
 // Drop-in your component settings configuration panel dynamically
 import BrandSettingsTerminal from "@/components/BrandSettingTerminal";
+import Footer from "@/components/layout/Footer";
 
 interface BrandPageProps {
   params: Promise<{ tenantSlug: string }>;
@@ -32,8 +33,30 @@ const LOOKBOOK_GALLERY = [
 ];
 
 const BRAND_FAQS = [
-  { q: "Do I need to book an appointment in advance?", a: "While we accommodate walk-ins based on fractional chair availability, we highly recommend confirming your booking online via our store terminal layer to lock in your preferred stylist node." },
-  { q: "What premium material formulations do you use?", a: "Our outlets exclusively utilize sustainable, clinically verified, high-end backbar luxury lines optimized for custom skin thresholds and hair health structural safety." },
+  { 
+    q: "Do I need to book an appointment in advance?", 
+    a: "While we do accommodate walk-ins based on fractional chair availability, we highly recommend confirming your booking online to lock in your preferred 'stylist node' and ensure your transformation journey is prioritized." 
+  },
+  { 
+    q: "What premium material formulations do you use?", 
+    a: "Our studio exclusively utilizes sustainable, clinically verified, high-end backbar luxury lines. Every product is curated to respect individual skin thresholds and maintain long-term structural hair health." 
+  },
+  { 
+    q: "How does the Ethereal Glam Concierge service function?", 
+    a: "Our concierge provides a direct, high-touch bridge to our studio leads. For bespoke styling consultations, multi-node color treatments, or detailed service inquiries, please message our team via the WhatsApp link on our contact hub for seamless coordination." 
+  },
+  { 
+    q: "Are your aesthetic and styling services personalized?", 
+    a: "Every Ethereal Glam experience begins with a diagnostic touchpoint. Our artisans analyze your hair's porosity, texture, and your skin's specific requirements to ensure each procedure is precision-tuned to your unique biological blueprint." 
+  },
+  { 
+    q: "Can I book a private studio session for an event?", 
+    a: "Yes. Our 'VIP Sanctuary' nodes can be reserved for private transformations, bridal parties, or bespoke styling events. Please reach out to our concierge desk to architect your private studio experience." 
+  },
+  { 
+    q: "What measures ensure hair and skin safety during treatments?", 
+    a: "We operate on a 'safety-first' technical protocol. From the precision of our editorial-grade tools to the clinical testing of all chemical formulations, every step of your transformation is designed to protect your natural vitality." 
+  }
 ];
 
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
@@ -287,10 +310,7 @@ export default async function PublicTenantBrandPage({ params, searchParams }: Br
           )}
 
 
-          <PublicAppointmentCalendar 
-  clientId={0} // Anonymous/Public context
-  existingAppointments={publicAppointments} 
-/>
+          <PublicAppointmentCalendar/>
         </div>
 
         {/* BRAND PORTFOLIO / LOOKBOOK MARKETING GRID VISUALS LAYER */}
@@ -336,8 +356,9 @@ export default async function PublicTenantBrandPage({ params, searchParams }: Br
             ))}
           </div>
         </div>
-
-      </div>
+        <Footer/>
+         </div>
+      
     </div>
   );
 }
