@@ -548,11 +548,11 @@ export default function Dashboard({
                 <div className="flex justify-between items-start relative z-10">
                   <div>
                     <p className="text-slate-500 text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em]">
-                      {isMasterSuperAdmin
+                      {isMasterSuperAdmin && isAdmin
                         ? `${period}ly Net Profit`
                         : "Shift Overview"}
                     </p>
-                    {isMasterSuperAdmin ? (
+                    {isAdmin && isMasterSuperAdmin ? (
                       <h2 className="text-3xl md:text-5xl font-black text-white mt-2 md:mt-3 tracking-tighter">
                         ₹
                         {Number(dbData?.netProfit || 0).toLocaleString("en-IN")}
@@ -566,13 +566,13 @@ export default function Dashboard({
                       </div>
                     )}
                   </div>
-                  {isMasterSuperAdmin && (
+                  {isAdmin && isMasterSuperAdmin &&  (
                     <div className="bg-emerald-500/10 border border-emerald-500/20 p-2 md:p-3 rounded-xl md:rounded-2xl text-emerald-400">
                       <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                   )}
                 </div>
-                {isMasterSuperAdmin && (
+                {isAdmin && isMasterSuperAdmin && (
                   <div className="mt-6 md:mt-8 grid grid-cols-2 gap-4 border-t border-white/5 pt-4 md:pt-6 relative z-10">
                     <div>
                       <p className="text-[8px] md:text-[9px] text-slate-500 uppercase font-black tracking-widest">
@@ -594,7 +594,7 @@ export default function Dashboard({
                 )}
               </div>
 
-              {isMasterSuperAdmin && (
+              {isAdmin && isMasterSuperAdmin &&(
                 <div className="grid grid-cols-2 gap-3 md:gap-4">
                   <StatCard
                     title="Revenue"
@@ -719,7 +719,7 @@ export default function Dashboard({
             </motion.div>
           )}
 
-          {activeTab === "intel" && isMasterSuperAdmin && (
+          {activeTab === "intel" && isAdmin && isMasterSuperAdmin && (
             <motion.div
               key="intel"
               initial={{ opacity: 0, y: 10 }}
@@ -905,7 +905,7 @@ export default function Dashboard({
             icon={ConciergeBell}
             label="PMS"
           />
-          {isMasterSuperAdmin ? (
+          {isAdmin && isMasterSuperAdmin ? (
             <NavIcon
               active={activeTab === "intel"}
               onClick={() => setActiveTab("intel")}

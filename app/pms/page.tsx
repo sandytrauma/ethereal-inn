@@ -57,7 +57,7 @@ export default async function PMSPage() {
           .from(properties)
           .where(eq(properties.id, assignedPropertyId))
           .limit(1);
-      } else if (safeUserRole === "admin" || safeUserRole === "owner") {
+      } else if (safeUserRole === "admin" || safeUserRole === "owner" || safeUserRole === "manager") {
         // Creator Fallback rule: Isolate directly by their ownership registration field
         countResult = await db
           .select({ id: properties.id })
@@ -93,7 +93,7 @@ export default async function PMSPage() {
   }
 
   // 4. PERMISSION LOGIC FOR EMPTY STATE VISIBILITY
-  const isAdmin = safeUserRole === "admin" || safeUserRole === "owner" || session.name === "Sandeep kumar";
+  const isAdmin = safeUserRole === "admin" || safeUserRole === "owner" ||session.name === "Sandeep kumar";
 
   return (
     <div className="relative flex h-screen flex-col items-center justify-center bg-[#F8FAFC] p-8 text-center overflow-hidden font-sans selection:bg-blue-500 selection:text-white">

@@ -37,10 +37,11 @@ export async function getDailyStats(propertyId: string) {
     }
 
     const isMasterSuperAdmin = Number((session as any).userId || (session as any).id) === 1;
+    const isAdmin = isMasterSuperAdmin || (session as any).role === 'admin' || (session as any).isAdmin === true;
     const assignedPropertyId = (session as any).propertyId;
 
     // Direct Cross-Tenant Access Interception
-    if (!isMasterSuperAdmin && String(assignedPropertyId) !== String(propertyId)) {
+    if (!isMasterSuperAdmin && isAdmin && String(assignedPropertyId) !== String(propertyId)) {
       console.warn(`Security Breach Alert: Cross-tenant tracking attempt by user ${session.email}`);
       return { success: false, bookings: 0, revenue: 0, error: "Access Denied: Restricted Context Scope Boundary" };
     }

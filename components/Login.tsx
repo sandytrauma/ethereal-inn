@@ -38,6 +38,7 @@ import Image from "next/image";
 import PartnerBrandingSegment from "./PartnerBrandingSegment";
 import { LandingPageFAQ } from "./LandingPageFAQ";
 import PropertyShowcase from "./PropertyShowcase";
+import { checkRateLimit } from "@/lib/actions/inquiry-form-rate-limit";
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
 
@@ -159,6 +160,32 @@ export default function LandingLoginPage() {
 
   const [state, formAction, isPending] = useActionState(loginUser, null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+const handleInquiryClick = async () => {
+  setLoading(true);
+  
+  // Use a unique identifier (like IP or User ID)
+  // For now, we use a simple placeholder
+  const result = await checkRateLimit("user_browser_session");
+
+  if (!result.success) {
+    alert(result.message);
+    setLoading(false);
+    return;
+  }
+
+  // Analytics
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", "click_direct_inquiry", {
+      event_category: "Engagement",
+      event_label: "Inquiry Form Opened",
+    });
+  }
+
+  setShowInquiry(true);
+  setLoading(false);
+};
 
   const importantLinks = [
     { name: "Main Platform Root", href: "https://www.etherealinn.com/" },
@@ -238,42 +265,49 @@ export default function LandingLoginPage() {
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
-  async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+async function handleInquirySubmit(e: React.FormEvent<HTMLFormElement>) {
+  e.preventDefault();
 
-    const currentFormElement = e.currentTarget;
-    const formData = new FormData(currentFormElement);
-    const PROPERTY_ID =
-      process.env.NEXT_PUBLIC_MOHAN_GARDEN_ID ||
-      "00000000-0000-0000-0000-000000000000";
-
-    startTransition(async () => {
-      try {
-        const res = await createInquiryAction(PROPERTY_ID, formData);
-
-        if (res.success) {
-          if (typeof window !== "undefined" && window.gtag) {
-            window.gtag("event", "conversion_event_contact", {
-              event_category: "Conversion",
-              event_label: "Direct Property Inquiry Logged",
-            });
-          }
-
-          setInquirySuccess(true);
-          currentFormElement.reset();
-
-          setTimeout(() => {
-            setShowInquiry(false);
-            setInquirySuccess(false);
-          }, 2500);
-        } else {
-          console.error("Database Error:", res.error);
-        }
-      } catch (err) {
-        console.error("Network Error:", err);
-      }
-    });
+  const currentFormElement = e.currentTarget;
+  const formData = new FormData(currentFormElement);
+  
+  // 1. Perform Server-Side Rate Limit Check on Submit
+  const limitCheck = await checkRateLimit("user_browser_session");
+  if (!limitCheck.success) {
+    alert(limitCheck.message);
+    return;
   }
+
+  const PROPERTY_ID = process.env.NEXT_PUBLIC_MOHAN_GARDEN_ID || "0000...";
+
+  startTransition(async () => {
+    try {
+      const res = await createInquiryAction(PROPERTY_ID, formData);
+
+      if (res.success) {
+        // Analytics
+        if (typeof window !== "undefined" && window.gtag) {
+          window.gtag("event", "conversion_event_contact", {
+            event_category: "Conversion",
+            event_label: "Direct Property Inquiry Logged",
+          });
+        }
+
+        setInquirySuccess(true);
+        currentFormElement.reset();
+
+        setTimeout(() => {
+          setShowInquiry(false);
+          setInquirySuccess(false);
+        }, 2500);
+      } else {
+        console.error("Database Error:", res.error);
+      }
+    } catch (err) {
+      console.error("Network Error:", err);
+    }
+  });
+}
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-slate-100 overflow-x-hidden font-sans selection:bg-[#c5a059] selection:text-black pb-24 md:pb-0">
@@ -389,20 +423,13 @@ export default function LandingLoginPage() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6 px-4">
             <button
-              type="button"
-              onClick={() => {
-                if (typeof window !== "undefined" && window.gtag) {
-                  window.gtag("event", "click_direct_inquiry", {
-                    event_category: "Engagement",
-                    event_label: "Inquiry Form Opened",
-                  });
-                }
-                setShowInquiry(true);
-              }}
-              className="w-full sm:w-auto bg-white/5 backdrop-blur-md border border-white/10 text-white font-black px-12 py-5 rounded-2xl md:rounded-full hover:bg-[#c5a059] hover:text-black transition-all uppercase tracking-widest text-[11px] cursor-pointer"
-            >
-              Business Inquiry
-            </button>
+  type="button"
+  disabled={loading}
+  onClick={handleInquiryClick}
+  className={`relative bg-white/10 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.1)] text-white px-6 py-2 rounded-xl transition-all hover:bg-white/20 active:scale-95 ... ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+>
+  {loading ? "Processing..." : "Business Inquiry"}
+</button>
 
             <button
               type="button"

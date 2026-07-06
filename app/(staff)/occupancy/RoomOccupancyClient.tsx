@@ -272,75 +272,99 @@ export default function RoomOccupancyClient({
         <DashboardBackground />
         
         {/* PROPERTY SWITCHER HEADER */}
-        <div className="max-w-[1700px] mx-auto mb-10 flex items-center justify-between bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-xl shadow-2xl">
-            <div className="flex items-center gap-4">
-              <div className="p-2.5 bg-amber-400 rounded-xl text-slate-950 shadow-md">
-                <Building2 size={20} />
-              </div>
-              <div>
-                <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest leading-none mb-1">Active Property Scope</p>
-                <h3 className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-2">
-                  {activePropertyName} 
-                  <span className="text-[10px] text-amber-500/50">#{urlPropertyId.slice(0,5)}</span>
-                </h3>
-              </div>
-            </div>
+      <div className="max-w-[1700px] mx-auto mb-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-xl shadow-2xl gap-4">
+  {/* Property Info */}
+  <div className="flex items-center gap-4">
+    <div className="p-2.5 bg-amber-400 rounded-xl text-slate-950 shadow-md shrink-0">
+      <Building2 size={20} />
+    </div>
+    <div>
+      <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest leading-none mb-1">Active Property Scope</p>
+      <h3 className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-2">
+        {activePropertyName} 
+        <span className="text-[10px] text-amber-500/50">#{urlPropertyId.slice(0,5)}</span>
+      </h3>
+    </div>
+  </div>
 
-            <div className="relative group">
-              <button className="px-5 py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2">
-                Switch Property <ChevronDown size={14} />
-              </button>
-              <div className="absolute right-0 mt-2 w-64 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:block z-50 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                <div className="flex flex-col">
-                  {properties.map((property) => (
-                    <button
-                      key={property.id}
-                      onClick={() => router.push(`/occupancy?propertyId=${property.id}`)}
-                      className="flex flex-col items-start w-full px-5 py-3 border-b border-white/5 last:border-0 hover:bg-amber-400 hover:text-slate-950 transition-colors text-left"
-                    >
-                      <span className="text-[11px] font-black uppercase tracking-tight">{property.name}</span>
-                      <span className="text-[8px] opacity-60 font-mono mt-0.5 truncate w-full">{property.id}</span>
-                    </button>
-                  ))}
-                  <button onClick={() => router.push('/management')} className="w-full px-5 py-3 text-[10px] font-black text-amber-400 hover:bg-white/5 text-center border-t border-white/10 tracking-widest uppercase">
-                    + MANAGE PROPERTIES
-                  </button>
-                </div>
-              </div>
-            </div>
-        </div>
+  {/* Property Switcher - Thumb Ready */}
+  <div className="relative group w-full sm:w-auto">
+    {/* Added 'w-full' and 'justify-between' for thumb-accessibility */}
+    <button className="w-full sm:w-auto px-5 py-4 sm:py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-2xl sm:rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-between sm:justify-center gap-2 active:scale-[0.98]">
+      Switch Property <ChevronDown size={14} />
+    </button>
 
-        <header className="max-w-[1700px] mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase italic leading-[0.8]">Inventory.</h1>
-            <div className="flex items-center gap-3 mt-4 ml-1">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em]">Active Operation Cluster</p>
-            </div>
-          </div>
+    {/* Dropdown - Adjusted for mobile position and full width access */}
+    <div className="absolute right-0 mt-2 w-full sm:w-72 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:flex sm:group-hover:block z-50 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+      <div className="flex flex-col max-h-[300px] overflow-y-auto">
+        {properties.map((property) => (
+          <button
+            key={property.id}
+            onClick={() => router.push(`/occupancy?propertyId=${property.id}`)}
+            className="flex flex-col items-start w-full px-6 py-4 border-b border-white/5 last:border-0 hover:bg-amber-400 hover:text-slate-950 transition-colors text-left active:bg-amber-500"
+          >
+            <span className="text-[11px] font-black uppercase tracking-tight">{property.name}</span>
+            <span className="text-[9px] opacity-60 font-mono mt-0.5">{property.id}</span>
+          </button>
+        ))}
+        <button 
+          onClick={() => router.push('/management')} 
+          className="w-full px-5 py-4 text-[10px] font-black text-amber-400 hover:bg-white/5 text-center border-t border-white/10 tracking-widest uppercase active:bg-white/10"
+        >
+          + MANAGE PROPERTIES
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
-          <div className="flex flex-col items-end gap-4">
-            <div className="flex items-center gap-4">
-                <button 
-                 onClick={handleResetInventory}
-                 disabled={isPending}
-                 className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:border-amber-400/30 transition-all"
-                >
-                 {isPending ? <Loader2 size={12} className="animate-spin text-amber-400" /> : <Database size={12} />}
-                 Reset Registry
-                </button>
-                <Link href={`/`} className='text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500 transition-colors' scroll={false}>Return</Link>
-            </div>
-            
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-              <input 
-                type="text" placeholder="Search Unit / Guest Name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl placeholder:text-slate-700" 
-              />
-            </div>
-          </div>
-        </header>
+      <header className="max-w-[1700px] mx-auto mb-8 md:mb-12 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+  {/* Left Section: Title & Status */}
+  <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+    <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tighter text-white uppercase italic leading-[0.8]">
+      Inventory.
+    </h1>
+    <div className="flex items-center gap-3 mt-4">
+      <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+      <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em]">
+        Active Operation Cluster
+      </p>
+    </div>
+  </div>
+
+  {/* Right Section: Controls & Search */}
+  <div className="flex flex-col items-center lg:items-end gap-4 w-full lg:w-auto">
+    <div className="flex items-center gap-4">
+      <button 
+        onClick={handleResetInventory}
+        disabled={isPending}
+        className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:border-amber-400/30 transition-all active:scale-95"
+      >
+        {isPending ? <Loader2 size={12} className="animate-spin text-amber-400" /> : <Database size={12} />}
+        Reset Registry
+      </button>
+      <Link 
+        href={`/`} 
+        className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500 transition-colors" 
+        scroll={false}
+      >
+        Return
+      </Link>
+    </div>
+    
+    {/* Search Bar - Responsive Width */}
+    <div className="relative w-full max-w-sm lg:max-w-md">
+      <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+      <input 
+        type="text" 
+        placeholder="Search Unit / Guest Name..." 
+        value={searchQuery} 
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-3.5 md:py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl placeholder:text-slate-700" 
+      />
+    </div>
+  </div>
+</header>
 
         <div className="max-w-[1700px] mx-auto mb-16">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
