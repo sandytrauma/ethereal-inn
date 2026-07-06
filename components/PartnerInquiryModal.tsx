@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { submitPartnerInquiry } from "@/lib/actions/partner-inquiry";
 import { X, CheckCircle, Sparkles, Building2 } from "lucide-react";
+import { checkRateLimit } from "@/lib/actions/inquiry-form-rate-limit";
 
 // 🌟 TypeScript Global Override Declaration for Google Tags
 declare global {
@@ -35,13 +36,20 @@ export default function PartnerInquiryModal({ onClose }: { onClose: () => void }
 
   const [isPending, startTransition] = useTransition();
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const [error, setError] = useState<string | null | undefined>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Basic data sanity gate check
+    // 1. Client-side Rate Limit Gate
+    // This calls your existing Upstash function before proceeding
+    const limitCheck = await checkRateLimit("partner_inquiry_session");
+    if (!limitCheck.success) {
+      setError(limitCheck.message);
+      return;
+    }
+
     if (formData.totalRooms <= 0) {
       setError("Please specify a valid room count greater than 0.");
       return;
@@ -53,12 +61,10 @@ export default function PartnerInquiryModal({ onClose }: { onClose: () => void }
       if (result.success) {
         setIsSubmitted(true);
 
-        // 🎯 GOOGLE ADS CONVERSION INJECTION LAYER
-        // Fires only when the database commits and passes back a success boolean token
         if (typeof window !== "undefined" && window.gtag) {
           window.gtag("event", "conversion_event_contact", {
             event_callback: () => {
-              console.log("🚀 B2B Conversion pipeline verified by Google Analytics.");
+              console.log("🚀 B2B Conversion pipeline verified.");
             },
           });
         }
@@ -69,7 +75,7 @@ export default function PartnerInquiryModal({ onClose }: { onClose: () => void }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center mt-24 p-4">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center mt-24 p-4 z-[60]">
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl w-full max-w-md max-h-[95vh] overflow-y-auto text-slate-200 relative animate-in zoom-in-95 duration-150">
         
         {/* Absolute Close Action Pin */}
