@@ -23,13 +23,33 @@ export const metadata: Metadata = {
   title: "Ethereal Inn Hospitality LLP | Luxury Boutique Stays & Tech Platforms",
   description: "Experience premium boutique luxury accommodations, aesthetic spaces, and advanced cloud-native technology platforms managed by Ethereal Inn Hospitality LLP.",
   keywords: [
-    "Ethereal Inn Hospitality LLP",
-    "Luxury Hotel Delhi", 
-    "Boutique Stay Delhi", 
-    "Hotels near Metro", 
-    "Ethereal Inn New Delhi",
-    "Ethereal Glam",
-    "Urban Ambrosia"
+   "Ethereal Inn Hospitality LLP", "Luxury Hotel Delhi", "Boutique Stay Delhi", 
+    "Hotels near Metro", "Ethereal Inn New Delhi", "Ethereal Glam", "Urban Ambrosia",
+    "Luxury boutique hotels near me", "Best boutique stays in Delhi NCR", 
+    "Hotels near metro station Dwarka", "Top-rated luxury hotels in West Delhi", 
+    "Boutique hotel with banquet hall near me", "Staycations in Delhi for couples", 
+    "Urban Ambrosia cloud kitchen Dwarka", "Ethereal Glam salon near Dwarka",
+    // Brand & Identity Anchors
+    "Ethereal Inn Hospitality LLP", "Ethereal Inn Dwarka", "Ethereal Inn Matiala", 
+    "Ethereal Glam Studio", "Urban Ambrosia Cloud Kitchen", "Ethereal Inn New Delhi",
+    
+    // High-Intent Local (Matiala & Dwarka)
+    "Luxury boutique hotel in Matiala", "Best boutique stay near Akash Hospital", 
+    "Hotels near Akash Hospital Dwarka", "Boutique stay in Dwarka Sector 3", 
+    "Premium accommodation near Matiala metro station", "Hotels near Dwarka Mor", 
+    "Best hotel for hospital visitors in Dwarka", "Luxury suites West Delhi",
+    
+    // Consumer-Focused "Near Me" & Utility
+    "Luxury boutique hotels near me", "Best luxury staycation Delhi NCR", 
+    "Hotels with cloud kitchen dining near me", "Boutique hotel with banquet hall", 
+    "Safe luxury stay for hospital attendants", "Business hotel with high-speed wifi Dwarka", 
+    "Premium grooming and salon services Dwarka", "Boutique hotel with 24/7 reception",
+    
+    // Service-Specific Node Anchors
+    "Gourmet food delivery Matiala", "Luxury salon near Matiala village", 
+    "Tech-enabled boutique hotel rooms", "Hospitality services for Akash Hospital patients",
+    "Exclusive staycation packages West Delhi"
+
   ],
   authors: [{ name: "Ethereal Inn Hospitality LLP" }],
   icons: {

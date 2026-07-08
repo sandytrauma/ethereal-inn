@@ -20,16 +20,16 @@ const PROPERTIES = [
     embedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3502.1384318721735!2d77.04169727550057!3d28.625586675667355!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390d0563459e97f9%3A0xc3b86948041c2966!2sPanchsheel%20Nursing%20Home!5e0!3m2!1sen!2sin!4v1714995543210",
     directLink: "https://maps.google.com/?q=Panchsheel+Nursing+Home+Mohan+Garden"
   },
-  {
+ {
     id: "dwarka-matiala",
-    name: "Ethereal Inn - Dwarka",
+    name: "Hotel Ethereal Inn - Matiala, Dwarka",
     location: "Matiala, Dwarka",
     mainHeading: "Dwarka Hub.",
     landmark: "Located near Akash Hospital, Matiala",
     description: "Strategically located near Akash Hospital, Matiala, offering premium access to the Dwarka sub-city hub.",
-    // Google Maps Embed for Akash Hospital, Matiala area
-    embedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3503.2235472254386!2d77.03847847549925!3d28.60055457568102!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390d1ad770994f7d%3A0x6b19a31a980c55f!2sAkash%20Healthcare%20Super%20Speciality%20Hospital!5e0!3m2!1sen!2sin!4v1715000000000",
-    directLink: "https://maps.google.com/?q=Akash+Hospital+Matiala+Dwarka"
+    // Updated with precise coordinates (28.60783073547553, 77.0464921020415)
+    embedUrl: "https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3503.2235472254386!2d77.0464921!3d28.6078307!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1d28.6078307!2d77.0464921!5e0!3m2!1sen!2sin!4v1715000000000",
+    directLink: "https://maps.google.com/?q=28.60783073547553,77.0464921020415"
   }
 ];
 
