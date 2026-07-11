@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { AnalyticsCard } from "./AnalyticsCard";
 
 // --- TYPE INTERFACES ---
 interface Room {
@@ -165,37 +166,59 @@ export default function PMSDashboard({
   }, [properties]);
 
   // Advanced Analytics Statistical Models & Predictive Forecasting Calculations
-  const advancedAnalytics = useMemo(() => {
-    const activeDataPool = isGlobal 
-      ? properties 
-      : properties.filter(p => p.id === selectedPropertyId);
+const advancedAnalytics = useMemo(() => {
+  // 1. Data Retrieval: Normalized for Global vs Property level
+  const collection = isGlobal 
+    ? globalStats.totalRevenue 
+    : Number(currentProperty?.finance?.totalCollection || 0);
+  
+  const totalRooms = isGlobal 
+    ? globalStats.totalRooms 
+    : (currentProperty?.rooms?.length || 0);
 
-    const RevPAR = isGlobal 
-      ? (globalStats.totalRooms > 0 ? (globalStats.totalRevenue / globalStats.totalRooms) : 0)
-      : (currentProperty?.rooms?.length ? (Number(currentProperty.finance?.totalCollection || 0) / currentProperty.rooms.length) : 0);
+  const occupiedRooms = isGlobal 
+    ? globalStats.totalOccupied 
+    : (currentProperty?.rooms?.filter(r => ['occupied', 'CheckedIn'].includes(r.status)).length || 0);
 
-    const ADR = isGlobal
-      ? (globalStats.totalOccupied > 0 ? (globalStats.totalRevenue / globalStats.totalOccupied) : 0)
-      : ((currentProperty?.rooms?.filter(r => r.status === 'occupied').length) 
-          ? (Number(currentProperty?.finance?.totalCollection || 0) / currentProperty.rooms.filter(r => r.status === 'occupied').length) 
-          : Number(currentProperty?.finance?.totalCollection || 0));
+  // 2. Dynamic Time Context (Accurate MTD calculation)
+  const now = new Date();
+  const currentDay = now.getDate(); 
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
-    // Forecast projection computation using contextual parameter metrics
-    const baseOccupancyFactor = isGlobal ? (globalStats.totalOccupied / globalStats.totalRooms || 0) : ((currentProperty?.rooms?.filter(r => r.status === 'occupied').length || 0) / (currentProperty?.rooms?.length || 1));
-    const projectedGrowthRate = 1.085; // Establishes programmatic seasonal multiplier parameter curves
-    const forecastedOccupancyPercent = Math.min(100, Math.max(12, baseOccupancyFactor * 100 * projectedGrowthRate));
-    
-    const currentBaseRevenue = isGlobal ? globalStats.totalRevenue : Number(currentProperty?.finance?.totalCollection || 0);
-    const forecastedNextMonthRevenue = currentBaseRevenue * (0.4 + (forecastedOccupancyPercent / 100) * 0.7) * projectedGrowthRate;
+  // 3. Metric Calculations (Time-normalized for accuracy)
+  // RevPAR: Daily Avg Revenue / Total Inventory
+  const avgDailyRevenue = currentDay > 0 ? (collection / currentDay) : 0;
+  const RevPAR = totalRooms > 0 ? (avgDailyRevenue / totalRooms) : 0;
 
-    return {
-      RevPAR: Math.round(RevPAR),
-      ADR: Math.round(ADR),
-      forecastedOccupancy: forecastedOccupancyPercent.toFixed(1) + "%",
-      forecastedRevenue: Math.round(forecastedNextMonthRevenue).toLocaleString("en-IN"),
-      growthIndicator: forecastedOccupancyPercent > (baseOccupancyFactor * 100) ? "up" : "down"
-    };
-  }, [isGlobal, properties, selectedPropertyId, globalStats, currentProperty]);
+  // ADR: Realized value per occupied unit
+  const ADR = occupiedRooms > 0 ? (collection / occupiedRooms) : 0;
+
+  // 4. Weighted Forecasting Logic (Ambition-based projections)
+  const targetMonthlyRevenue = (totalRooms * 0.7) * 1500 * daysInMonth; 
+  const currentRunRate = avgDailyRevenue * daysInMonth; 
+  const weightedForecast = (currentRunRate * 0.7) + (targetMonthlyRevenue * 0.3);
+
+  // 5. Occupancy Projection
+  const baseOccupancy = totalRooms > 0 ? (occupiedRooms / totalRooms) : 0;
+  const growthRate = 1.085; 
+  const forecastedOccupancyPercent = Math.min(100, (baseOccupancy * growthRate) * 100);
+
+  return {
+    RevPAR: Math.round(RevPAR),
+    ADR: Math.round(ADR),
+    forecastedOccupancy: `${forecastedOccupancyPercent.toFixed(1)}%`,
+    forecastedRevenue: Math.round(weightedForecast).toLocaleString("en-IN"),
+    growthIndicator: forecastedOccupancyPercent > (baseOccupancy * 100) ? "up" : "down"
+  };
+
+// FULL DEPENDENCY BINDING
+}, [
+  isGlobal, 
+  properties, 
+  selectedPropertyId, 
+  globalStats, 
+  currentProperty
+]);
 
   const navLinks = [
     { label: "Dashboard", icon: <Grid size={18} /> },
@@ -460,64 +483,34 @@ export default function PMSDashboard({
           {/* ========================================================================= */}
           {activeTab === "Advanced Analytics" && (
             <div className="space-y-8 animate-fadeIn">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Predictive Intelligence & Yield Controls</h2>
-                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Algorithmic Forecasting Models for Ethereal Asset Pools</p>
-                </div>
-                <div className="px-4 py-2 bg-slate-900 text-amber-400 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center gap-2 shadow-md">
-                  <Activity size={12} className="animate-pulse" /> Predictive Processing Engine Active
-                </div>
-              </div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Predictive Intelligence & Yield Controls</h2>
+        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Algorithmic Forecasting Models for Ethereal Asset Pools</p>
+      </div>
+      <div className="px-4 py-2 bg-slate-900 text-amber-400 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center gap-2 shadow-md">
+        <Activity size={12} className="animate-pulse" /> Predictive Processing Engine Active
+      </div>
+    </div>
 
-              {/* Advanced Valuation Core Cards Matrix */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="p-6 bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col justify-between">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">RevPAR (Yield Index)</span>
-                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Layers size={16} /></div>
-                  </div>
-                  <div>
-                    <h4 className="text-3xl font-black text-slate-900 italic">₹{advancedAnalytics.RevPAR}</h4>
-                    <p className="text-[8px] text-slate-400 font-bold mt-2 uppercase">Revenue Per Available Unit Allocation</p>
-                  </div>
-                </div>
-
-                <div className="p-6 bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col justify-between">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">ADR (Average Daily Rate)</span>
-                    <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><PieChart size={16} /></div>
-                  </div>
-                  <div>
-                    <h4 className="text-3xl font-black text-slate-900 italic">₹{advancedAnalytics.ADR}</h4>
-                    <p className="text-[8px] text-slate-400 font-bold mt-2 uppercase">Mean Realized Active Booking Value</p>
-                  </div>
-                </div>
-
-                <div className="p-6 bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col justify-between">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Projected Run Rate Occupancy</span>
-                    <div className="p-2 bg-pink-50 text-pink-600 rounded-lg"><TrendingUp size={16} /></div>
-                  </div>
-                  <div>
-                    <h4 className="text-3xl font-black text-slate-900 italic">{advancedAnalytics.forecastedOccupancy}</h4>
-                    <div className="flex items-center gap-1 text-emerald-500 text-[9px] font-black uppercase mt-2">
-                      {advancedAnalytics.growthIndicator === "up" ? <TrendingUp size={12} /> : <TrendingDown size={12} />} +8.5% Run Velocity
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-6 bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-[2rem] shadow-xl flex flex-col justify-between border border-white/5">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Forecasted 30-Day Collection</span>
-                    <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><Zap size={16} /></div>
-                  </div>
-                  <div>
-                    <h4 className="text-3xl font-black text-amber-400 italic">₹{advancedAnalytics.forecastedRevenue}</h4>
-                    <p className="text-[8px] text-slate-500 font-bold mt-2 uppercase tracking-wide">Predictive Linear Estimation Target</p>
-                  </div>
-                </div>
-              </div>
+    {/* Analytics Matrix */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <AnalyticsCard title="RevPAR" value={`₹${advancedAnalytics.RevPAR}`} label="Revenue Per Available Unit" icon={Layers} color="blue" />
+      <AnalyticsCard title="ADR" value={`₹${advancedAnalytics.ADR}`} label="Mean Realized Booking Value" icon={PieChart} color="purple" />
+      <AnalyticsCard title="Projected Occupancy" value={advancedAnalytics.forecastedOccupancy} label="Run Rate Velocity" icon={TrendingUp} color="pink" />
+      
+      {/* Revenue Forecast Card */}
+      <div className="p-6 bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-[2rem] shadow-xl flex flex-col justify-between border border-white/5">
+        <div className="flex justify-between items-start mb-4">
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Forecasted 30-Day</span>
+          <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><Zap size={16} /></div>
+        </div>
+        <div>
+          <h4 className="text-3xl font-black text-amber-400 italic">₹{advancedAnalytics.forecastedRevenue}</h4>
+          <p className="text-[8px] text-slate-500 font-bold mt-2 uppercase tracking-wide">Predictive Linear Target</p>
+        </div>
+      </div>
+    </div>
 
               {/* Algorithmic Pricing Distribution Vectors and Graphs Visualizer Section */}
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
