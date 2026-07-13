@@ -27,7 +27,7 @@ import {
   PieChart,
   Activity,
   Layers,
-  Zap
+  Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -37,13 +37,18 @@ import { AnalyticsCard } from "./AnalyticsCard";
 interface Room {
   id: number;
   number: string | number;
-  status: "occupied" | "available" | "cleaning" | "maintenance" | "vacant" |"CheckedIn"  // Add this to accept the database state cleanly
-    | "Occupied"   // Add this to match server hydration strings perfectlynull;
+  status:
+    | "occupied"
+    | "available"
+    | "cleaning"
+    | "maintenance"
+    | "vacant"
+    | "CheckedIn" // Add this to accept the database state cleanly
+    | "Occupied"; // Add this to match server hydration strings perfectlynull;
   guestName?: string | null;
   totalGuests?: number;
   idNumber?: string;
   propertyName?: string;
-  
 }
 
 interface Property {
@@ -65,6 +70,10 @@ interface Property {
   statutory: any[];
 }
 
+interface FinanceRecord {
+  opex_target: number;
+}
+
 interface DashboardProps {
   properties: Property[];
   rooms?: any[];
@@ -84,10 +93,10 @@ export default function PMSDashboard({
   const [activeTab, setActiveTab] = useState<string>("Dashboard");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | "global">(
-    properties && properties.length > 0 ? properties[0].id : "global"
-  );
-
+  const [selectedPropertyId, setSelectedPropertyId] = useState<
+    string | "global"
+  >(properties && properties.length > 0 ? properties[0].id : "global");
+  const [dynamicOpexInput, setDynamicOpexInput] = useState<string>("");
   const router = useRouter();
   const normalizedRole = user?.role?.trim().toLowerCase();
 
@@ -116,7 +125,8 @@ export default function PMSDashboard({
           Access Restricted
         </h1>
         <p className="text-slate-500 text-sm mt-2 font-bold max-w-xs">
-          Your account role ({user?.role || "Guest"}) does not match the required 'admin' privilege layout.
+          Your account role ({user?.role || "Guest"}) does not match the
+          required 'admin' privilege layout.
         </p>
         <button
           onClick={() => (window.location.href = "/ethereal-inn")}
@@ -132,23 +142,43 @@ export default function PMSDashboard({
 
   const currentProperty = useMemo(
     () => properties?.find((p) => p.id === selectedPropertyId),
-    [selectedPropertyId, properties]
+    [selectedPropertyId, properties],
   );
 
   // Core Financial and Operational Metric Analytics Engine
   const globalStats = useMemo(() => {
-    const totalRevenue = properties.reduce((acc, p) => acc + Number(p.finance?.totalCollection || 0), 0);
-    const totalExpenses = properties.reduce((acc, p) => acc + Number(p.finance?.expenses || 0), 0);
-    const totalUpi = properties.reduce((acc, p) => acc + Number(p.finance?.upiRevenue || 0), 0);
-    const totalCash = properties.reduce((acc, p) => acc + Number(p.finance?.cashRevenue || 0), 0);
-    
-    const netRevenue = totalRevenue - totalExpenses;
-    const profitMargin = totalRevenue > 0 ? (netRevenue / totalRevenue) * 100 : 0;
+    const totalRevenue = properties.reduce(
+      (acc, p) => acc + Number(p.finance?.totalCollection || 0),
+      0,
+    );
+    const totalExpenses = properties.reduce(
+      (acc, p) => acc + Number(p.finance?.expenses || 0),
+      0,
+    );
+    const totalUpi = properties.reduce(
+      (acc, p) => acc + Number(p.finance?.upiRevenue || 0),
+      0,
+    );
+    const totalCash = properties.reduce(
+      (acc, p) => acc + Number(p.finance?.cashRevenue || 0),
+      0,
+    );
 
-    const totalRooms = properties.reduce((acc, p) => acc + (p.rooms?.length || 0), 0);
+    const netRevenue = totalRevenue - totalExpenses;
+    const profitMargin =
+      totalRevenue > 0 ? (netRevenue / totalRevenue) * 100 : 0;
+
+    const totalRooms = properties.reduce(
+      (acc, p) => acc + (p.rooms?.length || 0),
+      0,
+    );
     const totalOccupied = properties.reduce(
-      (acc, p) => acc + (p.rooms?.filter((r) => r.status === "occupied" || r.status === "CheckedIn").length || 0),
-      0
+      (acc, p) =>
+        acc +
+        (p.rooms?.filter(
+          (r) => r.status === "occupied" || r.status === "CheckedIn",
+        ).length || 0),
+      0,
     );
 
     return {
@@ -158,67 +188,112 @@ export default function PMSDashboard({
       totalCash,
       netRevenue,
       profitMargin: profitMargin.toFixed(1) + "%",
-      avgOccupancy: totalRooms > 0 ? ((totalOccupied / totalRooms) * 100).toFixed(1) + "%" : "0%",
-      totalArrivals: properties.reduce((acc, p) => acc + (p.stats?.arrivals || 0), 0),
+      avgOccupancy:
+        totalRooms > 0
+          ? ((totalOccupied / totalRooms) * 100).toFixed(1) + "%"
+          : "0%",
+      totalArrivals: properties.reduce(
+        (acc, p) => acc + (p.stats?.arrivals || 0),
+        0,
+      ),
       totalRooms,
-      totalOccupied
+      totalOccupied,
     };
   }, [properties]);
 
   // Advanced Analytics Statistical Models & Predictive Forecasting Calculations
-const advancedAnalytics = useMemo(() => {
-  // 1. Data Retrieval: Normalized for Global vs Property level
-  const collection = isGlobal 
-    ? globalStats.totalRevenue 
-    : Number(currentProperty?.finance?.totalCollection || 0);
-  
-  const totalRooms = isGlobal 
-    ? globalStats.totalRooms 
-    : (currentProperty?.rooms?.length || 0);
+  const advancedAnalytics = useMemo(() => {
+    // 1. Data Retrieval
+    const dailyRevenue = isGlobal
+      ? globalStats.totalRevenue / new Date().getDate()
+      : Number(currentProperty?.finance?.totalCollection || 0);
 
-  const occupiedRooms = isGlobal 
-    ? globalStats.totalOccupied 
-    : (currentProperty?.rooms?.filter(r => ['occupied', 'CheckedIn'].includes(r.status)).length || 0);
+    const totalRooms = isGlobal
+      ? globalStats.totalRooms
+      : currentProperty?.rooms?.length || 0;
 
-  // 2. Dynamic Time Context (Accurate MTD calculation)
-  const now = new Date();
-  const currentDay = now.getDate(); 
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const occupiedRooms = isGlobal
+      ? globalStats.totalOccupied
+      : currentProperty?.rooms?.filter((r) =>
+          ["occupied", "CheckedIn"].includes(r.status),
+        ).length || 0;
 
-  // 3. Metric Calculations (Time-normalized for accuracy)
-  // RevPAR: Daily Avg Revenue / Total Inventory
-  const avgDailyRevenue = currentDay > 0 ? (collection / currentDay) : 0;
-  const RevPAR = totalRooms > 0 ? (avgDailyRevenue / totalRooms) : 0;
+    // 2. Dynamic Time Context
+    const now = new Date();
+    const currentDay = now.getDate();
+    const daysInMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+    ).getDate();
 
-  // ADR: Realized value per occupied unit
-  const ADR = occupiedRooms > 0 ? (collection / occupiedRooms) : 0;
+    // 3. MTD EXTRAPOLATION
+    const mtdCollection = dailyRevenue * currentDay;
 
-  // 4. Weighted Forecasting Logic (Ambition-based projections)
-  const targetMonthlyRevenue = (totalRooms * 0.7) * 1500 * daysInMonth; 
-  const currentRunRate = avgDailyRevenue * daysInMonth; 
-  const weightedForecast = (currentRunRate * 0.7) + (targetMonthlyRevenue * 0.3);
+    // DYNAMIC OPEX CALCULATION
+    const baselineOpex = 100000;
+    const activeOpex =
+      dynamicOpexInput && Number(dynamicOpexInput) > 0
+        ? Number(dynamicOpexInput)
+        : baselineOpex;
 
-  // 5. Occupancy Projection
-  const baseOccupancy = totalRooms > 0 ? (occupiedRooms / totalRooms) : 0;
-  const growthRate = 1.085; 
-  const forecastedOccupancyPercent = Math.min(100, (baseOccupancy * growthRate) * 100);
+    // Net Revenue relative to the active (dynamic or baseline) OPEX
+    const netRevenue = mtdCollection - activeOpex;
 
-  return {
-    RevPAR: Math.round(RevPAR),
-    ADR: Math.round(ADR),
-    forecastedOccupancy: `${forecastedOccupancyPercent.toFixed(1)}%`,
-    forecastedRevenue: Math.round(weightedForecast).toLocaleString("en-IN"),
-    growthIndicator: forecastedOccupancyPercent > (baseOccupancy * 100) ? "up" : "down"
-  };
+    // 4. Metric Calculations
+    const RevPAR = totalRooms > 0 ? dailyRevenue / totalRooms : 0;
+    const ADR = occupiedRooms > 0 ? dailyRevenue / occupiedRooms : 0;
+    const profitMargin =
+      mtdCollection > 0 ? ((netRevenue / mtdCollection) * 100).toFixed(1) : "0";
 
-// FULL DEPENDENCY BINDING
-}, [
-  isGlobal, 
-  properties, 
-  selectedPropertyId, 
-  globalStats, 
-  currentProperty
-]);
+    // 5. Forecasting & Projection
+    const projectedMonthlyRevenue = dailyRevenue * daysInMonth;
+    const targetMonthlyRevenue = totalRooms * 0.7 * 1500 * daysInMonth;
+    const weightedForecast =
+      projectedMonthlyRevenue * 0.7 + targetMonthlyRevenue * 0.3;
+
+    // Profitability projection
+    const projectedNetProfit = weightedForecast - activeOpex;
+    const breakEvenProgress =
+      activeOpex > 0 ? (mtdCollection / activeOpex) * 100 : 0;
+
+    const baseOccupancy = totalRooms > 0 ? occupiedRooms / totalRooms : 0;
+    const growthRate = 1.085;
+    const forecastedOccupancyPercent = Math.min(
+      100,
+      baseOccupancy * growthRate * 100,
+    );
+
+    return {
+      totalRevenue: Math.round(mtdCollection),
+      totalExpenses: Math.round(activeOpex), // Reflects dynamic target
+      totalUpi: Number(currentProperty?.finance?.upiRevenue || 0),
+      totalCash: Number(currentProperty?.finance?.cashRevenue || 0),
+      netRevenue: Math.round(netRevenue),
+      projectedNetProfit: Math.round(projectedNetProfit), // New profit metric
+      breakEvenProgress: `${breakEvenProgress.toFixed(1)}%`, // New break-even metric
+      profitMargin: `${profitMargin}%`,
+      avgOccupancy: `${(baseOccupancy * 100).toFixed(1)}%`,
+      totalRooms: totalRooms,
+      totalOccupied: occupiedRooms,
+      RevPAR: Math.round(RevPAR),
+      ADR: Math.round(ADR),
+      forecastedOccupancy: `${forecastedOccupancyPercent.toFixed(1)}%`,
+      forecastedRevenue: Math.round(weightedForecast).toLocaleString("en-IN"),
+      growthIndicator:
+        forecastedOccupancyPercent > baseOccupancy * 100 ? "up" : "down",
+      status: projectedNetProfit > 0 ? "PROFITABLE" : "OPERATING LOSS",
+    };
+
+    // ADDED dynamicOpexInput TO DEPENDENCY ARRAY
+  }, [
+    isGlobal,
+    properties,
+    selectedPropertyId,
+    globalStats,
+    currentProperty,
+    dynamicOpexInput,
+  ]);
 
   const navLinks = [
     { label: "Dashboard", icon: <Grid size={18} /> },
@@ -230,13 +305,16 @@ const advancedAnalytics = useMemo(() => {
 
   const filteredRooms = (
     isGlobal
-      ? properties.flatMap((p) => p.rooms.map((r) => ({ ...r, propertyName: p.name })))
+      ? properties.flatMap((p) =>
+          p.rooms.map((r) => ({ ...r, propertyName: p.name })),
+        )
       : currentProperty?.rooms || []
   ).filter(
     (r) =>
       r.guestName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.number.toString().includes(searchTerm) ||
-      (isGlobal && r.propertyName?.toLowerCase().includes(searchTerm.toLowerCase()))
+      (isGlobal &&
+        r.propertyName?.toLowerCase().includes(searchTerm.toLowerCase())),
   );
 
   return (
@@ -264,7 +342,10 @@ const advancedAnalytics = useMemo(() => {
               E.
             </div>
             <span className="text-white font-bold tracking-tight text-xl">
-              Ethereal <span className="text-blue-500 text-[10px] align-top font-black tracking-widest">PMS</span>
+              Ethereal{" "}
+              <span className="text-blue-500 text-[10px] align-top font-black tracking-widest">
+                PMS
+              </span>
             </span>
           </div>
           <button
@@ -295,7 +376,10 @@ const advancedAnalytics = useMemo(() => {
             href="/sanctuary"
             className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-400 hover:text-white hover:bg-white/5 transition-all group"
           >
-            <SkipBack size={18} className="group-hover:text-amber-400 transition-colors" />
+            <SkipBack
+              size={18}
+              className="group-hover:text-amber-400 transition-colors"
+            />
             <span className="text-[11px] font-bold uppercase tracking-[0.2em]">
               The Sanctuary
             </span>
@@ -325,7 +409,7 @@ const advancedAnalytics = useMemo(() => {
                   const newId = e.target.value;
                   setSelectedPropertyId(newId);
                   if (newId === "global") {
-                    router.push("/pms/global"); 
+                    router.push("/pms/global");
                   } else {
                     router.push(`/pms/${newId}`);
                   }
@@ -339,7 +423,10 @@ const advancedAnalytics = useMemo(() => {
                   </option>
                 ))}
               </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <ChevronDown
+                size={14}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -360,7 +447,6 @@ const advancedAnalytics = useMemo(() => {
         </header>
 
         <div className="p-6 lg:p-10 overflow-y-auto space-y-8 pb-20 flex-1">
-          
           {/* ========================================================================= */}
           {/* TAB PANEL VIEW VIEW: STANDARD OPERATIONS DASHBOARD PANEL                   */}
           {/* ========================================================================= */}
@@ -386,17 +472,58 @@ const advancedAnalytics = useMemo(() => {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-8">
                 {isGlobal ? (
                   <>
-                    <StatCard icon={<TrendingUp size={22} />} label="Net Portfolio Revenue" value={`₹${globalStats.netRevenue.toLocaleString("en-IN")}`} bgColor="bg-blue-50 text-blue-600" />
-                    <StatCard icon={<Percent size={22} />} label="Aggregated Margin" value={globalStats.profitMargin} bgColor="bg-emerald-50 text-emerald-600" />
-                    <StatCard icon={<Bed size={22} />} label="Avg Occupancy" value={globalStats.avgOccupancy} bgColor="bg-pink-50 text-pink-600" />
-                    <StatCard icon={<LogIn size={22} />} label="Total Portfolio Arrivals" value={globalStats.totalArrivals} bgColor="bg-amber-50 text-amber-600" />
+                    <StatCard
+                      icon={<TrendingUp size={22} />}
+                      label="Net Portfolio Revenue"
+                      value={`₹${globalStats.netRevenue.toLocaleString("en-IN")}`}
+                      bgColor="bg-blue-50 text-blue-600"
+                    />
+                    <StatCard
+                      icon={<Percent size={22} />}
+                      label="Aggregated Margin"
+                      value={globalStats.profitMargin}
+                      bgColor="bg-emerald-50 text-emerald-600"
+                    />
+                    <StatCard
+                      icon={<Bed size={22} />}
+                      label="Avg Occupancy"
+                      value={globalStats.avgOccupancy}
+                      bgColor="bg-pink-50 text-pink-600"
+                    />
+                    <StatCard
+                      icon={<LogIn size={22} />}
+                      label="Total Portfolio Arrivals"
+                      value={globalStats.totalArrivals}
+                      bgColor="bg-amber-50 text-amber-600"
+                    />
                   </>
                 ) : (
                   <>
-                    <StatCard icon={<LogIn size={22} />} label="Arrivals Today" value={currentProperty?.stats.arrivals || 0} bgColor="bg-emerald-50 text-emerald-600" />
-                    <StatCard icon={<LogOut size={22} />} label="Departures Expected" value="0" bgColor="bg-amber-50 text-amber-600" />
-                    <StatCard icon={<Bed size={22} />} label="Unit Occupancy Tier" value={currentProperty?.stats.occupancyPercent || "0%"} subText={currentProperty?.stats.occupancy} bgColor="bg-pink-50 text-pink-600" />
-                    <StatCard icon={<Banknote size={22} />} label="Gross Total Revenue" value={`₹${(Number(currentProperty?.finance?.totalCollection) || 0).toLocaleString("en-IN")}`} bgColor="bg-blue-50 text-blue-600" />
+                    <StatCard
+                      icon={<LogIn size={22} />}
+                      label="Arrivals Today"
+                      value={currentProperty?.stats.arrivals || 0}
+                      bgColor="bg-emerald-50 text-emerald-600"
+                    />
+                    <StatCard
+                      icon={<LogOut size={22} />}
+                      label="Departures Expected"
+                      value="0"
+                      bgColor="bg-amber-50 text-amber-600"
+                    />
+                    <StatCard
+                      icon={<Bed size={22} />}
+                      label="Unit Occupancy Tier"
+                      value={currentProperty?.stats.occupancyPercent || "0%"}
+                      subText={currentProperty?.stats.occupancy}
+                      bgColor="bg-pink-50 text-pink-600"
+                    />
+                    <StatCard
+                      icon={<Banknote size={22} />}
+                      label="Gross Total Revenue"
+                      value={`₹${(Number(currentProperty?.finance?.totalCollection) || 0).toLocaleString("en-IN")}`}
+                      bgColor="bg-blue-50 text-blue-600"
+                    />
                   </>
                 )}
               </div>
@@ -405,11 +532,15 @@ const advancedAnalytics = useMemo(() => {
                 <div className="xl:col-span-8 bg-white rounded-[2rem] border border-slate-200 p-6 lg:p-8 shadow-sm">
                   <div className="flex justify-between items-center mb-8">
                     <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest italic">
-                      {isGlobal ? "Cross-Property Room Inventories" : "Live Unit Allocations"}
+                      {isGlobal
+                        ? "Cross-Property Room Inventories"
+                        : "Live Unit Allocations"}
                     </h3>
                     <div className="flex gap-2 items-center">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                      <span className="text-[9px] font-black uppercase text-slate-400">Live Infrastructure Monitoring</span>
+                      <span className="text-[9px] font-black uppercase text-slate-400">
+                        Live Infrastructure Monitoring
+                      </span>
                     </div>
                   </div>
                   <div className="overflow-x-auto">
@@ -417,37 +548,54 @@ const advancedAnalytics = useMemo(() => {
                       <thead className="text-[10px] uppercase text-slate-400 font-bold border-b border-slate-100">
                         <tr>
                           <th className="pb-5">Resident Name</th>
-                          {isGlobal && <th className="pb-5">Boutique Property</th>}
+                          {isGlobal && (
+                            <th className="pb-5">Boutique Property</th>
+                          )}
                           <th className="pb-5 text-center">Unit</th>
                           <th className="pb-5 text-right">Status State</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                        {filteredRooms.slice(0, 15).map((room: any, idx: number) => (
-                          <tr key={room.id || idx} className="hover:bg-slate-50/50 transition-colors group">
-                            <td className="py-5">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                  {room.guestName?.charAt(0) || "V"}
-                                </div>
-                                <span className="font-black text-[11px] uppercase text-slate-700">
-                                  {room.guestName || "Vacant Room Segment"}
-                                </span>
-                              </div>
-                            </td>
-                            {isGlobal && (
+                        {filteredRooms
+                          .slice(0, 15)
+                          .map((room: any, idx: number) => (
+                            <tr
+                              key={room.id || idx}
+                              className="hover:bg-slate-50/50 transition-colors group"
+                            >
                               <td className="py-5">
-                                <span className="text-[9px] font-black uppercase text-slate-400">{room.propertyName}</span>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    {room.guestName?.charAt(0) || "V"}
+                                  </div>
+                                  <span className="font-black text-[11px] uppercase text-slate-700">
+                                    {room.guestName || "Vacant Room Segment"}
+                                  </span>
+                                </div>
                               </td>
-                            )}
-                            <td className="py-5 text-center font-black text-slate-900 text-md italic">#{room.number}</td>
-                            <td className="py-5 text-right">
-                              <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase ${
-                                room.status === "occupied" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
-                              }`}>{room.status || "available"}</span>
-                            </td>
-                          </tr>
-                        ))}
+                              {isGlobal && (
+                                <td className="py-5">
+                                  <span className="text-[9px] font-black uppercase text-slate-400">
+                                    {room.propertyName}
+                                  </span>
+                                </td>
+                              )}
+                              <td className="py-5 text-center font-black text-slate-900 text-md italic">
+                                #{room.number}
+                              </td>
+                              <td className="py-5 text-right">
+                                <span
+                                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase ${
+                                    room.status === "occupied"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-emerald-100 text-emerald-700"
+                                  }`}
+                                >
+                                  {room.status || "available"}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
                   </div>
@@ -455,23 +603,47 @@ const advancedAnalytics = useMemo(() => {
 
                 <div className="xl:col-span-4 bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
                   <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest italic mb-8">
-                    {isGlobal ? "System Portfolio Inquiries" : "Active Room Enquiries"}
+                    {isGlobal
+                      ? "System Portfolio Inquiries"
+                      : "Active Room Enquiries"}
                   </h3>
                   <div className="space-y-5">
-                    {(isGlobal ? properties.flatMap((p) => p.inquiries) : currentProperty?.inquiries || []).slice(0, 6).map((inq, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 transition-all">
-                        <div className="flex gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-blue-500 shadow-sm"><FileText size={16} /></div>
-                          <div>
-                            <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1.5">{inq.source || "Meta/Google Ads Ad"}</p>
-                            <p className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                              <Clock size={10} /> {inq.createdAt ? new Date(inq.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "Recently Added"}
-                            </p>
+                    {(isGlobal
+                      ? properties.flatMap((p) => p.inquiries)
+                      : currentProperty?.inquiries || []
+                    )
+                      .slice(0, 6)
+                      .map((inq, idx) => (
+                        <div
+                          key={idx}
+                          className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 transition-all"
+                        >
+                          <div className="flex gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-blue-500 shadow-sm">
+                              <FileText size={16} />
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1.5">
+                                {inq.source || "Meta/Google Ads Ad"}
+                              </p>
+                              <p className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                                <Clock size={10} />{" "}
+                                {inq.createdAt
+                                  ? new Date(inq.createdAt).toLocaleTimeString(
+                                      [],
+                                      {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                        hour12: false,
+                                      },
+                                    )
+                                  : "Recently Added"}
+                              </p>
+                            </div>
                           </div>
+                          <ArrowUpRight size={14} className="text-slate-300" />
                         </div>
-                        <ArrowUpRight size={14} className="text-slate-300" />
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </div>
               </div>
@@ -483,60 +655,147 @@ const advancedAnalytics = useMemo(() => {
           {/* ========================================================================= */}
           {activeTab === "Advanced Analytics" && (
             <div className="space-y-8 animate-fadeIn">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div>
-        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Predictive Intelligence & Yield Controls</h2>
-        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Algorithmic Forecasting Models for Ethereal Asset Pools</p>
-      </div>
-      <div className="px-4 py-2 bg-slate-900 text-amber-400 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center gap-2 shadow-md">
-        <Activity size={12} className="animate-pulse" /> Predictive Processing Engine Active
-      </div>
-    </div>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">
+                    Predictive Intelligence & Yield Controls
+                  </h2>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">
+                    Algorithmic Forecasting Models for Ethereal Asset Pools
+                  </p>
+                </div>
 
-    {/* Analytics Matrix */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <AnalyticsCard title="RevPAR" value={`₹${advancedAnalytics.RevPAR}`} label="Revenue Per Available Unit" icon={Layers} color="blue" />
-      <AnalyticsCard title="ADR" value={`₹${advancedAnalytics.ADR}`} label="Mean Realized Booking Value" icon={PieChart} color="purple" />
-      <AnalyticsCard title="Projected Occupancy" value={advancedAnalytics.forecastedOccupancy} label="Run Rate Velocity" icon={TrendingUp} color="pink" />
-      
-      {/* Revenue Forecast Card */}
-      <div className="p-6 bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-[2rem] shadow-xl flex flex-col justify-between border border-white/5">
-        <div className="flex justify-between items-start mb-4">
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Forecasted 30-Day</span>
-          <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><Zap size={16} /></div>
-        </div>
-        <div>
-          <h4 className="text-3xl font-black text-amber-400 italic">₹{advancedAnalytics.forecastedRevenue}</h4>
-          <p className="text-[8px] text-slate-500 font-bold mt-2 uppercase tracking-wide">Predictive Linear Target</p>
-        </div>
-      </div>
-    </div>
+                {/* Dynamic OPEX Control */}
+                <div className="flex items-center gap-4">
+                  <input
+                    type="number"
+                    placeholder="OPEX(Def: 1,00,000)"
+                    value={dynamicOpexInput}
+                    onChange={(e) => setDynamicOpexInput(e.target.value)}
+                    className="px-4 py-2 bg-slate-100 text-black rounded-xl text-[10px] font-bold border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="px-4 py-2 bg-slate-900 text-amber-400 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center gap-2 shadow-md">
+                    <Activity size={12} className="animate-pulse" /> Predictive
+                    Processing Engine Active
+                  </div>
+                </div>
+              </div>
+
+              {/* Analytics Matrix */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <AnalyticsCard
+                  title="RevPAR"
+                  value={`₹${advancedAnalytics.RevPAR}`}
+                  label="Revenue Per Available Unit"
+                  icon={Layers}
+                  color="blue"
+                />
+                <AnalyticsCard
+                  title="ADR"
+                  value={`₹${advancedAnalytics.ADR}`}
+                  label="Mean Realized Booking Value"
+                  icon={PieChart}
+                  color="purple"
+                />
+                <AnalyticsCard
+                  title="Projected Occupancy"
+                  value={advancedAnalytics.forecastedOccupancy}
+                  label="Run Rate Velocity"
+                  icon={TrendingUp}
+                  color="pink"
+                />
+
+                {/* Financial Health / Profit Card */}
+                <div
+                  className={`p-6 rounded-[2rem] shadow-xl flex flex-col justify-between border ${advancedAnalytics.status === "PROFITABLE" ? "bg-emerald-900 border-emerald-500/20" : "bg-rose-900 border-rose-500/20"}`}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/60">
+                      Net Profit Projection
+                    </span>
+                    <div className="text-white/80">
+                      {advancedAnalytics.status}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-3xl font-black text-white italic">
+                      ₹
+                      {advancedAnalytics.projectedNetProfit.toLocaleString(
+                        "en-IN",
+                      )}
+                    </h4>
+                    <p className="text-[8px] text-white/70 font-bold mt-2 uppercase tracking-wide">
+                      Break-Even Progress: {advancedAnalytics.breakEvenProgress}
+                      %
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Forecasted 30-Day Card */}
+              <div className="p-6 bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-[2rem] shadow-xl flex flex-col justify-between border border-white/5">
+                <div className="flex justify-between items-start mb-4">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                    Forecasted 30-Day Revenue
+                  </span>
+                  <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg">
+                    <Zap size={16} />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-3xl font-black text-amber-400 italic">
+                    ₹{advancedAnalytics.forecastedRevenue}
+                  </h4>
+                  <p className="text-[8px] text-slate-500 font-bold mt-2 uppercase tracking-wide">
+                    Predictive Linear Target
+                  </p>
+                </div>
+              </div>
 
               {/* Algorithmic Pricing Distribution Vectors and Graphs Visualizer Section */}
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 <div className="xl:col-span-2 bg-white rounded-[2rem] border border-slate-200 p-6 lg:p-8 shadow-sm">
-                  <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest mb-6 italic">Cross-Channel Portfolio Performance Metrics</h3>
+                  <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest mb-6 italic">
+                    Cross-Channel Portfolio Performance Metrics
+                  </h3>
                   <div className="space-y-4">
                     {properties.map((p) => {
                       const propRooms = p.rooms?.length || 0;
-                      const propOccupied = p.rooms?.filter(r => r.status === 'occupied' || r.status === 'CheckedIn').length || 0;
-                      const occupancyRatio = propRooms > 0 ? (propOccupied / propRooms) * 100 : 0;
-                      
+                      const propOccupied =
+                        p.rooms?.filter(
+                          (r) =>
+                            r.status === "occupied" || r.status === "CheckedIn",
+                        ).length || 0;
+                      const occupancyRatio =
+                        propRooms > 0 ? (propOccupied / propRooms) * 100 : 0;
+
                       return (
-                        <div key={p.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div
+                          key={p.id}
+                          className="p-5 bg-slate-50 rounded-2xl border border-slate-100"
+                        >
                           <div className="flex justify-between text-xs font-black uppercase text-slate-700 mb-2">
                             <span>{p.name}</span>
-                            <span className="font-mono tracking-tighter text-blue-600">{occupancyRatio.toFixed(0)}% Occupancy</span>
+                            <span className="font-mono tracking-tighter text-blue-600">
+                              {occupancyRatio.toFixed(0)}% Occupancy
+                            </span>
                           </div>
                           <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                            <div 
-                              className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500" 
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500"
                               style={{ width: `${occupancyRatio}%` }}
                             />
                           </div>
                           <div className="flex justify-between text-[8px] font-bold uppercase text-slate-400 mt-2">
-                            <span>Rooms: {propOccupied} Active / {propRooms} Gross</span>
-                            <span>Direct Collection Contribution: ₹{(Number(p.finance?.totalCollection) || 0).toLocaleString("en-IN")}</span>
+                            <span>
+                              Rooms: {propOccupied} Active / {propRooms} Gross
+                            </span>
+                            <span>
+                              Direct Collection Contribution: ₹
+                              {(
+                                Number(p.finance?.totalCollection) || 0
+                              ).toLocaleString("en-IN")}
+                            </span>
                           </div>
                         </div>
                       );
@@ -546,15 +805,30 @@ const advancedAnalytics = useMemo(() => {
 
                 <div className="bg-white rounded-[2rem] border border-slate-200 p-6 lg:p-8 shadow-sm flex flex-col justify-between">
                   <div>
-                    <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest mb-6 italic">Direct Optimization Rules</h3>
+                    <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest mb-6 italic">
+                      Direct Optimization Rules
+                    </h3>
                     <div className="space-y-4">
                       <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-900">
-                        <h6 className="text-[10px] font-black uppercase mb-1">Dynamic Tariff Adjustments Recommended</h6>
-                        <p className="text-[9px] text-amber-800 leading-normal">Overall running occupancy matches current algorithmic peaks. Boost structural premium suite baseline cards by +5% to safely maximize margins.</p>
+                        <h6 className="text-[10px] font-black uppercase mb-1">
+                          Dynamic Tariff Adjustments Recommended
+                        </h6>
+                        <p className="text-[9px] text-amber-800 leading-normal">
+                          Overall running occupancy matches current algorithmic
+                          peaks. Boost structural premium suite baseline cards
+                          by +5% to safely maximize margins.
+                        </p>
                       </div>
                       <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-50/50 text-blue-900">
-                        <h6 className="text-[10px] font-black uppercase mb-1">Marketing Channel Pipeline Velocity</h6>
-                        <p className="text-[9px] text-blue-800 leading-normal">Lead volume pipelines from your targeted corporate-stay campaign configurations match institutional thresholds perfectly. Keep budgeting levels active.</p>
+                        <h6 className="text-[10px] font-black uppercase mb-1">
+                          Marketing Channel Pipeline Velocity
+                        </h6>
+                        <p className="text-[9px] text-blue-800 leading-normal">
+                          Lead volume pipelines from your targeted
+                          corporate-stay campaign configurations match
+                          institutional thresholds perfectly. Keep budgeting
+                          levels active.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -576,42 +850,84 @@ const advancedAnalytics = useMemo(() => {
                   <BarChart3 size={200} />
                 </div>
                 <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.5em] mb-4">
-                  {isGlobal ? "Portfolio Combined Yield Value" : "Individual Asset Value Mapping"}
+                  {isGlobal
+                    ? "Portfolio Combined Yield Value"
+                    : "Individual Asset Value Mapping"}
                 </p>
                 <h4 className="text-5xl lg:text-7xl font-black italic tracking-tighter mb-12">
-                  ₹ {isGlobal ? globalStats.netRevenue.toLocaleString("en-IN") : (Number(currentProperty?.finance?.totalCollection) - Number(currentProperty?.finance?.expenses || 0)).toLocaleString("en-IN")}
+                  ₹{" "}
+                  {isGlobal
+                    ? globalStats.netRevenue.toLocaleString("en-IN")
+                    : (
+                        Number(currentProperty?.finance?.totalCollection) -
+                        Number(currentProperty?.finance?.expenses || 0)
+                      ).toLocaleString("en-IN")}
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 relative z-10">
                   <div className="p-8 bg-white/5 rounded-[2rem] border border-white/10 backdrop-blur-md">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Total Collection</p>
-                    <p className="text-3xl font-black italic">₹ {isGlobal ? globalStats.totalRevenue.toLocaleString("en-IN") : (Number(currentProperty?.finance?.totalCollection) || 0).toLocaleString("en-IN")}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      Total Collection
+                    </p>
+                    <p className="text-3xl font-black italic">
+                      ₹{" "}
+                      {isGlobal
+                        ? globalStats.totalRevenue.toLocaleString("en-IN")
+                        : (
+                            Number(currentProperty?.finance?.totalCollection) ||
+                            0
+                          ).toLocaleString("en-IN")}
+                    </p>
                   </div>
                   <div className="p-8 bg-white/5 rounded-[2rem] border border-white/10 backdrop-blur-md">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Portfolio Margin Vector</p>
-                    <p className="text-3xl font-black italic text-emerald-400">{isGlobal ? globalStats.profitMargin : "SLA Stable"}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      Portfolio Margin Vector
+                    </p>
+                    <p className="text-3xl font-black italic text-emerald-400">
+                      {isGlobal ? globalStats.profitMargin : "SLA Stable"}
+                    </p>
                   </div>
                   <div className="p-8 bg-white/5 rounded-[2rem] border border-white/10 backdrop-blur-md">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Operational Petty Outflows</p>
-                    <p className="text-3xl font-black italic text-red-400">₹ {isGlobal ? globalStats.totalExpenses.toLocaleString("en-IN") : (Number(currentProperty?.finance?.expenses) || 0).toLocaleString("en-IN")}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      Operational Petty Outflows
+                    </p>
+                    <p className="text-3xl font-black italic text-red-400">
+                      ₹{" "}
+                      {isGlobal
+                        ? globalStats.totalExpenses.toLocaleString("en-IN")
+                        : (
+                            Number(currentProperty?.finance?.expenses) || 0
+                          ).toLocaleString("en-IN")}
+                    </p>
                   </div>
                 </div>
               </div>
-              
+
               {!isGlobal && (
                 <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 lg:p-10">
                   <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-8 italic flex items-center gap-3">
-                    <ShieldCheck size={18} className="text-blue-600" /> Compliance & Statutory Tracking Master
+                    <ShieldCheck size={18} className="text-blue-600" />{" "}
+                    Compliance & Statutory Tracking Master
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {currentProperty?.statutory?.map((item: any) => (
-                      <div key={item.id} className="flex justify-between items-center p-5 rounded-2xl bg-slate-50 border border-transparent hover:border-slate-200 transition-all">
+                      <div
+                        key={item.id}
+                        className="flex justify-between items-center p-5 rounded-2xl bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
+                      >
                         <div>
-                          <p className="text-xs font-black text-slate-800 uppercase mb-1">{item.licenseName}</p>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase italic">REG ID: {item.licenseNumber || "Processing Validation"}</p>
+                          <p className="text-xs font-black text-slate-800 uppercase mb-1">
+                            {item.licenseName}
+                          </p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase italic">
+                            REG ID:{" "}
+                            {item.licenseNumber || "Processing Validation"}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="text-[10px] font-black text-slate-900 uppercase">
-                            {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : "Permanent"}
+                            {item.expiryDate
+                              ? new Date(item.expiryDate).toLocaleDateString()
+                              : "Permanent"}
                           </p>
                           <span className="text-[8px] font-black uppercase text-emerald-500 flex items-center justify-end gap-1">
                             <CheckCircle2 size={10} /> Compliant
@@ -632,11 +948,18 @@ const advancedAnalytics = useMemo(() => {
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-fadeIn">
               <div className="p-8 lg:p-10 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                  <h3 className="font-black text-slate-900 uppercase italic text-2xl tracking-tighter">Guest Registration Master</h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Government Mandated Compliance & Identity Verification Logs</p>
+                  <h3 className="font-black text-slate-900 uppercase italic text-2xl tracking-tighter">
+                    Guest Registration Master
+                  </h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                    Government Mandated Compliance & Identity Verification Logs
+                  </p>
                 </div>
                 <div className="relative w-full md:w-80">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <Search
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={16}
+                  />
                   <input
                     type="text"
                     placeholder="Search Guest Name, Room ID or Property Context..."
@@ -650,11 +973,23 @@ const advancedAnalytics = useMemo(() => {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-100">
-                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Resident / Corporate Guest</th>
-                      {isGlobal && <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Boutique Property</th>}
-                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Unit Map</th>
-                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Pax Size</th>
-                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Verification ID Log (Masked)</th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Resident / Corporate Guest
+                      </th>
+                      {isGlobal && (
+                        <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          Boutique Property
+                        </th>
+                      )}
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Unit Map
+                      </th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        Pax Size
+                      </th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Verification ID Log (Masked)
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -662,10 +997,15 @@ const advancedAnalytics = useMemo(() => {
                       // SAFE REGIONAL PRIVACY-COMPLIANCE MASKING
                       // Securely handles masking layouts to block server/client rendering exceptions
                       const rawId = room.idNumber || "";
-                      const displayMask = rawId ? `•••• •••• ${rawId.slice(-4)}` : "•••• •••• ••••";
+                      const displayMask = rawId
+                        ? `•••• •••• ${rawId.slice(-4)}`
+                        : "•••• •••• ••••";
 
                       return (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                        <tr
+                          key={idx}
+                          className="hover:bg-slate-50 transition-colors"
+                        >
                           <td className="p-6">
                             <div className="flex items-center gap-4">
                               <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-sm">
@@ -678,13 +1018,19 @@ const advancedAnalytics = useMemo(() => {
                           </td>
                           {isGlobal && (
                             <td className="p-6">
-                              <span className="text-[10px] font-bold text-slate-500 uppercase">{room.propertyName || "Ethereal Inn Complex"}</span>
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                {room.propertyName || "Ethereal Inn Complex"}
+                              </span>
                             </td>
                           )}
                           <td className="p-6">
-                            <span className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black italic">#{room.number}</span>
+                            <span className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black italic">
+                              #{room.number}
+                            </span>
                           </td>
-                          <td className="p-6 text-center text-xs font-black text-slate-700">{room.totalGuests || (room.guestName ? 1 : 0)}</td>
+                          <td className="p-6 text-center text-xs font-black text-slate-700">
+                            {room.totalGuests || (room.guestName ? 1 : 0)}
+                          </td>
                           <td className="p-6">
                             <span className="text-[10px] font-mono font-bold text-slate-500 tracking-widest bg-slate-100 px-3 py-1.5 rounded-lg">
                               {displayMask}
@@ -706,45 +1052,77 @@ const advancedAnalytics = useMemo(() => {
             <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 lg:p-12 shadow-sm animate-fadeIn">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12">
                 <div>
-                  <h3 className="font-black text-slate-900 uppercase italic text-3xl tracking-tighter">Spatial Unit Allocation Map</h3>
+                  <h3 className="font-black text-slate-900 uppercase italic text-3xl tracking-tighter">
+                    Spatial Unit Allocation Map
+                  </h3>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                    {isGlobal ? "Comprehensive Portfolio Grid View" : "Active Individual Property Status Core"}
+                    {isGlobal
+                      ? "Comprehensive Portfolio Grid View"
+                      : "Active Individual Property Status Core"}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-2.5 rounded-[1.5rem] border border-slate-200">
                   <LegendItem color="bg-emerald-500" label="Available Status" />
                   <LegendItem color="bg-amber-500" label="Occupied Active" />
-                  <LegendItem color="bg-blue-400" label="Housekeeping In-Progress" />
+                  <LegendItem
+                    color="bg-blue-400"
+                    label="Housekeeping In-Progress"
+                  />
                   <LegendItem color="bg-slate-400" label="Maintenance Hold" />
                 </div>
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-11 gap-4">
-                {(isGlobal ? properties.flatMap((p) => p.rooms) : currentProperty?.rooms || [])
-                  .sort((a, b) => parseInt(a.number.toString()) - parseInt(b.number.toString()))
+                {(isGlobal
+                  ? properties.flatMap((p) => p.rooms)
+                  : currentProperty?.rooms || []
+                )
+                  .sort(
+                    (a, b) =>
+                      parseInt(a.number.toString()) -
+                      parseInt(b.number.toString()),
+                  )
                   .map((room, idx) => {
-                    let statusConfig = { bg: "bg-emerald-500 border-emerald-600", label: "Free" };
-                    if (room.status === "occupied" || room.status === "CheckedIn") {
-                      statusConfig = { bg: "bg-amber-500 border-amber-600", label: "Busy" };
+                    let statusConfig = {
+                      bg: "bg-emerald-500 border-emerald-600",
+                      label: "Free",
+                    };
+                    if (
+                      room.status === "occupied" ||
+                      room.status === "CheckedIn"
+                    ) {
+                      statusConfig = {
+                        bg: "bg-amber-500 border-amber-600",
+                        label: "Busy",
+                      };
                     } else if (room.status === "cleaning") {
-                      statusConfig = { bg: "bg-blue-400 border-blue-500", label: "Clean" };
+                      statusConfig = {
+                        bg: "bg-blue-400 border-blue-500",
+                        label: "Clean",
+                      };
                     } else if (room.status === "maintenance") {
-                      statusConfig = { bg: "bg-slate-400 border-slate-500", label: "Maint" };
+                      statusConfig = {
+                        bg: "bg-slate-400 border-slate-500",
+                        label: "Maint",
+                      };
                     }
-                    
+
                     return (
                       <div
                         key={room.id || idx}
                         className={`aspect-square rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-sm border text-white ${statusConfig.bg}`}
                       >
-                        <span className="text-xl font-black italic tracking-tighter leading-none mb-1">#{room.number}</span>
-                        <span className="text-[7px] font-black uppercase opacity-80">{statusConfig.label}</span>
+                        <span className="text-xl font-black italic tracking-tighter leading-none mb-1">
+                          #{room.number}
+                        </span>
+                        <span className="text-[7px] font-black uppercase opacity-80">
+                          {statusConfig.label}
+                        </span>
                       </div>
                     );
                   })}
               </div>
             </div>
           )}
-
         </div>
       </main>
     </div>
@@ -752,9 +1130,19 @@ const advancedAnalytics = useMemo(() => {
 }
 
 // =========================================================================
-// 3. AUXILIARY HUD SIDEBAR & STAT CARD CHILD LAYOUTS                       
+// 3. AUXILIARY HUD SIDEBAR & STAT CARD CHILD LAYOUTS
 // =========================================================================
-function SidebarLink({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
+function SidebarLink({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <div
       onClick={onClick}
@@ -764,23 +1152,49 @@ function SidebarLink({ icon, label, active, onClick }: { icon: React.ReactNode; 
           : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
       }`}
     >
-      <span className={`${active ? "scale-110" : ""} transition-transform`}>{icon}</span>
-      <span className="text-[11px] font-bold uppercase tracking-[0.2em]">{label}</span>
+      <span className={`${active ? "scale-110" : ""} transition-transform`}>
+        {icon}
+      </span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.2em]">
+        {label}
+      </span>
     </div>
   );
 }
 
-function StatCard({ icon, label, value, subText, bgColor }: { icon: React.ReactNode; label: string; value: string | number; subText?: string; bgColor: string }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  subText,
+  bgColor,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  subText?: string;
+  bgColor: string;
+}) {
   return (
     <div className="p-6 lg:p-8 rounded-[2rem] border border-slate-200 bg-white flex items-center gap-6 shadow-sm hover:shadow-md transition-all group overflow-hidden">
-      <div className={`w-14 h-14 lg:w-16 lg:h-16 rounded-2xl ${bgColor} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner`}>
+      <div
+        className={`w-14 h-14 lg:w-16 lg:h-16 rounded-2xl ${bgColor} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner`}
+      >
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 truncate">{label}</p>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 truncate">
+          {label}
+        </p>
         <div className="flex items-baseline gap-2">
-          <h4 className="text-2xl lg:text-3xl font-black text-slate-900 italic tracking-tighter leading-none truncate">{value}</h4>
-          {subText && <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate leading-none">{subText}</span>}
+          <h4 className="text-2xl lg:text-3xl font-black text-slate-900 italic tracking-tighter leading-none truncate">
+            {value}
+          </h4>
+          {subText && (
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate leading-none">
+              {subText}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -791,7 +1205,9 @@ function LegendItem({ color, label }: { color: string; label: string }) {
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-100">
       <div className={`w-2.5 h-2.5 rounded-full ${color}`}></div>
-      <span className="text-[9px] font-black uppercase text-slate-600 tracking-wider">{label}</span>
+      <span className="text-[9px] font-black uppercase text-slate-600 tracking-wider">
+        {label}
+      </span>
     </div>
   );
 }
