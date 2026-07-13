@@ -3,19 +3,38 @@
   "short_name": "Ethereal",
   "description": "Unified hospitality and operations platform.",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#02040a",
+  "theme_color": "#02040a",
   "icons": [
     {
-      "src": "/logo-bg.jpeg",
+      "src": "/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/jpeg"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/logo-bg.jpeg",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/jpeg"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "1080x2400",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Ethereal Inn Dashboard"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Ethereal Inn Admin Desktop"
     }
   ]
 }
