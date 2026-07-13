@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Grid,
   RefreshCw,
@@ -28,10 +28,15 @@ import {
   Activity,
   Layers,
   Zap,
+  ActivityIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AnalyticsCard } from "./AnalyticsCard";
+import { OperationalVelocityTab } from './OperationalVelocityTab'; 
+import { FinancialRecord } from './RevenueVelocityChart';
+import { getReportData } from "@/lib/actions/pms-actions";
+
 
 // --- TYPE INTERFACES ---
 interface Room {
@@ -71,6 +76,7 @@ interface Property {
 }
 
 interface FinanceRecord {
+  
   opex_target: number;
 }
 
@@ -99,6 +105,9 @@ export default function PMSDashboard({
   const [dynamicOpexInput, setDynamicOpexInput] = useState<string>("");
   const router = useRouter();
   const normalizedRole = user?.role?.trim().toLowerCase();
+  const [historicalRecords, setHistoricalRecords] = useState<any[]>([]);
+
+
 
   // Loading Fallback State Block
   if (!properties) {
@@ -201,6 +210,11 @@ export default function PMSDashboard({
     };
   }, [properties]);
 
+
+  
+
+
+
   // Advanced Analytics Statistical Models & Predictive Forecasting Calculations
   const advancedAnalytics = useMemo(() => {
     // 1. Data Retrieval
@@ -295,10 +309,24 @@ export default function PMSDashboard({
     dynamicOpexInput,
   ]);
 
+  useEffect(() => {
+  if (selectedPropertyId !== "global") {
+    getReportData(selectedPropertyId).then((data) => {
+      setHistoricalRecords(data);
+    });
+  } else {
+    setHistoricalRecords([]);
+  }
+}, [selectedPropertyId]);
+
+
+
+
   const navLinks = [
     { label: "Dashboard", icon: <Grid size={18} /> },
     { label: "Calendar", icon: <CalendarIcon size={18} /> },
     { label: "Advanced Analytics", icon: <BarChart3 size={18} /> },
+    { label: "Operational Velocity", icon: <ActivityIcon size={18} /> },
     { label: "Reports", icon: <FileText size={18} /> },
     { label: "Guests", icon: <User size={18} /> },
   ];
@@ -1045,6 +1073,15 @@ export default function PMSDashboard({
             </div>
           )}
 
+
+
+{activeTab === "Operational Velocity" && (
+  <OperationalVelocityTab 
+    // This now contains the real array from the database
+    financeRecords={historicalRecords as FinancialRecord[]} 
+    opexTarget={Number(dynamicOpexInput) || 176000} 
+  />
+)}
           {/* ========================================================================= */}
           {/* TAB PANEL VIEW VIEW: PROPERTY ALLOCATION GRID CALENDAR MAP                */}
           {/* ========================================================================= */}
@@ -1128,6 +1165,8 @@ export default function PMSDashboard({
     </div>
   );
 }
+
+
 
 // =========================================================================
 // 3. AUXILIARY HUD SIDEBAR & STAT CARD CHILD LAYOUTS

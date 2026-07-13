@@ -120,10 +120,13 @@ export async function getMultiPropertyData(propertyId: string) {
     const roomsList = rm || [];
     const occupiedCount = roomsList.filter(r => r.status === 'occupied').length;
 
+ 
+
     return {
       property: prop[0] || null,
       rooms: roomsList,
       tasks: tsk || [],
+      
       // 🌟 FIXED: Standardized field casing to resolve object structure mapping properties cleanly
       finance: fin[0] || { totalCollection: "0", upiRevenue: "0", cashRevenue: "0", pettyExpenses: "0", expenses: "0" },
       inquiries: inq || [],
