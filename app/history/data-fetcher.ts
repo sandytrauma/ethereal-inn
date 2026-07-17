@@ -20,11 +20,10 @@ export async function getCheckoutHistory() {
 
     // 1. Define the subquery clearly
     const checkInSubquery = sql<Date>`(
-      SELECT MAX(created_at) 
+      SELECT MIN(created_at) 
       FROM ${inquiries} 
       WHERE ${inquiries.propertyId} = ${invoices.propertyId}
       AND ${inquiries.message} LIKE CONCAT('Guest: ', ${invoices.guestName}, ' |%')
-      AND ${inquiries.status} = 'converted'
     )`.as("check_in_date");
 
     // 2. Build the initial query object with explicit type inference
