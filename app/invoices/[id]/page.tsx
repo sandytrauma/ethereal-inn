@@ -31,6 +31,7 @@ export default async function PublicInvoicePage({ params }: PublicInvoicePagePro
       roomNumber: invoices.roomNumber,
       guestName: invoices.guestName,
       totalAmount: invoices.totalAmount,
+      checkInDate: invoices.checkInDate,
       checkoutDate: invoices.checkoutDate,
       roomCheckIn: rooms.checkInTime // Natively matches your exact pgTable schema definition
     })
@@ -51,7 +52,7 @@ export default async function PublicInvoicePage({ params }: PublicInvoicePagePro
 
   // 3. DEFENSIVE STRATEGY fallback: If a receptionist already purged the guest file from the live room row,
   // mathematically calculate a 1-night fallback frame relative to check-out to avoid displaying template flags.
-  const resolvedCheckIn = joinedData.roomCheckIn || (joinedData.checkoutDate 
+  const resolvedCheckIn = joinedData.checkInDate || (joinedData.checkoutDate 
     ? new Date(new Date(joinedData.checkoutDate).getTime() - 24 * 60 * 60 * 1000) 
     : null);
 
@@ -62,7 +63,7 @@ export default async function PublicInvoicePage({ params }: PublicInvoicePagePro
     roomNumber: joinedData.roomNumber,
     guestName: joinedData.guestName,
     totalAmount: joinedData.totalAmount,
-    checkinDate: resolvedCheckIn, // Perfectly aligned casing contract mapping passed down
+    checkInDate: resolvedCheckIn, // Perfectly aligned casing contract mapping passed down
     checkoutDate: joinedData.checkoutDate,
   };
 

@@ -51,7 +51,8 @@ export default function GuestCheckoutHistory({ checkoutData }: GuestCheckoutHist
               <tr>
                 <th className="p-5">Guest Name</th>
                 <th className="p-5">Room</th>
-                <th className="p-5">Date</th>
+                <th className="p-5">CheckInDate</th>
+                <th className="p-5">CheckOutDate</th>
                 <th className="p-5">Amount</th>
                 <th className="p-5 text-right">Actions</th>
               </tr>
@@ -61,6 +62,13 @@ export default function GuestCheckoutHistory({ checkoutData }: GuestCheckoutHist
                 <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-all">
                   <td className="p-5 font-bold text-white">{item.guestName}</td>
                   <td className="p-5">Room {item.roomNumber}</td>
+
+                   <td className="p-5 text-sm">
+                    {mounted && item.checkInDate 
+                      ? new Date(item.checkInDate).toLocaleDateString('en-IN') 
+                      : "---"
+                    }
+                  </td>
                   
                   <td className="p-5 text-sm">
                     {mounted && item.checkoutDate 

@@ -25,7 +25,7 @@ export async function getCheckoutHistory() {
       roomNumber: invoices.roomNumber,
       guestName: invoices.guestName,
       totalAmount: invoices.totalAmount,
-      checkinDate: rooms.checkInTime, // 🌟 Pull checkin date via rooms relation link directly
+      checkInDate: invoices.checkInDate, // 🌟 Pull checkin date via rooms relation link directly
       checkoutDate: invoices.checkoutDate,
     };
 

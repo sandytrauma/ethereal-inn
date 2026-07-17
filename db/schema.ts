@@ -146,6 +146,7 @@ export const invoices = pgTable("invoices", {
   roomNumber: integer("room_number"),
   guestName: text("guest_name"),
   totalAmount: integer("total_amount"),
+  checkInDate: timestamp("check_in_date"),
   checkoutDate: timestamp("checkout_date").defaultNow(),
 });
 

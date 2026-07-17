@@ -10,7 +10,7 @@ export interface SingleInvoice {
   roomNumber: number | null;
   guestName: string | null;
   totalAmount: number | null;
-  checkinDate: Date | string | null;  
+  checkInDate: Date | string | null;  
   checkoutDate: Date | string | null;
 }
 
@@ -66,9 +66,9 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceProps>(
     };
 
     const calculateNights = () => {
-      if (!invoice.checkinDate || !invoice.checkoutDate) return 1;
+      if (!invoice.checkInDate || !invoice.checkoutDate) return 1;
       
-      const start = new Date(invoice.checkinDate);
+      const start = new Date(invoice.checkInDate);
       const end = new Date(invoice.checkoutDate);
       
       if (isNaN(start.getTime()) || isNaN(end.getTime())) return 1;
@@ -128,7 +128,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceProps>(
             
             <div className="text-right text-xs space-y-1 font-medium text-gray-700 flex flex-col justify-center">
               <p className="flex items-center justify-end gap-1.5 text-gray-600">
-                <Calendar size={12} className="text-gray-400" /> In: <span className="font-mono text-gray-900 font-bold">{formatDate(invoice.checkinDate)}</span>
+                <Calendar size={12} className="text-gray-400" /> In: <span className="font-mono text-gray-900 font-bold">{formatDate(invoice.checkInDate)}</span>
               </p>
               <p className="flex items-center justify-end gap-1.5 text-gray-600">
                 <Calendar size={12} className="text-gray-400" /> Out: <span className="font-mono text-gray-900 font-bold">{formatDate(invoice.checkoutDate)}</span>
