@@ -102,3 +102,21 @@
     text-shadow: 0 0 15px rgba(251, 113, 133, 0.4);
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Ensure the template covers the full height */
+  .print-full-page {
+    height: 297mm;
+    width: 210mm;
+  }
+}

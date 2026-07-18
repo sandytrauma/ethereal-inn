@@ -18,27 +18,28 @@ export async function getCheckoutHistory() {
     const safeUserRole = String((session as any).role || "staff").toLowerCase().trim();
     const isMasterSuperAdmin = Number((session as any).userId || (session as any).id) === 1;
 
-    // 1. Define the subquery clearly
-    const checkInSubquery = sql<Date>`(
-      SELECT MIN(created_at) 
-      FROM ${inquiries} 
-      WHERE ${inquiries.propertyId} = ${invoices.propertyId}
-      AND ${inquiries.message} LIKE CONCAT('Guest: ', ${invoices.guestName}, ' |%')
-    )`.as("check_in_date");
+   // 1. Define the subquery with a unique alias
+const checkInSubquery = sql<Date>`(
+  SELECT MIN(created_at) 
+  FROM ${inquiries} 
+  WHERE ${inquiries.propertyId} = ${invoices.propertyId}
+  AND ${inquiries.message} LIKE CONCAT('Guest: ', ${invoices.guestName}, ' |%')
+)`;
 
-    // 2. Build the initial query object with explicit type inference
-    const query = db
-      .select({
-        id: invoices.id,
-        propertyId: invoices.propertyId,
-        roomNumber: invoices.roomNumber,
-        guestName: invoices.guestName,
-        totalAmount: invoices.totalAmount,
-        checkInDate: checkInSubquery,
-        checkoutDate: invoices.checkoutDate,
-      })
-      .from(invoices)
-      .leftJoin(properties, eq(invoices.propertyId, properties.id));
+// 2. Use the subquery in the select
+const query = db
+  .select({
+    id: invoices.id,
+    propertyId: invoices.propertyId,
+    roomNumber: invoices.roomNumber,
+    guestName: invoices.guestName,
+    totalAmount: invoices.totalAmount,
+    // Use COALESCE with the raw subquery SQL instead of the alias
+    checkInDate: sql<Date>`COALESCE(${invoices.checkInDate}, ${checkInSubquery})`.as("check_in_date"),
+    checkoutDate: invoices.checkoutDate,
+  })
+  .from(invoices)
+  .leftJoin(properties, eq(invoices.propertyId, properties.id));
 
     // 3. Apply logic using conditional typing for the query variable
     if (isMasterSuperAdmin) {
@@ -66,3 +67,4 @@ export async function getCheckoutHistory() {
     return [];
   }
 }
+

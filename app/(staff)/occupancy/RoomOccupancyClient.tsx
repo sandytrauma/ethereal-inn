@@ -29,6 +29,7 @@ interface Room {
   status: RoomStatus | null; 
   guestName?: string | null;
   checkInTime?: Date | null; 
+  checkInDate?: Date | null; // <--- ADD THIS LINE
   propertyId: string;        
 }
 
@@ -228,7 +229,8 @@ export default function RoomOccupancyClient({
         urlPropertyId!,          
         selectedRoom.number, 
         selectedRoom.guestName!, 
-        totalAmountCalculated
+        totalAmountCalculated,
+        selectedRoom.checkInDate || null
       );
 
       if (res.success) {

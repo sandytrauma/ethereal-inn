@@ -153,7 +153,8 @@ export async function processCheckout(
   propertyId: string, 
   roomNumber: number, 
   guestName: string, 
-  totalAmount: number
+  totalAmount: number,
+  checkInDate: Date | null
 ): Promise<ActionResponse> {
   if (!isValidUuidString(propertyId)) return { success: false, error: "Invalid Property ID structure parameters" };
 
@@ -189,6 +190,7 @@ export async function processCheckout(
         guestName,
         totalAmount: Math.round(totalAmount), 
         checkoutDate: new Date(),
+        checkInDate: checkInDate,
       });
 
       const todayDate = new Date().toISOString().split('T')[0];

@@ -6,6 +6,7 @@ import InvoiceTemplate, { SingleInvoice } from "@/components/dashboard/InvoiceTe
 import PrintButton from "@/components/invoice/PrintButton"; 
 import { notFound } from "next/navigation";
 import { unscrambleId } from "@/lib/cryptoId";
+import { properties } from "@/db/micro-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -24,31 +25,30 @@ export default async function PublicInvoicePage({ params }: PublicInvoicePagePro
   }
 
   // 2. Perform a flat relational join lookup pass to extract the live room check-in timestamp
-  const joinedData = await db
-    .select({
-      invoiceId: invoices.id,
-      propertyId: invoices.propertyId,
-      roomNumber: invoices.roomNumber,
-      guestName: invoices.guestName,
-      totalAmount: invoices.totalAmount,
-      checkInDate: invoices.checkInDate,
-      checkoutDate: invoices.checkoutDate,
-      roomCheckIn: rooms.checkInTime // Natively matches your exact pgTable schema definition
-    })
-    .from(invoices)
-    .leftJoin(
-      rooms, 
-      and(
-        eq(invoices.roomNumber, rooms.number),
-        eq(invoices.propertyId, rooms.propertyId)
-      )
-    )
-    .where(eq(invoices.id, realDbId))
-    .then(res => res[0]);
+ // Update the join chain
+const joinedData = await db
+  .select({
+    invoiceId: invoices.id,
+    propertyId: invoices.propertyId,
+   propertyName: properties.name,
+    propertyCity: properties.city,
+    propertySlug: properties.slug,
+    roomNumber: invoices.roomNumber,
+    guestName: invoices.guestName,
+    totalAmount: invoices.totalAmount,
+    checkInDate: invoices.checkInDate,
+    checkoutDate: invoices.checkoutDate,
+  })
+  .from(invoices)
+  .leftJoin(properties, eq(invoices.propertyId, properties.id)) // Join properties directly
+  .where(eq(invoices.id, realDbId))
+  .then(res => res[0]);
 
   if (!joinedData) {
     notFound();
   }
+
+  
 
   // 3. DEFENSIVE STRATEGY fallback: If a receptionist already purged the guest file from the live room row,
   // mathematically calculate a 1-night fallback frame relative to check-out to avoid displaying template flags.
@@ -65,6 +65,13 @@ export default async function PublicInvoicePage({ params }: PublicInvoicePagePro
     totalAmount: joinedData.totalAmount,
     checkInDate: resolvedCheckIn, // Perfectly aligned casing contract mapping passed down
     checkoutDate: joinedData.checkoutDate,
+  propertyDetails: {
+    name: joinedData.propertyName || "Ethereal Inn",
+    address: joinedData.propertySlug 
+      ? joinedData.propertySlug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+      : "New Delhi, India",
+    tagline: "Experience the Sanctuary",
+  }
   };
 
   return (

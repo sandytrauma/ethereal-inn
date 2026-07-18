@@ -4,6 +4,13 @@
 import React from "react";
 import { MapPin, Calendar } from "lucide-react";
 
+export interface PropertyData {
+  id: string;
+  name: string;
+  address: string;
+  tagline: string;
+}
+
 export interface SingleInvoice {
   id: number;
   propertyId: string | null;  
@@ -12,6 +19,12 @@ export interface SingleInvoice {
   totalAmount: number | null;
   checkInDate: Date | string | null;  
   checkoutDate: Date | string | null;
+ propertyDetails?: { 
+    name: string;
+    address: string;
+    tagline: string;
+    slug?: string; 
+  };
 }
 
 interface InvoiceProps {
@@ -50,7 +63,12 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceProps>(
   ({ invoice }, ref) => {
     if (!invoice) return null;
 
-    const property = getPropertyProfile(invoice.propertyId);
+    const property = getPropertyProfile(invoice.propertyId) || invoice.propertyDetails || { 
+        name: "Ethereal Inn", 
+        address: "India", 
+        tagline: "Experience the Sanctuary", 
+        slug: "general" 
+    };
 
     // Standardize native text parsing across strings or datetime stamp parameters safely
     const formatDate = (dateInput: Date | string | null) => {
@@ -87,15 +105,16 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceProps>(
     const totalNights = calculateNights();
 
     return (
-      <div
+     <div
         ref={ref}
-        className="p-12 bg-white text-black min-h-[11in] font-sans border-[12px] border-double border-gray-100 flex flex-col justify-between print:border-none print:p-6 select-none print:min-h-0"
-        style={{ width: "8.5in" }}
+        // ADDED: bg-[url('/logo-bg.jpeg')] + background positioning
+        className="p-12 bg-white text-black min-h-[297mm] font-sans border-[12px] border-double border-gray-100 flex flex-col justify-between print:border-none print:p-6 select-none print:min-h-0 bg-[url('/logo-bg.jpeg')] bg-center bg-no-repeat bg-contain"
+        style={{ width: "210mm" }}
       >
-        <div className="w-full space-y-10">
+        <div className="w-full bg-white/90 p-4 rounded-xl space-y-10">
           {/* Header Branding Panel */}
           <div className="flex justify-between items-start border-b-2 border-amber-600 pb-6 print:border-amber-600">
-            <div className="space-y-2">
+            <div className="w-full space-y-10 flex-grow">
               <h1 className="text-xl font-black uppercase tracking-tight text-gray-950">
                 Ethereal Inn <span className="text-amber-600 print:text-amber-600">Hospitality LLP</span>
               </h1>
@@ -117,7 +136,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceProps>(
           </div>
 
           {/* Guest Stay Metadata Ledger Card */}
-          <div className="grid grid-cols-2 gap-8 bg-gray-50 p-4 rounded-xl border border-gray-100 print:bg-gray-50">
+          <div className="grid grid-cols-2 gap-8 bg-gray-50  p-4 rounded-xl border border-gray-100 print:bg-gray-50">
             <div className="space-y-1">
               <p className="text-[9px] uppercase font-black text-amber-600 tracking-widest">Guest Account File</p>
               <h2 className="text-md font-bold text-gray-900 border-l-2 border-amber-600 pl-2">
