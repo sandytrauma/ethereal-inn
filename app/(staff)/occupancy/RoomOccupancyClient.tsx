@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useMemo, useEffect } from "react";
+import React, { useState, useTransition, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   DoorOpen, UserCheck, Wind, AlertCircle, X, Loader2, 
@@ -79,6 +79,10 @@ export default function RoomOccupancyClient({
   const [roomRent, setRoomRent] = useState(0);
   const [serviceFoodTotal, setServiceFoodTotal] = useState(0);
 
+  // --- UI-ONLY: touch-friendly property switcher state (replaces broken hover-only dropdown) ---
+  const [propertyMenuOpen, setPropertyMenuOpen] = useState(false);
+  const switcherRef = useRef<HTMLDivElement | null>(null);
+
   // Sync rooms when server data changes
   useEffect(() => {
     setRooms(initialRooms);
@@ -90,6 +94,35 @@ export default function RoomOccupancyClient({
       }
     }
   }, [initialRooms, prefillName]);
+
+  // --- UI-ONLY: close the property switcher when tapping/clicking outside of it ---
+  useEffect(() => {
+    if (!propertyMenuOpen) return;
+
+    function handleOutsideInteraction(e: MouseEvent | TouchEvent) {
+      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
+        setPropertyMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideInteraction);
+    document.addEventListener("touchstart", handleOutsideInteraction);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideInteraction);
+      document.removeEventListener("touchstart", handleOutsideInteraction);
+    };
+  }, [propertyMenuOpen]);
+
+  // --- UI-ONLY: lock background scroll while the room detail sheet is open on mobile ---
+  useEffect(() => {
+    if (selectedRoom) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+  }, [selectedRoom]);
 
   const handleCleanup = async () => {
     if (!confirm("This will delete the extra 6 rooms per floor. Proceed?")) return;
@@ -250,27 +283,53 @@ export default function RoomOccupancyClient({
   const activeProperty = properties.find(p => p.id === urlPropertyId);
   const activePropertyName = activeProperty?.name || "Select Property";
 
+  const goToProperty = (id: string) => {
+    setPropertyMenuOpen(false);
+    router.push(`/occupancy?propertyId=${id}`);
+  };
+
   if (onlySwitcher) {
     return (
-      <div className="relative group font-sans">
-        <button className="px-5 py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2">
-          {activePropertyName} <ChevronDown size={14} />
+      <div className="relative font-sans" ref={switcherRef}>
+        <button
+          type="button"
+          onClick={() => setPropertyMenuOpen(o => !o)}
+          aria-expanded={propertyMenuOpen}
+          className="w-full sm:w-auto px-5 py-3.5 sm:py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-between sm:justify-center gap-2 active:scale-[0.97] touch-manipulation"
+        >
+          {activePropertyName}
+          <ChevronDown size={14} className={`transition-transform duration-200 ${propertyMenuOpen ? 'rotate-180' : ''}`} />
         </button>
-        <div className="absolute right-0 mt-2 w-64 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:block z-50 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-          {properties.map((p) => (
-            <button key={p.id} onClick={() => router.push(`/occupancy?propertyId=${p.id}`)} className="flex flex-col items-start w-full px-5 py-3 border-b border-white/5 last:border-0 hover:bg-amber-400 hover:text-slate-950 transition-colors text-left font-black uppercase tracking-tight text-[11px]">
-              {p.name}
-              <span className="text-[8px] opacity-60 font-mono">{p.id}</span>
-            </button>
-          ))}
-        </div>
+        <AnimatePresence>
+          {propertyMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15 }}
+              className="absolute right-0 mt-2 w-full sm:w-64 max-w-[92vw] bg-[#0a0a0a] border border-white/10 rounded-2xl z-50 shadow-2xl overflow-hidden max-h-[60vh] overflow-y-auto overscroll-contain"
+            >
+              {properties.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => goToProperty(p.id)}
+                  className="flex flex-col items-start w-full px-5 py-4 border-b border-white/5 last:border-0 hover:bg-amber-400 hover:text-slate-950 active:bg-amber-500 transition-colors text-left font-black uppercase tracking-tight text-[11px] touch-manipulation"
+                >
+                  {p.name}
+                  <span className="text-[8px] opacity-60 font-mono">{p.id}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
 
   return (
     <div className="flex min-h-screen bg-transparent text-slate-100 font-sans selection:bg-amber-400 selection:text-black overflow-x-hidden">
-      <div className="flex-1 p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar relative z-10">
+      <div className="flex-1 p-4 sm:p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar relative z-10">
         <DashboardBackground />
         
         {/* PROPERTY SWITCHER HEADER */}
@@ -289,34 +348,51 @@ export default function RoomOccupancyClient({
     </div>
   </div>
 
-  {/* Property Switcher - Thumb Ready */}
-  <div className="relative group w-full sm:w-auto">
-    {/* Added 'w-full' and 'justify-between' for thumb-accessibility */}
-    <button className="w-full sm:w-auto px-5 py-4 sm:py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-2xl sm:rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-between sm:justify-center gap-2 active:scale-[0.98]">
-      Switch Property <ChevronDown size={14} />
+  {/* Property Switcher - Thumb Ready, tap-to-open (works on touch + mouse) */}
+  <div className="relative w-full sm:w-auto" ref={switcherRef}>
+    <button
+      type="button"
+      onClick={() => setPropertyMenuOpen(o => !o)}
+      aria-expanded={propertyMenuOpen}
+      className="w-full sm:w-auto px-5 py-4 sm:py-2.5 bg-white/5 hover:bg-amber-400 hover:text-slate-950 rounded-2xl sm:rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-between sm:justify-center gap-2 active:scale-[0.98] touch-manipulation"
+    >
+      Switch Property
+      <ChevronDown size={14} className={`transition-transform duration-200 ${propertyMenuOpen ? 'rotate-180' : ''}`} />
     </button>
 
-    {/* Dropdown - Adjusted for mobile position and full width access */}
-    <div className="absolute right-0 mt-2 w-full sm:w-72 bg-[#0a0a0a] border border-white/10 rounded-2xl hidden group-hover:flex sm:group-hover:block z-50 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-      <div className="flex flex-col max-h-[300px] overflow-y-auto">
-        {properties.map((property) => (
-          <button
-            key={property.id}
-            onClick={() => router.push(`/occupancy?propertyId=${property.id}`)}
-            className="flex flex-col items-start w-full px-6 py-4 border-b border-white/5 last:border-0 hover:bg-amber-400 hover:text-slate-950 transition-colors text-left active:bg-amber-500"
-          >
-            <span className="text-[11px] font-black uppercase tracking-tight">{property.name}</span>
-            <span className="text-[9px] opacity-60 font-mono mt-0.5">{property.id}</span>
-          </button>
-        ))}
-        <button 
-          onClick={() => router.push('/management')} 
-          className="w-full px-5 py-4 text-[10px] font-black text-amber-400 hover:bg-white/5 text-center border-t border-white/10 tracking-widest uppercase active:bg-white/10"
+    {/* Dropdown - opens on tap/click, sized to stay on-screen on mobile */}
+    <AnimatePresence>
+      {propertyMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.15 }}
+          className="absolute right-0 mt-2 w-full sm:w-72 max-w-[92vw] bg-[#0a0a0a] border border-white/10 rounded-2xl z-50 shadow-2xl overflow-hidden"
         >
-          + MANAGE PROPERTIES
-        </button>
-      </div>
-    </div>
+          <div className="flex flex-col max-h-[300px] overflow-y-auto overscroll-contain">
+            {properties.map((property) => (
+              <button
+                key={property.id}
+                type="button"
+                onClick={() => goToProperty(property.id)}
+                className="flex flex-col items-start w-full px-6 py-4 border-b border-white/5 last:border-0 hover:bg-amber-400 hover:text-slate-950 transition-colors text-left active:bg-amber-500 touch-manipulation"
+              >
+                <span className="text-[11px] font-black uppercase tracking-tight">{property.name}</span>
+                <span className="text-[9px] opacity-60 font-mono mt-0.5">{property.id}</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => { setPropertyMenuOpen(false); router.push('/management'); }}
+              className="w-full px-5 py-4 text-[10px] font-black text-amber-400 hover:bg-white/5 text-center border-t border-white/10 tracking-widest uppercase active:bg-white/10 touch-manipulation"
+            >
+              + MANAGE PROPERTIES
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   </div>
 </div>
 
@@ -336,25 +412,25 @@ export default function RoomOccupancyClient({
 
   {/* Right Section: Controls & Search */}
   <div className="flex flex-col items-center lg:items-end gap-4 w-full lg:w-auto">
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
       <button 
         onClick={handleResetInventory}
         disabled={isPending}
-        className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:border-amber-400/30 transition-all active:scale-95"
+        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 sm:py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-400 hover:border-amber-400/30 transition-all active:scale-95 touch-manipulation"
       >
         {isPending ? <Loader2 size={12} className="animate-spin text-amber-400" /> : <Database size={12} />}
         Reset Registry
       </button>
       <Link 
         href={`/`} 
-        className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] hover:text-rose-500 transition-colors" 
+        className="flex-1 sm:flex-initial text-center text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] sm:tracking-[0.5em] hover:text-rose-500 transition-colors py-3 sm:py-0 touch-manipulation" 
         scroll={false}
       >
         Return
       </Link>
     </div>
     
-    {/* Search Bar - Responsive Width */}
+    {/* Search Bar - Responsive Width, 16px base font prevents iOS auto-zoom on focus */}
     <div className="relative w-full max-w-sm lg:max-w-md">
       <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
       <input 
@@ -362,7 +438,7 @@ export default function RoomOccupancyClient({
         placeholder="Search Unit / Guest Name..." 
         value={searchQuery} 
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-3.5 md:py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl placeholder:text-slate-700" 
+        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-3.5 md:py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-base sm:text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl placeholder:text-slate-700" 
       />
     </div>
   </div>
@@ -418,18 +494,18 @@ export default function RoomOccupancyClient({
         {selectedRoom && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRoom(null)} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[90]" />
-            <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#02040a]/90 backdrop-blur-[50px] border-l border-white/10 z-[100] p-10 flex flex-col shadow-[-20px_0_100px_rgba(0,0,0,0.9)] overflow-y-auto no-scrollbar">
+            <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#02040a]/90 backdrop-blur-[50px] border-l border-white/10 z-[100] p-6 sm:p-10 flex flex-col shadow-[-20px_0_100px_rgba(0,0,0,0.9)] overflow-y-auto overscroll-contain no-scrollbar">
               
-              <div className="flex justify-between items-center mb-16">
+              <div className="flex justify-between items-center mb-10 sm:mb-16">
                 <div className="px-6 py-3 bg-white/5 rounded-3xl border border-white/10 bg-white/[0.02]">
                   <span className="text-amber-400 font-black text-2xl tracking-tighter italic uppercase">Room {selectedRoom.number}</span>
                 </div>
-                <button onClick={() => setSelectedRoom(null)} className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 hover:text-rose-500 rounded-2xl transition-all text-slate-500 border border-white/5"><X size={20}/></button>
+                <button onClick={() => setSelectedRoom(null)} className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 hover:text-rose-500 rounded-2xl transition-all text-slate-500 border border-white/5 active:scale-95 touch-manipulation"><X size={20}/></button>
               </div>
 
               <div className="flex-1">
                 {!showBill ? (
-                  <div className="space-y-12">
+                  <div className="space-y-10 sm:space-y-12">
                     <section>
                       <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 mb-6 block underline decoration-amber-500/50 underline-offset-8">Status Update</label>
                       <div className="grid grid-cols-2 gap-4">
@@ -438,7 +514,7 @@ export default function RoomOccupancyClient({
                             key={s} 
                             disabled={isPending || (s === 'occupied' && !selectedRoom.guestName && !guestNameInput)} 
                             onClick={() => handleStatusChange(s)} 
-                            className={`py-5 rounded-3xl text-[10px] font-black uppercase tracking-widest border transition-all ${selectedRoom.status === s ? 'bg-amber-400 border-amber-400 text-slate-950 shadow-2xl shadow-amber-400/20' : 'bg-white/5 border-white/10 text-slate-500 hover:border-white/30'}`}
+                            className={`py-5 rounded-3xl text-[10px] font-black uppercase tracking-widest border transition-all active:scale-95 touch-manipulation disabled:opacity-40 disabled:active:scale-100 ${selectedRoom.status === s ? 'bg-amber-400 border-amber-400 text-slate-950 shadow-2xl shadow-amber-400/20' : 'bg-white/5 border-white/10 text-slate-500 hover:border-white/30'}`}
                           >
                             {s}
                           </button>
@@ -447,7 +523,7 @@ export default function RoomOccupancyClient({
                     </section>
 
                     {selectedRoom.status === "available" && (
-                      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className={`p-8 rounded-[3rem] border-2 transition-all ${prefillName ? 'bg-amber-400/10 border-amber-400/40 ring-4 ring-amber-400/5' : 'bg-white/[0.02] border-white/5'}`}>
+                      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className={`p-6 sm:p-8 rounded-[3rem] border-2 transition-all ${prefillName ? 'bg-amber-400/10 border-amber-400/40 ring-4 ring-amber-400/5' : 'bg-white/[0.02] border-white/5'}`}>
                         <div className="flex justify-between items-start mb-8">
                             <div className="space-y-1">
                                 <h3 className={`text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 ${prefillName ? 'text-amber-400' : 'text-slate-500'}`}>
@@ -461,31 +537,31 @@ export default function RoomOccupancyClient({
                         <div className="space-y-4">
                             <div className="relative">
                               <UserPlus className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-sm text-white outline-none focus:border-amber-400 transition-all font-black uppercase italic placeholder:text-slate-700" placeholder="Guest Full Name" value={guestNameInput} onChange={(e) => setGuestNameInput(e.target.value)} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-base sm:text-sm text-white outline-none focus:border-amber-400 transition-all font-black uppercase italic placeholder:text-slate-700" placeholder="Guest Full Name" value={guestNameInput} onChange={(e) => setGuestNameInput(e.target.value)} />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                               <div className="relative">
                                   <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                                  <input type="date" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-[10px] text-white outline-none focus:border-amber-400 font-black uppercase" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} />
+                                  <input type="date" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-base sm:text-[10px] text-white outline-none focus:border-amber-400 font-black uppercase" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} />
                               </div>
                               <div className="relative">
                                   <Users className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                                  <input type="number" placeholder="Pax" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 p-4 pl-14 text-[10px] text-white outline-none focus:border-amber-400 font-black uppercase placeholder:text-slate-700" value={paxInput} onChange={(e) => setPaxInput(Number(e.target.value))} />
+                                  <input type="number" placeholder="Pax" className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 p-4 pl-14 text-base sm:text-[10px] text-white outline-none focus:border-amber-400 font-black uppercase placeholder:text-slate-700" value={paxInput} onChange={(e) => setPaxInput(Number(e.target.value))} />
                               </div>
                             </div>
 
                             <div className="relative">
                               <Fingerprint className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase placeholder:text-slate-700" placeholder="ID Number" value={idNumberInput} onChange={(e) => setIdNumberInput(e.target.value)} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-base sm:text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase placeholder:text-slate-700" placeholder="ID Number" value={idNumberInput} onChange={(e) => setIdNumberInput(e.target.value)} />
                             </div>
 
                             <div className="relative">
                               <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase placeholder:text-slate-700" placeholder="State / Origin" value={stateOriginInput} onChange={(e) => setStateOriginInput(e.target.value)} />
+                              <input className="w-full bg-black/60 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-base sm:text-xs text-white outline-none focus:border-amber-400 transition-all font-black uppercase placeholder:text-slate-700" placeholder="State / Origin" value={stateOriginInput} onChange={(e) => setStateOriginInput(e.target.value)} />
                             </div>
 
-                            <button onClick={handleCheckIn} disabled={isPending || !guestNameInput} className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-3xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-2xl shadow-amber-400/30 active:scale-95 transition-all cursor-pointer">
+                            <button onClick={handleCheckIn} disabled={isPending || !guestNameInput} className="w-full bg-amber-400 text-slate-950 font-black py-6 rounded-3xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-2xl shadow-amber-400/30 active:scale-95 transition-all cursor-pointer touch-manipulation disabled:opacity-50 disabled:active:scale-100">
                                 {isPending ? <Loader2 size={20} className="animate-spin text-slate-950" /> : <> <Check size={20} strokeWidth={3} /> Finalize Entry</>}
                             </button>
                         </div>
@@ -493,11 +569,11 @@ export default function RoomOccupancyClient({
                     )}
 
                     {selectedRoom.guestName && selectedRoom.status === 'occupied' && (
-                      <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 relative overflow-hidden bg-white/[0.01]">
+                      <div className="bg-white/5 p-6 sm:p-8 rounded-[3rem] border border-white/10 relative overflow-hidden bg-white/[0.01]">
                         <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={40} /></div>
                         <label className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-3 block italic">Occupant</label>
                         <p className="text-3xl font-black text-white italic tracking-tighter mb-10 leading-tight uppercase truncate">{selectedRoom.guestName}</p>
-                        <button onClick={() => setShowBill(true)} className="w-full bg-white text-slate-950 py-6 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-amber-400 transition-all active:scale-95 flex items-center justify-center gap-3 cursor-pointer">
+                        <button onClick={() => setShowBill(true)} className="w-full bg-white text-slate-950 py-6 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-amber-400 transition-all active:scale-95 flex items-center justify-center gap-3 cursor-pointer touch-manipulation">
                             <TrendingUp size={18} /> Checkout & Settle
                         </button>
                       </div>
@@ -505,7 +581,7 @@ export default function RoomOccupancyClient({
                   </div>
                 ) : (
                   <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
-                    <div className="bg-white/5 p-10 rounded-[3.5rem] border border-white/10 space-y-10 bg-white/[0.01]">
+                    <div className="bg-white/5 p-6 sm:p-10 rounded-[3.5rem] border border-white/10 space-y-10 bg-white/[0.01]">
                       <div className="flex items-center gap-3 text-amber-400">
                           <Receipt size={18}/> 
                           <h4 className="font-black uppercase tracking-[0.3em] text-[10px]">Financial Summary</h4>
@@ -515,14 +591,14 @@ export default function RoomOccupancyClient({
                         <SideInput label="Add-ons / Food" value={serviceFoodTotal} onChange={setServiceFoodTotal} />
                         <div className="pt-10 border-t border-white/10 flex justify-between items-end">
                           <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Total Bill</span>
-                          <span className="text-5xl font-black italic text-white tracking-tighter">₹{(roomRent || 0) + (serviceFoodTotal || 0)}</span>
+                          <span className="text-4xl sm:text-5xl font-black italic text-white tracking-tighter">₹{(roomRent || 0) + (serviceFoodTotal || 0)}</span>
                         </div>
                       </div>
                     </div>
-                    <button onClick={finalizeCheckout} disabled={isPending} className="w-full bg-amber-400 text-slate-950 font-black py-7 rounded-[2.5rem] uppercase text-xs tracking-[0.3em] shadow-2xl shadow-amber-400/30 active:scale-95 transition-all cursor-pointer">
+                    <button onClick={finalizeCheckout} disabled={isPending} className="w-full bg-amber-400 text-slate-950 font-black py-7 rounded-[2.5rem] uppercase text-xs tracking-[0.3em] shadow-2xl shadow-amber-400/30 active:scale-95 transition-all cursor-pointer touch-manipulation disabled:opacity-50 disabled:active:scale-100">
                       {isPending ? "Updating Database..." : "Authorize Settle"}
                     </button>
-                    <button onClick={() => setShowBill(false)} className="w-full text-slate-600 font-black text-[10px] uppercase flex items-center justify-center gap-3 hover:text-white transition-colors cursor-pointer"><ArrowLeft size={14} /> Back to Room</button>
+                    <button onClick={() => setShowBill(false)} className="w-full text-slate-600 font-black text-[10px] uppercase flex items-center justify-center gap-3 hover:text-white transition-colors cursor-pointer touch-manipulation py-2"><ArrowLeft size={14} /> Back to Room</button>
                   </motion.div>
                 )}
               </div>
@@ -555,7 +631,7 @@ function RoomTile({ room, onClick, isLeadActive, isSelected }: any) {
       className={`
         glass-deep relative flex flex-col justify-between 
         p-5 rounded-[2.5rem] cursor-pointer transition-all duration-500
-        aspect-square w-full overflow-hidden
+        aspect-square w-full overflow-hidden touch-manipulation
         ${isSelected ? 'ring-2 ring-amber-400 bg-amber-400/5' : 'border border-white/5'}
         ${isLeadActive ? 'ring-2 ring-emerald-400 ring-offset-4 ring-offset-[#02040a]' : ''}
       `}
@@ -597,10 +673,10 @@ function SideInput({ label, value, onChange }: any) {
 
 function StatBox({ label, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white/[0.03] border border-white/5 backdrop-blur-md p-10 rounded-[3rem] relative overflow-hidden group text-center lg:text-left">
+    <div className="bg-white/[0.03] border border-white/5 backdrop-blur-md p-6 sm:p-10 rounded-[3rem] relative overflow-hidden group text-center lg:text-left">
       <div className={`absolute -right-4 -bottom-4 opacity-[0.03] ${color} group-hover:scale-125 transition-transform duration-700`}><Icon size={120} /></div>
       <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 mb-2">{label}</p>
-      <h4 className={`text-5xl font-black italic tracking-tighter ${color}`}>{value}</h4>
+      <h4 className={`text-4xl sm:text-5xl font-black italic tracking-tighter ${color}`}>{value}</h4>
     </div>
   );
 }

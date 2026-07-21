@@ -52,8 +52,8 @@ const getPropertyProfile = (propertyId: string | null) => {
 
     default:
       return {
-        name: "Ethereal Inn Boutique Suites",
-        address: "Hospitality LLP Master Corporate Division",
+        name: "_____________________________________________",
+        address: "__________________________________________",
         tagline: "Experience the Sanctuary",
       };
   }
