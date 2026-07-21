@@ -83,6 +83,19 @@ export default function RoomOccupancyClient({
   const [propertyMenuOpen, setPropertyMenuOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement | null>(null);
 
+  // --- UI-ONLY: detect small/touch screens so we can disable expensive GPU effects
+  // (backdrop-blur stacks, hover animations, continuous background motion) that cause
+  // visible frame-pacing flicker on many Android phones. Purely presentational.
+  const [isPhoneScreen, setIsPhoneScreen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsPhoneScreen(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   // Sync rooms when server data changes
   useEffect(() => {
     setRooms(initialRooms);
@@ -330,10 +343,10 @@ export default function RoomOccupancyClient({
   return (
     <div className="flex min-h-screen bg-transparent text-slate-100 font-sans selection:bg-amber-400 selection:text-black overflow-x-hidden">
       <div className="flex-1 p-4 sm:p-6 md:p-12 overflow-y-auto pb-40 no-scrollbar relative z-10">
-        <DashboardBackground />
+        {!isPhoneScreen && <DashboardBackground />}
         
         {/* PROPERTY SWITCHER HEADER */}
-      <div className="max-w-[1700px] mx-auto mb-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-xl shadow-2xl gap-4">
+      <div className="max-w-[1700px] mx-auto mb-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-white/[0.07] sm:bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-none sm:backdrop-blur-xl shadow-2xl gap-4">
   {/* Property Info */}
   <div className="flex items-center gap-4">
     <div className="p-2.5 bg-amber-400 rounded-xl text-slate-950 shadow-md shrink-0">
@@ -364,12 +377,12 @@ export default function RoomOccupancyClient({
     <AnimatePresence>
       {propertyMenuOpen && (
         <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.15 }}
-          className="absolute right-0 mt-2 w-full sm:w-72 max-w-[92vw] bg-[#0a0a0a] border border-white/10 rounded-2xl z-50 shadow-2xl overflow-hidden"
-        >
+  initial={{ opacity: 0, y: -8 }}
+  animate={{ opacity: 1, y: 0 }}
+  exit={{ opacity: 0, y: -8 }}
+  transition={{ duration: 0.15 }}
+  className="absolute right-0 mt-2 w-full sm:w-72 max-w-[92vw] bg-[#0a0a0a] border border-white/10 rounded-2xl z-[999999] shadow-2xl overflow-hidden"
+>
           <div className="flex flex-col max-h-[300px] overflow-y-auto overscroll-contain">
             {properties.map((property) => (
               <button
@@ -403,7 +416,7 @@ export default function RoomOccupancyClient({
       Inventory.
     </h1>
     <div className="flex items-center gap-3 mt-4">
-      <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+      <div className="h-2 w-2 rounded-full bg-emerald-500 sm:animate-pulse" />
       <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em]">
         Active Operation Cluster
       </p>
@@ -438,7 +451,7 @@ export default function RoomOccupancyClient({
         placeholder="Search Unit / Guest Name..." 
         value={searchQuery} 
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-3.5 md:py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-base sm:text-[10px] font-black uppercase text-white transition-all backdrop-blur-xl placeholder:text-slate-700" 
+        className="w-full bg-white/[0.08] sm:bg-white/[0.03] border border-white/10 rounded-2xl py-3.5 md:py-4 pl-12 pr-6 outline-none focus:border-amber-400/50 text-base sm:text-[10px] font-black uppercase text-white transition-all backdrop-blur-none sm:backdrop-blur-xl placeholder:text-slate-700" 
       />
     </div>
   </div>
@@ -457,7 +470,7 @@ export default function RoomOccupancyClient({
         <div className="max-w-[1700px] mx-auto space-y-24 pb-20">
           {roomsByFloor.map(({ floor, rooms: floorRooms }) => (
             <div key={`floor-${floor}-ctx-${urlPropertyId}`} className="relative">
-              <div className="flex items-center gap-6 mb-10 sticky top-4 z-20 px-6 py-4 rounded-3xl border border-white/5 shadow-2xl backdrop-blur-md bg-slate-950/40">
+              <div className="flex items-center gap-6 mb-10 sticky top-4 z-20 px-6 py-4 rounded-3xl border border-white/5 shadow-2xl backdrop-blur-none sm:backdrop-blur-md bg-slate-950/90 sm:bg-slate-950/40">
                 <span className="text-white/20 font-black text-6xl uppercase tracking-tighter italic leading-none">P0{floor}</span>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Property Floor</span>
@@ -480,6 +493,7 @@ export default function RoomOccupancyClient({
                       room={room} 
                       isSelected={selectedRoom?.id === room.id}
                       isLeadActive={!!prefillName && room.status === 'available'}
+                      isPhoneScreen={isPhoneScreen}
                       onClick={() => { setSelectedRoom(room); setShowBill(false); }} 
                     />
                   );
@@ -493,8 +507,8 @@ export default function RoomOccupancyClient({
       <AnimatePresence>
         {selectedRoom && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRoom(null)} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[90]" />
-            <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#02040a]/90 backdrop-blur-[50px] border-l border-white/10 z-[100] p-6 sm:p-10 flex flex-col shadow-[-20px_0_100px_rgba(0,0,0,0.9)] overflow-y-auto overscroll-contain no-scrollbar">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRoom(null)} className="fixed inset-0 bg-black/90 sm:bg-black/80 backdrop-blur-none sm:backdrop-blur-sm z-[90]" />
+            <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#02040a]/98 sm:bg-[#02040a]/90 backdrop-blur-none sm:backdrop-blur-[50px] border-l border-white/10 z-[100] p-6 sm:p-10 flex flex-col shadow-[-20px_0_100px_rgba(0,0,0,0.9)] overflow-y-auto overscroll-contain no-scrollbar">
               
               <div className="flex justify-between items-center mb-10 sm:mb-16">
                 <div className="px-6 py-3 bg-white/5 rounded-3xl border border-white/10 bg-white/[0.02]">
@@ -612,7 +626,7 @@ export default function RoomOccupancyClient({
 
 // --- SUB-COMPONENTS ---
 
-function RoomTile({ room, onClick, isLeadActive, isSelected }: any) {
+function RoomTile({ room, onClick, isLeadActive, isSelected, isPhoneScreen }: any) {
   const s: RoomStatus = room.status ?? "available";
   const statusStyles = {
     available: { color: "text-emerald-400", bg: "bg-emerald-400/10", icon: DoorOpen },
@@ -625,7 +639,7 @@ function RoomTile({ room, onClick, isLeadActive, isSelected }: any) {
 
   return (
     <motion.div 
-      whileHover={{ y: -8, scale: 1.02 }} 
+      whileHover={isPhoneScreen ? undefined : { y: -8, scale: 1.02 }} 
       whileTap={{ scale: 0.97 }} 
       onClick={onClick} 
       className={`
@@ -649,7 +663,7 @@ function RoomTile({ room, onClick, isLeadActive, isSelected }: any) {
 
       <div className="mt-auto">
         {room.guestName ? (
-          <div className="bg-white/[0.03] px-3 py-2 rounded-xl border border-white/5 backdrop-blur-md">
+          <div className="bg-white/[0.08] sm:bg-white/[0.03] px-3 py-2 rounded-xl border border-white/5 backdrop-blur-none sm:backdrop-blur-md">
             <p className="text-[10px] font-black text-white/90 truncate italic uppercase tracking-tight">{room.guestName}</p>
           </div>
         ) : (
@@ -657,7 +671,9 @@ function RoomTile({ room, onClick, isLeadActive, isSelected }: any) {
         )}
       </div>
 
-      <div className={`absolute -bottom-10 -right-10 w-24 h-24 blur-[50px] rounded-full opacity-20 ${currentStyle.bg}`} />
+      {!isPhoneScreen && (
+        <div className={`absolute -bottom-10 -right-10 w-24 h-24 blur-[50px] rounded-full opacity-20 ${currentStyle.bg}`} />
+      )}
     </motion.div>
   );
 }
@@ -673,7 +689,7 @@ function SideInput({ label, value, onChange }: any) {
 
 function StatBox({ label, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white/[0.03] border border-white/5 backdrop-blur-md p-6 sm:p-10 rounded-[3rem] relative overflow-hidden group text-center lg:text-left">
+    <div className="bg-white/[0.07] sm:bg-white/[0.03] border border-white/5 backdrop-blur-none sm:backdrop-blur-md p-6 sm:p-10 rounded-[3rem] relative overflow-hidden group text-center lg:text-left">
       <div className={`absolute -right-4 -bottom-4 opacity-[0.03] ${color} group-hover:scale-125 transition-transform duration-700`}><Icon size={120} /></div>
       <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 mb-2">{label}</p>
       <h4 className={`text-4xl sm:text-5xl font-black italic tracking-tighter ${color}`}>{value}</h4>
